@@ -1,28 +1,32 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16
     environment:
       POSTGRES_USER: ripcord
-      POSTGRES_PASSWORD: ripcord_dev
+      POSTGRES_PASSWORD: ripcord
       POSTGRES_DB: ripcord
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ripcord"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      - ripcord_pg:/var/lib/postgresql/data
 
   redis:
-    image: redis:7-alpine
+    image: redis:7
     ports:
       - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     volumes:
-      - redisdata:/data
+      - ripcord_minio:/data
 
 volumes:
-  pgdata:
-  redisdata:
+  ripcord_pg:
+  ripcord_minio:

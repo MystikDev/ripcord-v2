@@ -2,20 +2,12 @@
   "name": "ripcord-v2",
   "private": true,
   "version": "0.1.0",
-  "description": "Ripcord v2 monorepo",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev": "concurrently \"npm run dev -w @ripcord/api\" \"npm run dev -w @ripcord/gateway\"",
-    "build": "npm run -ws build",
-    "lint": "npm run -ws lint",
-    "test": "npm run -ws test",
-    "db:migrate": "node scripts/run-migrations.mjs",
-    "db:reset": "docker compose down -v && docker compose up -d postgres redis"
-  },
-  "devDependencies": {
-    "concurrently": "^9.0.1"
+    "dev": "echo 'Run service-specific dev commands as apps are scaffolded'",
+    "dev:infra": "docker compose up -d",
+    "stop:infra": "docker compose down",
+    "lint": "echo 'TODO: add lint config'",
+    "test": "echo 'TODO: add test runner'"
   }
 }
