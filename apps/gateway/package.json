@@ -1,0 +1,14 @@
+{
+  "name": "@ripcord/gateway",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server.mjs",
+    "build": "echo build-gateway",
+    "lint": "echo lint-gateway",
+    "test": "echo test-gateway"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
