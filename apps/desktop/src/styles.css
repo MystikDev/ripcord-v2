@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+/* Scan the shared UI package for class usage */
+@source "../../../packages/ui/src/**/*.tsx";
+@source "../../../packages/ui/src/**/*.ts";
+
+@theme {
+  --color-bg: #0A0C10;
+  --color-surface-1: #12151C;
+  --color-surface-2: #1A1E28;
+  --color-surface-3: #232834;
+  --color-border: #2A3040;
+  --color-text-primary: #E8ECF4;
+  --color-text-secondary: #8892A8;
+  --color-text-muted: #5C657A;
+  --color-accent: #7C5CFF;
+  --color-accent-hover: #6B4AEE;
+  --color-cyan: #2EE6FF;
+  --color-success: #34D399;
+  --color-warning: #FBBF24;
+  --color-danger: #F87171;
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* Selection */
+::selection {
+  background-color: rgba(124, 92, 255, 0.3);
+  color: var(--color-text-primary);
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
