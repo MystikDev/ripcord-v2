@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ripcord
       POSTGRES_PASSWORD: ripcord
@@ -9,14 +10,26 @@ services:
       - "5432:5432"
     volumes:
       - ripcord_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ripcord"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   redis:
     image: redis:7
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   minio:
     image: minio/minio:latest
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -26,6 +39,27 @@ services:
       - "9001:9001"
     volumes:
       - ripcord_minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    command: --dev --bind 0.0.0.0 --node-ip 104.59.229.105
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+    environment:
+      LIVEKIT_KEYS: "devkey: secret"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7880"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   ripcord_pg:

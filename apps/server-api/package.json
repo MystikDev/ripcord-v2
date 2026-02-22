@@ -1,0 +1,33 @@
+{
+  "name": "@ripcord/server-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.994.0",
+    "@aws-sdk/s3-request-presigner": "^3.994.0",
+    "@ripcord/config": "workspace:*",
+    "@ripcord/crypto": "workspace:*",
+    "@ripcord/db": "workspace:*",
+    "@ripcord/types": "workspace:*",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.4.0",
+    "livekit-server-sdk": "^2.9.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/express-serve-static-core": "^5.0.0",
+    "@types/pg": "^8.11.0"
+  }
+}

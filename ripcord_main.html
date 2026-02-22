@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ripcord - Pull the Cord on Discord</title>
+    <meta name="description" content="The communication platform that actually respects you. No spyware. No bloat. Just talk.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        ripcord: {
+                            black: '#0a0a0a',
+                            dark: '#111111',
+                            red: '#ff3b30',
+                            crimson: '#dc2626',
+                            gray: '#1a1a1a',
+                            light: '#e5e5e5',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        glow: {
+                            '0%': { boxShadow: '0 0 5px #ff3b30, 0 0 10px #ff3b30' },
+                            '100%': { boxShadow: '0 0 20px #ff3b30, 0 0 30px #dc2626' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #e5e5e5;
+            overflow-x: hidden;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #ff3b30 0%, #dc2626 50%, #991b1b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .glass {
+            background: rgba(26, 26, 26, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .noise {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+        
+        .hero-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255,59,48,0.15) 0%, rgba(220,38,38,0.05) 40%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 8s ease-in-out infinite;
+        }
+        
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: #ff3b30;
+            box-shadow: 0 10px 40px -10px rgba(255,59,48,0.3);
+        }
+        
+        .ripcord-btn {
+            background: linear-gradient(135deg, #ff3b30 0%, #dc2626 100%);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ripcord-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255,59,48,0.5);
+        }
+        
+        .ripcord-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s;
+            opacity: 0;
+        }
+        
+        .ripcord-btn:hover::after {
+            opacity: 1;
+            left: 100%;
+        }
+        
+        .comparison-row:hover {
+            background: rgba(255,59,48,0.05);
+        }
+        
+        .scramble-text {
+            font-family: 'Space Grotesk', monospace;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Noise Overlay -->
+    <div class="noise"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-40 top-0 transition-all duration-300" id="navbar">
+        <div class="glass border-b border-white/5">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-2 group cursor-pointer" onclick="window.scrollTo(0,0)">
+                        <div class="w-8 h-8 bg-gradient-to-br from-ripcord-red to-ripcord-crimson rounded-lg flex items-center justify-center transform group-hover:rotate-12 transition-transform">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <span class="font-display font-bold text-xl tracking-tight text-white">RIPCORD</span>
+                        <span class="text-xs text-ripcord-red font-mono border border-ripcord-red/30 px-1.5 py-0.5 rounded">BETA</span>
+                    </div>
+                    
+                    <div class="hidden md:flex items-center space-x-8">
+                        <a href="#features" class="text-sm text-gray-400 hover:text-white transition-colors">Features</a>
+                        <a href="#comparison" class="text-sm text-gray-400 hover:text-white transition-colors">vs Discord</a>
+                        <a href="#manifesto" class="text-sm text-gray-400 hover:text-white transition-colors">Manifesto</a>
+                        <button onclick="scrollToWaitlist()" class="ripcord-btn px-5 py-2 rounded-full text-sm font-semibold text-white">
+                            Join Waitlist
+                        </button>
+                    </div>
+                    
+                    <button class="md:hidden text-white" onclick="toggleMobileMenu()">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="fixed inset-0 z-30 bg-ripcord-black/95 backdrop-blur-xl transform translate-x-full transition-transform duration-300 md:hidden">
+        <div class="flex flex-col items-center justify-center h-full space-y-8">
+            <a href="#features" class="text-2xl font-display font-bold text-white" onclick="toggleMobileMenu()">Features</a>
+            <a href="#comparison" class="text-2xl font-display font-bold text-white" onclick="toggleMobileMenu()">vs Discord</a>
+            <a href="#manifesto" class="text-2xl font-display font-bold text-white" onclick="toggleMobileMenu()">Manifesto</a>
+            <button onclick="toggleMobileMenu(); scrollToWaitlist()" class="ripcord-btn px-8 py-3 rounded-full text-lg font-semibold text-white mt-4">
+                Join Waitlist
+            </button>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
+        <div class="hero-glow top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+        
+        <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div class="inline-flex items-center space-x-2 px-4 py-2 rounded-full glass border border-ripcord-red/20 mb-8 animate-pulse-slow">
+                <span class="w-2 h-2 bg-ripcord-red rounded-full animate-pulse"></span>
+                <span class="text-sm text-gray-300 font-mono">Coming 2026</span>
+            </div>
+            
+            <h1 class="font-display font-bold text-5xl md:text-7xl lg:text-8xl leading-tight mb-6">
+                <span class="block text-white">Pull the</span>
+                <span class="gradient-text italic">Cord</span>
+            </h1>
+            
+            <p class="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto mb-4 font-light">
+                The communication platform that actually respects you.
+            </p>
+            <p class="text-lg text-gray-500 max-w-xl mx-auto mb-12">
+                No spyware. No crypto scams. No AI slop. Just pure, unfiltered communication for communities that demand better.
+            </p>
+            
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+                <button onclick="scrollToWaitlist()" class="ripcord-btn px-8 py-4 rounded-full text-lg font-bold text-white w-full sm:w-auto">
+                    Get Early Access
+                </button>
+                <button onclick="document.getElementById('manifesto').scrollIntoView({behavior: 'smooth'})" class="px-8 py-4 rounded-full text-lg font-semibold text-white border border-white/20 hover:bg-white/5 transition-all w-full sm:w-auto">
+                    Read Manifesto
+                </button>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto pt-8 border-t border-white/10">
+                <div>
+                    <div class="text-2xl md:text-3xl font-display font-bold text-white">0%</div>
+                    <div class="text-sm text-gray-500">Data Mining</div>
+                </div>
+                <div>
+                    <div class="text-2xl md:text-3xl font-display font-bold text-white">E2E</div>
+                    <div class="text-sm text-gray-500">Encryption</div>
+                </div>
+                <div>
+                    <div class="text-2xl md:text-3xl font-display font-bold text-white">Open</div>
+                    <div class="text-sm text-gray-500">Source Core</div>
+                </div>
+                <div>
+                    <div class="text-2xl md:text-3xl font-display font-bold text-white">You</div>
+                    <div class="text-sm text-gray-500">Own It</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scroll Indicator -->
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section id="features" class="py-24 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="font-display font-bold text-3xl md:text-5xl text-white mb-4">Built Different</h2>
+                <p class="text-gray-400 text-lg">Everything you need, nothing you don't.</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Feature 1 -->
+                <div class="feature-card glass rounded-2xl p-8 border border-white/5">
+                    <div class="w-12 h-12 bg-ripcord-red/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-ripcord-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-display font-bold text-xl text-white mb-3">True Privacy</h3>
+                    <p class="text-gray-400 leading-relaxed">End-to-end encryption by default. We can't read your messages even if we wanted to. No data harvesting. No "training" your conversations.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="feature-card glass rounded-2xl p-8 border border-white/5">
+                    <div class="w-12 h-12 bg-ripcord-red/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-ripcord-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-display font-bold text-xl text-white mb-3">Lightning Fast</h3>
+                    <p class="text-gray-400 leading-relaxed">Native performance. No Electron bloat. Sub-50ms voice latency. Runs like butter on a potato.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card glass rounded-2xl p-8 border border-white/5">
+                    <div class="w-12 h-12 bg-ripcord-red/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-ripcord-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-display font-bold text-xl text-white mb-3">Modular Design</h3>
+                    <p class="text-gray-400 leading-relaxed">Pick your features. Don't want NFT integration? Turn it off. Want forums instead of channels? Swap them. Your server, your rules.</p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="feature-card glass rounded-2xl p-8 border border-white/5">
+                    <div class="w-12 h-12 bg-ripcord-red/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-ripcord-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-display font-bold text-xl text-white mb-3">Self-Host Ready</h3>
+                    <p class="text-gray-400 leading-relaxed">Don't trust us? Host it yourself. Full open-source core. Export your data anytime. No vendor lock-in, ever.</p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="feature-card glass rounded-2xl p-8 border border-white/5">
+                    <div class="w-12 h-12 bg-ripcord-red/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-ripcord-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-display font-bold text-xl text-white mb-3">Real Communities</h3>
+                    <p class="text-gray-400 leading-relaxed">Tools for genuine connection, not engagement farming. No algorithmic feeds. No "boosting." Just people talking.</p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="feature-card glass rounded-2xl p-8 border border-white/5">
+                    <div class="w-12 h-12 bg-ripcord-red/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-ripcord-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-display font-bold text-xl text-white mb-3">Fair Pricing</h3>
+                    <p class="text-gray-400 leading-relaxed">Free tier that doesn't suck. Pro features that are actually worth it. No pay-to-win server boosts. No surprise bills.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison Section -->
+    <section id="comparison" class="py-24 bg-ripcord-dark relative overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-ripcord-red/5 via-transparent to-transparent"></div>
+        
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center mb-16">
+                <h2 class="font-display font-bold text-3xl md:text-5xl text-white mb-4">The Breakup</h2>
+                <p class="text-gray-400 text-lg">Why we're leaving Discord in the dust.</p>
+            </div>
+
+            <div class="glass rounded-2xl overflow-hidden border border-white/10">
+                <div class="grid grid-cols-3 gap-4 p-6 border-b border-white/10 bg-white/5 font-display font-bold text-sm uppercase tracking-wider text-gray-400">
+                    <div>Feature</div>
+                    <div class="text-center text-gray-500">Discord</div>
+                    <div class="text-center text-ripcord-red">Ripcord</div>
+                </div>
+                
+                <div class="divide-y divide-white/5">
+                    <div class="comparison-row grid grid-cols-3 gap-4 p-6 items-center transition-colors">
+                        <div class="text-white font-medium">End-to-End Encryption</div>
+                        <div class="text-center text-gray-500">❌ DMs only</div>
+                        <div class="text-center text-ripcord-red font-semibold">✅ Everything</div>
+                    </div>
+                    
+                    <div class="comparison-row grid grid-cols-3 gap-4 p-6 items-center transition-colors">
+                        <div class="text-white font-medium">Data Mining</div>
+                        <div class="text-center text-gray-500">❌ Sells your data</div>
+                        <div class="text-center text-ripcord-red font-semibold">✅ Zero collection</div>
+                    </div>
+                    
+                    <div class="comparison-row grid grid-cols-3 gap-4 p-6 items-center transition-colors">
+                        <div class="text-white font-medium">Open Source</div>
+                        <div class="text-center text-gray-500">❌ Proprietary</div>
+                        <div class="text-center text-ripcord-red font-semibold">✅ Core OSS</div>
+                    </div>
+                    
+                    <div class="comparison-row grid grid-cols-3 gap-4 p-6 items-center transition-colors">
+                        <div class="text-white font-medium">Self Hosting</div>
+                        <div class="text-center text-gray-500">❌ Impossible</div>
+                        <div class="text-center text-ripcord-red font-semibold">✅ First-class</div>
+                    </div>
+                    
+                    <div class="comparison-row grid grid-cols-3 gap-4 p-6 items-center transition-colors">
+                        <div class="text-white font-medium">Crypto/NFT Spam</div>
+                        <div class="text-center text-gray-500">❌ Encouraged</div>
+                        <div class="text-center text-ripcord-red font-semibold">✅ Banned</div>
+                    </div>
+                    
+                    <div class="comparison-row grid grid-cols-3 gap-4 p-6 items-center transition-colors">
+                        <div class="text-white font-medium">AI Training</div>
+                        <div class="text-center text-gray-500">❌ Opt-out buried</div>
+                        <div class="text-center text-ripcord-red font-semibold">✅ Never, ever</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Manifesto Section -->
+    <section id="manifesto" class="py-24 relative">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="prose prose-invert prose-lg max-w-none">
+                <h2 class="font-display font-bold text-4xl md:text-5xl text-white mb-8 text-center">The Ripcord Manifesto</h2>
+                
+                <div class="space-y-6 text-gray-300 leading-relaxed">
+                    <p class="text-xl text-white font-light border-l-4 border-ripcord-red pl-6 italic">
+                        "We started Ripcord because we were tired of being the product. Tired of platforms that prioritize advertisers over users. Tired of 'engagement' over community."
+                    </p>
+                    
+                    <p>
+                        Discord was revolutionary once. It brought voice chat to gamers when nothing else worked. But then it grew. And grew. And became everything it promised to replace: a bloated, surveillance-capitalism machine that treats your communities as data mines.
+                    </p>
+                    
+                    <p>
+                        <strong class="text-white">Ripcord is our answer.</strong> A return to basics. Communication tools that serve the communicator, not the shareholder. We don't have a "growth team" optimizing for addiction. We have engineers optimizing for respect.
+                    </p>
+                    
+                    <p>
+                        We believe:
+                    </p>
+                    
+                    <ul class="space-y-3 list-none pl-0">
+                        <li class="flex items-start">
+                            <span class="text-ripcord-red mr-3">01.</span>
+                            <span>Your private conversations belong to you, not our training models</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-ripcord-red mr-3">02.</span>
+                            <span>Software should get faster with updates, not slower</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-ripcord-red mr-3">03.</span>
+                            <span>Communities should own their spaces, not rent them from Silicon Valley</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-ripcord-red mr-3">04.</span>
+                            <span>Privacy is a right, not a premium feature</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-ripcord-red mr-3">05.</span>
+                            <span>Communication doesn't need "AI" to be meaningful</span>
+                        </li>
+                    </ul>
+                    
+                    <p class="text-white font-semibold text-lg mt-8">
+                        Pull the cord. Join the exodus.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Waitlist CTA -->
+    <section id="waitlist" class="py-24 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-t from-ripcord-red/10 to-transparent"></div>
+        
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <h2 class="font-display font-bold text-4xl md:text-6xl text-white mb-6">Be the First to Rip</h2>
+            <p class="text-xl text-gray-400 mb-12">Join 12,000+ people waiting for a better way to talk.</p>
+            
+            <form id="waitlist-form" class="max-w-md mx-auto space-y-4" onsubmit="handleSubmit(event)">
+                <div class="relative">
+                    <input 
+                        type="email" 
+                        id="email"
+                        placeholder="you@example.com" 
+                        required
+                        class="w-full px-6 py-4 bg-ripcord-gray border border-white/10 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-ripcord-red focus:ring-2 focus:ring-ripcord-red/20 transition-all"
+                    >
+                </div>
+                
+                <div class="flex items-center justify-center space-x-4 text-sm text-gray-400 mb-4">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" required class="w-4 h-4 rounded border-gray-600 text-ripcord-red focus:ring-ripcord-red bg-ripcord-gray">
+                        <span>I want early access updates</span>
+                    </label>
+                </div>
+                
+                <button type="submit" class="ripcord-btn w-full py-4 rounded-full text-lg font-bold text-white">
+                    Join Waitlist
+                </button>
+            </form>
+            
+            <div id="success-message" class="hidden mt-8 p-6 glass rounded-2xl border border-ripcord-red/30">
+                <div class="text-ripcord-red text-4xl mb-2">⚡</div>
+                <h3 class="text-white font-bold text-xl mb-2">You're on the list.</h3>
+                <p class="text-gray-400">Check your inbox for confirmation. We'll be in touch soon.</p>
+            </div>
+            
+            <p class="mt-8 text-sm text-gray-500">
+                No spam. No sharing. Unsubscribe anytime.
+            </p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-ripcord-black py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div class="col-span-2">
+                    <div class="flex items-center space-x-2 mb-4">
+                        <div class="w-8 h-8 bg-gradient-to-br from-ripcord-red to-ripcord-crimson rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <span class="font-display font-bold text-xl text-white">RIPCORD</span>
+                    </div>
+                    <p class="text-gray-500 text-sm max-w-xs">
+                        Communication infrastructure for the privacy-conscious. Built by refugees from big tech.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-semibold mb-4">Product</h4>
+                    <ul class="space-y-2 text-sm text-gray-500">
+                        <li><a href="#features" class="hover:text-ripcord-red transition-colors">Features</a></li>
+                        <li><a href="#" class="hover:text-ripcord-red transition-colors">Download</a></li>
+                        <li><a href="#" class="hover:text-ripcord-red transition-colors">Self-Host</a></li>
+                        <li><a href="#" class="hover:text-ripcord-red transition-colors">Changelog</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-semibold mb-4">Connect</h4>
+                    <ul class="space-y-2 text-sm text-gray-500">
+                        <li><a href="#" class="hover:text-ripcord-red transition-colors">Twitter / X</a></li>
+                        <li><a href="#" class="hover:text-ripcord-red transition-colors">GitHub</a></li>
+                        <li><a href="#" class="hover:text-ripcord-red transition-colors">Matrix</a></li>
+                        <li><a href="#" class="hover:text-ripcord-red transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                <p class="text-gray-600 text-sm">© 2026 LJAN Enterprises, LLC. All rights reserved.</p>
+                <div class="flex space-x-6 text-sm text-gray-600">
+                    <a href="#" class="hover:text-gray-400 transition-colors">Privacy</a>
+                    <a href="#" class="hover:text-gray-400 transition-colors">Terms</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile Menu Toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('translate-x-full');
+        }
+
+        // Scroll to Waitlist
+        function scrollToWaitlist() {
+            document.getElementById('waitlist').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Form Handling
+        function handleSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const form = document.getElementById('waitlist-form');
+            const success = document.getElementById('success-message');
+            
+            // Simulate API call
+            form.style.opacity = '0.5';
+            form.style.pointerEvents = 'none';
+            
+            setTimeout(() => {
+                form.style.display = 'none';
+                success.classList.remove('hidden');
+                success.classList.add('animate-pulse');
+                
+                // In production, send to your backend:
+                // fetch('/api/waitlist', { method: 'POST', body: JSON.stringify({ email }) })
+            }, 1000);
+        }
+
+        // Navbar Scroll Effect
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.classList.add('shadow-lg', 'shadow-ripcord-red/5');
+            } else {
+                nav.classList.remove('shadow-lg', 'shadow-ripcord-red/5');
+            }
+        });
+
+        // Text Scramble Effect for Hero
+        class TextScramble {
+            constructor(el) {
+                this.el = el;
+                this.chars = '!<>-_\\/[]{}—=+*^?#________';
+                this.update = this.update.bind(this);
+            }
+            setText(newText) {
+                const oldText = this.el.innerText;
+                const length = Math.max(oldText.length, newText.length);
+                const promise = new Promise((resolve) => this.resolve = resolve);
+                this.queue = [];
+                for (let i = 0; i < length; i++) {
+                    const from = oldText[i] || '';
+                    const to = newText[i] || '';
+                    const start = Math.floor(Math.random() * 40);
+                    const end = start + Math.floor(Math.random() * 40);
+                    this.queue.push({ from, to, start, end });
+                }
+                cancelAnimationFrame(this.frameRequest);
+                this.frame = 0;
+                this.update();
+                return promise;
+            }
+            update() {
+                let output = '';
+                let complete = 0;
+                for (let i = 0, n = this.queue.length; i < n; i++) {
+                    let { from, to, start, end, char } = this.queue[i];
+                    if (this.frame >= end) {
+                        complete++;
+                        output += to;
+                    } else if (this.frame >= start) {
+                        if (!char || Math.random() < 0.28) {
+                            char = this.randomChar();
+                            this.queue[i].char = char;
+                        }
+                        output += `<span class="text-ripcord-red">${char}</span>`;
+                    } else {
+                        output += from;
+                    }
+                }
+                this.el.innerHTML = output;
+                if (complete === this.queue.length) {
+                    this.resolve();
+                } else {
+                    this.frameRequest = requestAnimationFrame(this.update);
+                    this.frame++;
+                }
+            }
+            randomChar() {
+                return this.chars[Math.floor(Math.random() * this.chars.length)];
+            }
+        }
+
+        // Initialize scramble on load
+        window.addEventListener('load', () => {
+            const phrases = ['Pull the Cord', 'Cut the Noise', 'Own Your Chat', 'Privacy First'];
+            const el = document.querySelector('.scramble-text');
+            if (el) {
+                const fx = new TextScramble(el);
+                let counter = 0;
+                const next = () => {
+                    fx.setText(phrases[counter]).then(() => {
+                        setTimeout(next, 3000);
+                    });
+                    counter = (counter + 1) % phrases.length;
+                };
+                next();
+            }
+        });
+
+        // Intersection Observer for fade-in animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe all feature cards
+        document.querySelectorAll('.feature-card').forEach((el) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>

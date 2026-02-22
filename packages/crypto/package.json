@@ -1,0 +1,12 @@
+{
+  "name": "@ripcord/crypto",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": { "build": "tsc", "dev": "tsc --watch" },
+  "dependencies": {
+    "jose": "^5.9.0",
+    "@ripcord/config": "workspace:*"
+  }
+}

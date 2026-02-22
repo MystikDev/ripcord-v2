@@ -4,10 +4,26 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev": "echo 'Run service-specific dev commands as apps are scaffolded'",
+    "dev": "pnpm -r --parallel run dev",
     "dev:infra": "docker compose up -d",
     "stop:infra": "docker compose down",
-    "lint": "echo 'TODO: add lint config'",
-    "test": "echo 'TODO: add test runner'"
+    "build": "pnpm -r run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "typecheck": "tsc --build",
+    "test": "vitest run",
+    "db:migrate": "tsx scripts/run-migrations.ts",
+    "clean": "pnpm -r exec rm -rf dist .next"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "eslint": "^9.16.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^2.1.0"
   }
 }

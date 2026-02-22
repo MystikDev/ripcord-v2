@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared-types" },
+    { "path": "packages/config" },
+    { "path": "packages/db" },
+    { "path": "packages/crypto" },
+    { "path": "apps/server-auth" },
+    { "path": "apps/server-api" },
+    { "path": "apps/server-gateway" },
+    { "path": "apps/server-keyservice" }
+  ]
+}
