@@ -1,6 +1,5 @@
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
     Manager,
 };
 
@@ -18,11 +17,10 @@ pub fn run() {
             let quit = MenuItem::with_id(app, "quit", "Quit Ripcord", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
 
-            // Create tray icon
-            TrayIconBuilder::new()
-                .menu(&menu)
-                .tooltip("Ripcord")
-                .on_menu_event(|app, event| match event.id.as_ref() {
+            // Attach menu to the config-created tray icon (id "main")
+            if let Some(tray) = app.tray_by_id("main") {
+                tray.set_menu(Some(menu))?;
+                tray.on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
@@ -33,8 +31,8 @@ pub fn run() {
                         app.exit(0);
                     }
                     _ => {}
-                })
-                .build(app)?;
+                });
+            }
 
             Ok(())
         })
