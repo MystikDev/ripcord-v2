@@ -98,11 +98,8 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
   return (
     <div>
       <button
-        onClick={() => setActiveChannel(channel.id)}
-        onDoubleClick={() => {
-          setActiveChannel(channel.id);
-          setPendingVoiceJoin(channel.id);
-        }}
+        onClick={() => setPendingVoiceJoin(channel.id)}
+        onDoubleClick={() => setPendingVoiceJoin(channel.id)}
         className={clsx(
           'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
           isActive
@@ -143,8 +140,8 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
             >
               <div
                 className={clsx(
-                  'rounded-full transition-shadow duration-200',
-                  isSpeaking && 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)]',
+                  'rounded-full transition-shadow',
+                  isSpeaking ? 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)] duration-75' : 'duration-300',
                 )}
               >
                 <Avatar src={members[p.userId]?.avatarUrl} fallback={p.handle ?? p.userId.slice(0, 2)} size="sm" className="!h-5 !w-5 !text-[9px]" />

@@ -11,38 +11,80 @@ import { useVoiceStateStore } from '../stores/voice-state-store';
 // so components outside the <LiveKitRoom> context (e.g. sidebar channel list)
 // can show speaking indicators.
 //
+// Uses a hold timer per participant so the indicator stays lit while talking
+// and doesn't flicker off between words.
+//
 // Must be called inside a <LiveKitRoom> provider.
 // ---------------------------------------------------------------------------
 
 /** Stable empty array to avoid unnecessary store writes. */
 const EMPTY: string[] = [];
 
+/** How long to keep the indicator lit after speaking stops (ms). */
+const HOLD_MS = 300;
+
 export function useSyncSpeaking(): void {
   const participants = useParticipants();
   const setSpeakingUserIds = useVoiceStateStore((s) => s.setSpeakingUserIds);
   const prevRef = useRef<string[]>(EMPTY);
+  const holdTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const heldIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    // Compute which participants are currently speaking
-    const speaking = participants
-      .filter((p) => p.isSpeaking)
-      .map((p) => p.identity);
+    const nowSpeaking = new Set(
+      participants.filter((p) => p.isSpeaking).map((p) => p.identity),
+    );
 
-    // Only update the store if the set actually changed (avoid re-renders)
+    // For each participant currently speaking, clear any pending release timer
+    for (const id of nowSpeaking) {
+      const timer = holdTimers.current.get(id);
+      if (timer) {
+        clearTimeout(timer);
+        holdTimers.current.delete(id);
+      }
+      heldIds.current.add(id);
+    }
+
+    // For each held ID that stopped speaking, start a release timer
+    for (const id of heldIds.current) {
+      if (!nowSpeaking.has(id) && !holdTimers.current.has(id)) {
+        const timer = setTimeout(() => {
+          holdTimers.current.delete(id);
+          heldIds.current.delete(id);
+          // Recompute and push to store
+          const updated = [...heldIds.current];
+          const prev = prevRef.current;
+          const changed = updated.length !== prev.length || updated.some((v, i) => v !== prev[i]);
+          if (changed) {
+            prevRef.current = updated.length > 0 ? updated : EMPTY;
+            setSpeakingUserIds(prevRef.current);
+          }
+        }, HOLD_MS);
+        holdTimers.current.set(id, timer);
+      }
+    }
+
+    // Compute the visible speaking set (includes held IDs)
+    const speaking = [...heldIds.current];
     const prev = prevRef.current;
     const changed =
       speaking.length !== prev.length ||
       speaking.some((id, i) => id !== prev[i]);
 
     if (changed) {
-      prevRef.current = speaking;
-      setSpeakingUserIds(speaking.length > 0 ? speaking : EMPTY);
+      prevRef.current = speaking.length > 0 ? speaking : EMPTY;
+      setSpeakingUserIds(prevRef.current);
     }
   });
 
-  // Clear speaking state on unmount (voice disconnect)
+  // Clear all timers and speaking state on unmount (voice disconnect)
   useEffect(() => {
     return () => {
+      for (const timer of holdTimers.current.values()) {
+        clearTimeout(timer);
+      }
+      holdTimers.current.clear();
+      heldIds.current.clear();
       useVoiceStateStore.getState().setSpeakingUserIds(EMPTY);
     };
   }, []);

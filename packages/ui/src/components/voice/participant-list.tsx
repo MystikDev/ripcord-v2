@@ -31,8 +31,8 @@ function ParticipantTile({
       {/* Avatar with speaking glow */}
       <div
         className={clsx(
-          'relative rounded-full transition-shadow duration-200',
-          isSpeaking && 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)]',
+          'relative rounded-full transition-shadow',
+          isSpeaking ? 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)] duration-75' : 'duration-300',
         )}
       >
         <Avatar src={cachedAvatarUrl} fallback={name} size="sm" />
