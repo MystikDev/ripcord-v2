@@ -66,6 +66,16 @@ export async function findById(id: string): Promise<AttachmentRow | undefined> {
   return rows[0];
 }
 
+/** Link attachment records to a real message ID (replaces the placeholder). */
+export async function updateMessageId(attachmentIds: string[], messageId: string): Promise<void> {
+  if (attachmentIds.length === 0) return;
+  const placeholders = attachmentIds.map((_, i) => `$${i + 2}`).join(', ');
+  await query(
+    `UPDATE attachments SET message_id = $1 WHERE id IN (${placeholders})`,
+    [messageId, ...attachmentIds],
+  );
+}
+
 /** Find all attachments for a message. */
 export async function findByMessageId(messageId: string): Promise<AttachmentRow[]> {
   return query<AttachmentRow>(

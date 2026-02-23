@@ -42,6 +42,8 @@ export const EncryptedEnvelopeSchema = z.object({
   keyId: z.string().min(1, "Key id must not be empty"),
   /** Optional Ed25519 signature over the envelope fields. */
   signature: z.string().optional(),
+  /** Optional attachment IDs to link to this message after creation. */
+  attachmentIds: z.array(z.string().uuid()).optional(),
 });
 
 /** Runtime-validated encrypted message envelope. */

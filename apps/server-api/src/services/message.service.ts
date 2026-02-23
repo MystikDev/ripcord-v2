@@ -2,6 +2,7 @@ import { EncryptedEnvelopeSchema, type EncryptedEnvelope, ApiError, AuditAction 
 import { redis } from '../redis.js';
 import * as messageRepo from '../repositories/message.repo.js';
 import type { Message } from '../repositories/message.repo.js';
+import * as attachmentRepo from '../repositories/attachment.repo.js';
 import * as auditRepo from '../repositories/audit.repo.js';
 import { logger } from '../logger.js';
 
@@ -53,11 +54,31 @@ export async function sendMessage(
     validated,
   );
 
-  // Publish to Redis for gateway fanout
+  // Link attachments to the real message ID (replaces placeholder IDs)
+  let attachments: Awaited<ReturnType<typeof attachmentRepo.findByMessageId>> = [];
+  if (validated.attachmentIds && validated.attachmentIds.length > 0) {
+    try {
+      await attachmentRepo.updateMessageId(validated.attachmentIds, message.id);
+      attachments = await attachmentRepo.findByMessageId(message.id);
+    } catch (err) {
+      logger.error({ err, messageId: message.id }, 'Failed to link attachments');
+    }
+  }
+
+  // Publish to Redis for gateway fanout (include attachments if any)
+  const publishData = attachments.length > 0
+    ? { ...message, attachments: attachments.map((a) => ({
+        id: a.id,
+        fileNameEncrypted: a.fileNameEncrypted,
+        fileSize: a.fileSize,
+        encryptionKeyId: a.encryptionKeyId,
+        nonce: a.nonce,
+      })) }
+    : message;
   try {
     await redis.publish(`ch:${validated.channelId}`, JSON.stringify({
       type: 'MESSAGE_CREATE',
-      data: message,
+      data: publishData,
     }));
   } catch (err) {
     // Redis pub failure should not fail the message send
@@ -91,7 +112,29 @@ export async function getMessages(
   channelId: string,
   cursor?: string,
   limit?: number,
-): Promise<Message[]> {
+) {
   const effectiveLimit = Math.min(Math.max(limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
-  return messageRepo.findByChannel(channelId, effectiveLimit, cursor);
+  const messages = await messageRepo.findByChannel(channelId, effectiveLimit, cursor);
+
+  // Batch-fetch attachments for returned messages
+  if (messages.length === 0) return messages;
+
+  const enriched = await Promise.all(
+    messages.map(async (msg) => {
+      const atts = await attachmentRepo.findByMessageId(msg.id);
+      if (atts.length === 0) return msg;
+      return {
+        ...msg,
+        attachments: atts.map((a) => ({
+          id: a.id,
+          fileNameEncrypted: a.fileNameEncrypted,
+          fileSize: a.fileSize,
+          encryptionKeyId: a.encryptionKeyId,
+          nonce: a.nonce,
+        })),
+      };
+    }),
+  );
+
+  return enriched;
 }

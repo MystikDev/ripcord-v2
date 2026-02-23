@@ -43,13 +43,14 @@ export function useVoiceLatency(): VoiceLatency {
 
   const pollStats = useCallback(async () => {
     try {
-      // Access the subscriber PeerConnection (receives audio from server).
-      // This is a semi-private path in livekit-client but stable across v2.x.
+      // Access the subscriber PCTransport via the engine's PCTransportManager.
+      // In livekit-client v2.x: room.engine.pcManager.subscriber.getStats()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pc = (room as any).engine?.subscriber?.pc as RTCPeerConnection | undefined;
-      if (!pc) return;
+      const engine = (room as any).engine;
+      const subscriber = engine?.pcManager?.subscriber;
+      if (!subscriber) return;
 
-      const stats = await pc.getStats();
+      const stats: RTCStatsReport = await subscriber.getStats();
       let rtt: number | null = null;
 
       stats.forEach((report) => {

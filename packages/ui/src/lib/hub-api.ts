@@ -34,6 +34,13 @@ export interface MessageResponse {
   };
   createdAt: string;
   deletedAt: string | null;
+  attachments?: Array<{
+    id: string;
+    fileNameEncrypted: string;
+    fileSize: number;
+    encryptionKeyId: string;
+    nonce: string;
+  }>;
 }
 
 export interface MemberResponse {
@@ -116,20 +123,26 @@ export async function sendMessage(
   senderUserId: string,
   senderDeviceId: string,
   content: string,
+  attachmentIds?: string[],
 ): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const envelope: Record<string, any> = {
+    envelopeVersion: 1,
+    channelId,
+    senderUserId,
+    senderDeviceId,
+    sentAt: new Date().toISOString(),
+    // TODO: Replace with real E2EE encryption in a future sprint
+    ciphertext: btoa(unescape(encodeURIComponent(content))),
+    nonce: btoa(String(Date.now())),
+    keyId: 'dev-key-placeholder',
+  };
+  if (attachmentIds && attachmentIds.length > 0) {
+    envelope.attachmentIds = attachmentIds;
+  }
   const res = await apiFetch('/v1/messages/send', {
     method: 'POST',
-    body: JSON.stringify({
-      envelopeVersion: 1,
-      channelId,
-      senderUserId,
-      senderDeviceId,
-      sentAt: new Date().toISOString(),
-      // TODO: Replace with real E2EE encryption in a future sprint
-      ciphertext: btoa(unescape(encodeURIComponent(content))),
-      nonce: btoa(String(Date.now())),
-      keyId: 'dev-key-placeholder',
-    }),
+    body: JSON.stringify(envelope),
   });
   if (!res.ok) throw new Error(res.error ?? 'Failed to send message');
 }

@@ -17,12 +17,43 @@ import type { SlashCommand } from '../../lib/ai/commands';
 const EMPTY_MESSAGES: Message[] = [];
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface PendingAttachment {
+  attachmentId: string;
+  fileName: string;
+  fileSize: number;
+  fileNameEncrypted: string;
+  encryptionKeyId: string;
+  nonce: string;
+}
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 export interface MessageComposerProps {
   channelId: string;
   channelName: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function decryptFileName(encrypted: string): string {
+  try {
+    return decodeURIComponent(escape(atob(encrypted)));
+  } catch {
+    return 'file';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -33,6 +64,7 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
 
   const userId = useAuthStore((s) => s.userId);
   const handle = useAuthStore((s) => s.handle);
@@ -47,6 +79,8 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
   const fileUploadRef = useRef<FileUploadHandle>(null);
   const lastTypingSent = useRef(0);
   const TYPING_DEBOUNCE_MS = 3_000;
+
+  const hasPendingAttachments = pendingAttachments.length > 0;
 
   const emitTyping = useCallback(() => {
     const now = Date.now();
@@ -118,11 +152,15 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
 
   const handleSend = useCallback(async () => {
     const trimmed = content.trim();
-    if (!trimmed || sending) return;
+    const hasContent = trimmed.length > 0;
+    const hasAttachments = pendingAttachments.length > 0;
+
+    // Nothing to send
+    if ((!hasContent && !hasAttachments) || sending) return;
 
     // If a slash command is active with argument (e.g. /draft some text),
     // handle it as a command instead of sending
-    if (trimmed.startsWith('/')) {
+    if (hasContent && trimmed.startsWith('/')) {
       const spaceIdx = trimmed.indexOf(' ');
       const cmdName = spaceIdx > 0 ? trimmed.slice(1, spaceIdx) : trimmed.slice(1);
       // Check if it matches an AI command
@@ -136,17 +174,34 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
 
     setSending(true);
 
+    // Capture and clear pending attachments
+    const attachmentsToSend = [...pendingAttachments];
+    const attachmentIds = attachmentsToSend.map((a) => a.attachmentId);
+    const messageContent = hasContent ? trimmed : '';
+
     // Optimistic local message
     const optimistic: Message = {
       id: `temp-${Date.now()}`,
       channelId,
       authorId: userId ?? '',
       authorHandle: handle ?? 'You',
-      content: trimmed,
+      content: messageContent,
       createdAt: new Date().toISOString(),
+      ...(attachmentsToSend.length > 0
+        ? {
+            attachments: attachmentsToSend.map((a) => ({
+              id: a.attachmentId,
+              fileNameEncrypted: a.fileNameEncrypted,
+              fileSize: a.fileSize,
+              encryptionKeyId: a.encryptionKeyId,
+              nonce: a.nonce,
+            })),
+          }
+        : {}),
     };
     addMessage(channelId, optimistic);
     setContent('');
+    setPendingAttachments([]);
 
     // Send via REST API (server persists and publishes to Redis for gateway fanout)
     try {
@@ -154,7 +209,8 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
         channelId,
         userId ?? '',
         deviceId ?? '',
-        trimmed,
+        messageContent,
+        attachmentIds.length > 0 ? attachmentIds : undefined,
       );
     } catch (err) {
       console.error('Failed to send message:', err);
@@ -162,7 +218,7 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
     }
 
     setSending(false);
-  }, [content, sending, channelId, userId, handle, deviceId, addMessage, handleCommandSelect]);
+  }, [content, sending, channelId, userId, handle, deviceId, addMessage, handleCommandSelect, pendingAttachments]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Let the command palette handle navigation keys when visible
@@ -196,6 +252,10 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
     setShowPalette(val.startsWith('/') && !val.includes(' '));
   };
 
+  const removePendingAttachment = (attachmentId: string) => {
+    setPendingAttachments((prev) => prev.filter((a) => a.attachmentId !== attachmentId));
+  };
+
   return (
     <form onSubmit={handleSubmit} className="relative border-t border-border p-4">
       {/* Command palette */}
@@ -206,13 +266,48 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
         visible={showPalette}
       />
 
+      {/* Pending attachments strip */}
+      {hasPendingAttachments && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {pendingAttachments.map((att) => (
+            <div
+              key={att.attachmentId}
+              className="flex items-center gap-2 rounded-md bg-surface-2 px-2 py-1 text-xs text-text-secondary"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M14 10v2.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V10M11 5l-3-3-3 3M8 2v8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="max-w-[150px] truncate">{att.fileName}</span>
+              <span className="text-text-muted">{formatFileSize(att.fileSize)}</span>
+              <button
+                type="button"
+                onClick={() => removePendingAttachment(att.attachmentId)}
+                className="ml-1 text-text-muted hover:text-text-primary"
+                title="Remove attachment"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-end gap-2 rounded-lg bg-surface-1 px-4 py-2">
         <FileUploadButton
           ref={fileUploadRef}
           channelId={channelId}
           onUploaded={(att) => {
-            console.log('File uploaded:', att);
-            // TODO: Attach to next message or create attachment-only message
+            setPendingAttachments((prev) => [
+              ...prev,
+              {
+                attachmentId: att.attachmentId,
+                fileName: decryptFileName(att.fileNameEncrypted),
+                fileSize: att.fileSize,
+                fileNameEncrypted: att.fileNameEncrypted,
+                encryptionKeyId: att.encryptionKeyId,
+                nonce: att.nonce,
+              },
+            ]);
           }}
           disabled={sending || aiProcessing}
         />
@@ -227,7 +322,7 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
         />
         <button
           type="submit"
-          disabled={!content.trim() || sending || aiProcessing}
+          disabled={(!content.trim() && !hasPendingAttachments) || sending || aiProcessing}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent text-white transition-colors hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">

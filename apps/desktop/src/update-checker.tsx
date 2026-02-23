@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { check } from '@tauri-apps/plugin-updater';
+import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import {
   isPermissionGranted,
@@ -29,7 +29,7 @@ type UpdateState =
   | { status: 'idle' }
   | { status: 'checking' }
   | { status: 'available'; version: string }
-  | { status: 'downloading'; progress: number }
+  | { status: 'downloading'; version: string; progress: number }
   | { status: 'ready'; version: string }
   | { status: 'error'; message: string };
 
@@ -47,7 +47,7 @@ async function notifyUser(version: string): Promise<void> {
     if (allowed) {
       sendNotification({
         title: 'Ripcord Update Available',
-        body: `Version ${version} has been downloaded and is ready to install. Click the banner in the app to restart.`,
+        body: `Version ${version} is available. Open Ripcord to update.`,
       });
     }
   } catch (err) {
@@ -63,13 +63,13 @@ export function UpdateChecker() {
   const [state, setState] = useState<UpdateState>({ status: 'idle' });
   const [dismissed, setDismissed] = useState(false);
 
-  // Track whether an update was already found & installed so the
-  // periodic poll doesn't re-download.
+  // Track whether an update was already found so the periodic poll doesn't
+  // re-check once we're waiting for user action.
   const foundRef = useRef(false);
   const cancelledRef = useRef(false);
+  const updateRef = useRef<Update | null>(null);
 
   const checkForUpdate = useCallback(async () => {
-    // If we already found + installed an update, stop polling.
     if (foundRef.current || cancelledRef.current) return;
 
     setState({ status: 'checking' });
@@ -78,7 +78,6 @@ export function UpdateChecker() {
       const currentVersion = await getVersion();
       console.log(`[UpdateChecker] Current version: ${currentVersion}, checking for updates...`);
 
-      // Race the check against a timeout so we don't hang forever.
       const update = await Promise.race([
         check(),
         new Promise<null>((_, reject) =>
@@ -91,33 +90,14 @@ export function UpdateChecker() {
       if (update) {
         console.log(`[UpdateChecker] Update found: v${update.version} (current: ${currentVersion})`);
         foundRef.current = true;
+        updateRef.current = update;
+
+        // Show prompt — do NOT auto-download
         setState({ status: 'available', version: update.version });
+        setDismissed(false);
 
-        // Auto-download in background
-        let downloaded = 0;
-        let total = 0;
-        await update.downloadAndInstall((event) => {
-          if (cancelledRef.current) return;
-          if (event.event === 'Started' && event.data.contentLength) {
-            total = event.data.contentLength;
-            console.log(`[UpdateChecker] Download started, size: ${total} bytes`);
-          } else if (event.event === 'Progress') {
-            downloaded += event.data.chunkLength;
-            const progress = total > 0 ? Math.round((downloaded / total) * 100) : 0;
-            setState({ status: 'downloading', progress });
-          } else if (event.event === 'Finished') {
-            console.log('[UpdateChecker] Download finished');
-            setState({ status: 'ready', version: update.version });
-          }
-        });
-
-        if (!cancelledRef.current) {
-          setState({ status: 'ready', version: update.version });
-          // Re-show banner if user previously dismissed it
-          setDismissed(false);
-          // Fire a system notification so tray-minimised users see it
-          await notifyUser(update.version);
-        }
+        // System notification so tray-minimised users see it
+        await notifyUser(update.version);
       } else {
         console.log(`[UpdateChecker] No update available (current: ${currentVersion})`);
         setState({ status: 'idle' });
@@ -126,7 +106,6 @@ export function UpdateChecker() {
       if (!cancelledRef.current) {
         const message = err instanceof Error ? err.message : String(err);
         console.error('[UpdateChecker] Check failed:', message);
-        // Show error briefly then go idle — don't block the UI permanently
         setState({ status: 'error', message });
         setTimeout(() => {
           setState((prev) => (prev.status === 'error' ? { status: 'idle' } : prev));
@@ -135,13 +114,51 @@ export function UpdateChecker() {
     }
   }, []);
 
+  /** Called when user explicitly agrees to upgrade. */
+  const handleAcceptUpdate = useCallback(async () => {
+    const update = updateRef.current;
+    if (!update) return;
+
+    setState({ status: 'downloading', version: update.version, progress: 0 });
+
+    try {
+      let downloaded = 0;
+      let total = 0;
+
+      await update.downloadAndInstall((event) => {
+        if (cancelledRef.current) return;
+        if (event.event === 'Started' && event.data.contentLength) {
+          total = event.data.contentLength;
+          console.log(`[UpdateChecker] Download started, size: ${total} bytes`);
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength;
+          const progress = total > 0 ? Math.round((downloaded / total) * 100) : 0;
+          setState({ status: 'downloading', version: update.version, progress });
+        } else if (event.event === 'Finished') {
+          console.log('[UpdateChecker] Download finished');
+        }
+      });
+
+      if (!cancelledRef.current) {
+        setState({ status: 'ready', version: update.version });
+        setDismissed(false);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[UpdateChecker] Download failed:', message);
+      setState({ status: 'error', message });
+      // Allow user to retry
+      foundRef.current = false;
+      setTimeout(() => {
+        setState((prev) => (prev.status === 'error' ? { status: 'idle' } : prev));
+      }, 10_000);
+    }
+  }, []);
+
   useEffect(() => {
     cancelledRef.current = false;
 
-    // First check after a short delay so the app loads first
     const initialTimer = setTimeout(checkForUpdate, INITIAL_DELAY_SEC * 1000);
-
-    // Then re-check periodically
     const pollTimer = setInterval(checkForUpdate, POLL_INTERVAL_MS);
 
     return () => {
@@ -158,16 +175,30 @@ export function UpdateChecker() {
   return (
     <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-3 bg-accent/90 px-4 py-1.5 text-xs text-white backdrop-blur-sm">
       {state.status === 'available' && (
-        <span>Update v{state.version} available — downloading...</span>
+        <>
+          <span>Ripcord v{state.version} is available. Would you like to upgrade?</span>
+          <button
+            onClick={handleAcceptUpdate}
+            className="rounded bg-white/20 px-2 py-0.5 font-medium transition-colors hover:bg-white/30"
+          >
+            Update now
+          </button>
+          <button
+            onClick={() => setDismissed(true)}
+            className="rounded bg-white/10 px-2 py-0.5 transition-colors hover:bg-white/20"
+          >
+            Not now
+          </button>
+        </>
       )}
 
       {state.status === 'downloading' && (
-        <span>Downloading update... {state.progress}%</span>
+        <span>Downloading Ripcord v{state.version}... {state.progress}%</span>
       )}
 
       {state.status === 'ready' && (
         <>
-          <span>Update v{state.version} ready!</span>
+          <span>Ripcord v{state.version} is ready to install!</span>
           <button
             onClick={() => relaunch()}
             className="rounded bg-white/20 px-2 py-0.5 font-medium transition-colors hover:bg-white/30"
@@ -181,15 +212,18 @@ export function UpdateChecker() {
         <span>Update check failed: {state.message}</span>
       )}
 
-      <button
-        onClick={() => setDismissed(true)}
-        className="ml-2 rounded p-0.5 transition-colors hover:bg-white/20"
-        title="Dismiss"
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M3 3l6 6M9 3l-6 6" strokeLinecap="round" />
-        </svg>
-      </button>
+      {/* Dismiss X for downloading / ready / error states */}
+      {state.status !== 'available' && (
+        <button
+          onClick={() => setDismissed(true)}
+          className="ml-2 rounded p-0.5 transition-colors hover:bg-white/20"
+          title="Dismiss"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M3 3l6 6M9 3l-6 6" strokeLinecap="round" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

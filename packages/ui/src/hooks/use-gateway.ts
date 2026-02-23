@@ -55,6 +55,13 @@ export function useGateway() {
           authorHandle?: string;
           content?: string;
           createdAt?: string;
+          attachments?: Array<{
+            id: string;
+            fileNameEncrypted: string;
+            fileSize: number;
+            encryptionKeyId: string;
+            nonce: string;
+          }>;
         };
 
         const channelId = raw.channelId;
@@ -83,6 +90,7 @@ export function useGateway() {
           authorHandle: handle,
           content,
           createdAt: raw.createdAt ?? new Date().toISOString(),
+          ...(raw.attachments && raw.attachments.length > 0 ? { attachments: raw.attachments } : {}),
         };
 
         addMessage(channelId, msg);

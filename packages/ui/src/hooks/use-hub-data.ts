@@ -219,6 +219,7 @@ export function useHubData() {
             }
           })(),
           createdAt: m.createdAt,
+          ...(m.attachments && m.attachments.length > 0 ? { attachments: m.attachments } : {}),
         }));
         setMessages(activeChannelId, mapped);
 

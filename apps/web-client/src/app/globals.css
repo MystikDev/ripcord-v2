@@ -10,8 +10,8 @@
   --color-text-primary: #E8ECF4;
   --color-text-secondary: #8892A8;
   --color-text-muted: #5C657A;
-  --color-accent: #7C5CFF;
-  --color-accent-hover: #6B4AEE;
+  --color-accent: #DC2626;
+  --color-accent-hover: #B91C1C;
   --color-cyan: #2EE6FF;
   --color-success: #34D399;
   --color-warning: #FBBF24;
@@ -34,7 +34,7 @@ body {
 
 /* Selection */
 ::selection {
-  background-color: rgba(124, 92, 255, 0.3);
+  background-color: rgba(220, 38, 38, 0.3);
   color: var(--color-text-primary);
 }
 
