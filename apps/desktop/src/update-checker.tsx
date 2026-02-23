@@ -15,8 +15,8 @@ import { getVersion } from '@tauri-apps/api/app';
 /** Initial delay before the first update check (seconds). */
 const INITIAL_DELAY_SEC = 5;
 
-/** How often to re-check for updates (30 minutes). */
-const POLL_INTERVAL_MS = 30 * 60 * 1000;
+/** How often to re-check for updates (5 minutes). */
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Per-check timeout so a hung request doesn't block forever. */
 const CHECK_TIMEOUT_MS = 15_000;
