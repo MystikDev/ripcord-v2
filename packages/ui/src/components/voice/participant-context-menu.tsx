@@ -86,7 +86,7 @@ export function ParticipantContextMenu({
         <input
           type="range"
           min={0}
-          max={200}
+          max={400}
           step={5}
           value={percentage}
           onChange={(e) => setUserVolume(userId, Number(e.target.value) / 100)}
@@ -97,6 +97,7 @@ export function ParticipantContextMenu({
             <span>0%</span>
             <span>100%</span>
             <span>200%</span>
+            <span>400%</span>
           </div>
         </div>
       </div>

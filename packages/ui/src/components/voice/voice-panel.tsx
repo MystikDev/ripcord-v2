@@ -11,6 +11,7 @@ import { gateway } from '../../lib/gateway-client';
 import { useNoiseGate } from '../../hooks/use-noise-gate';
 import { useRestoreSpeaker } from '../../hooks/use-restore-speaker';
 import { useSyncSpeaking } from '../../hooks/use-sync-speaking';
+import { useSyncScreenSharing } from '../../hooks/use-sync-screen-sharing';
 import { useApplyUserVolumes } from '../../hooks/use-apply-user-volumes';
 import { VoiceControls } from './voice-controls';
 import { ScreenShareView } from './screen-share-view';
@@ -77,6 +78,8 @@ function VoicePanelContent({
   useRestoreSpeaker();
   // Bridge LiveKit speaking state to Zustand store for sidebar indicators
   useSyncSpeaking();
+  // Bridge LiveKit screen-share state to Zustand store for sidebar icons
+  useSyncScreenSharing();
   // Apply per-user volume overrides from settings store to LiveKit tracks
   useApplyUserVolumes();
   // Poll WebRTC stats for voice latency

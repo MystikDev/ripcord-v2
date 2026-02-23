@@ -152,8 +152,18 @@ export async function getHubVoiceStates(
 // ---------------------------------------------------------------------------
 
 /**
+ * Grace period (ms) — if a user's Redis entry was written within this window
+ * it likely belongs to a new session (rapid reconnect), so skip cleanup.
+ */
+const REJOIN_GRACE_MS = 5_000;
+
+/**
  * Remove a user from all voice channels they were subscribed to.
  * Called when a WebSocket connection closes.
+ *
+ * Guards against a race condition where the user has already reconnected and
+ * rejoined via a new connection: if the Redis entry's `joinedAt` is very
+ * recent, we skip cleanup for that channel.
  */
 export async function cleanupUserVoiceStates(
   userId: string,
@@ -162,10 +172,23 @@ export async function cleanupUserVoiceStates(
 ): Promise<void> {
   for (const channelId of subscribedChannels) {
     const key = `${VOICE_PREFIX}${channelId}`;
-    const exists = await redis.hexists(key, userId);
-    if (exists) {
-      await leaveVoiceChannel(channelId, userId, manager);
+    const raw = await redis.hget(key, userId);
+    if (!raw) continue;
+
+    // If the user already rejoined via a new connection, their joinedAt will be
+    // very recent — skip cleanup so we don't remove a valid session.
+    try {
+      const participant: VoiceParticipant = JSON.parse(raw);
+      const joinedAge = Date.now() - new Date(participant.joinedAt).getTime();
+      if (joinedAge < REJOIN_GRACE_MS) {
+        log.debug({ channelId, userId, joinedAge }, 'Skipping voice cleanup — user recently rejoined');
+        continue;
+      }
+    } catch {
+      // If we can't parse, proceed with removal
     }
+
+    await leaveVoiceChannel(channelId, userId, manager);
   }
 }
 

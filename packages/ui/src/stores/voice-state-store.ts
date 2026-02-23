@@ -19,6 +19,9 @@ export interface VoiceStateStore {
   /** User IDs currently speaking (bridged from LiveKit context). Runtime-only. */
   speakingUserIds: string[];
 
+  /** User IDs currently screen-sharing (bridged from LiveKit context). Runtime-only. */
+  screenSharingUserIds: string[];
+
   /** Add a participant to a voice channel. */
   addParticipant: (channelId: string, participant: VoiceParticipant) => void;
 
@@ -33,6 +36,9 @@ export interface VoiceStateStore {
 
   /** Set the list of currently speaking user IDs. */
   setSpeakingUserIds: (ids: string[]) => void;
+
+  /** Set the list of currently screen-sharing user IDs. */
+  setScreenSharingUserIds: (ids: string[]) => void;
 
   /** Reset all voice state data. */
   reset: () => void;
@@ -51,6 +57,7 @@ export const EMPTY_PARTICIPANTS: VoiceParticipant[] = [];
 export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
   voiceStates: {},
   speakingUserIds: [],
+  screenSharingUserIds: [],
 
   addParticipant: (channelId, participant) =>
     set((state) => {
@@ -100,5 +107,7 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
 
   setSpeakingUserIds: (ids) => set({ speakingUserIds: ids }),
 
-  reset: () => set({ voiceStates: {}, speakingUserIds: [] }),
+  setScreenSharingUserIds: (ids) => set({ screenSharingUserIds: ids }),
+
+  reset: () => set({ voiceStates: {}, speakingUserIds: [], screenSharingUserIds: [] }),
 }));

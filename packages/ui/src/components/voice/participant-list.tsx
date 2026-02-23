@@ -1,6 +1,6 @@
 'use client';
 
-import { useParticipants } from '@livekit/components-react';
+import { useParticipants, useTracks } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { Avatar } from '../ui/avatar';
 import { useMemberStore } from '../../stores/member-store';
@@ -15,11 +15,13 @@ function ParticipantTile({
   displayName,
   isSpeaking,
   isMuted,
+  isScreenSharing,
 }: {
   identity: string;
   displayName?: string;
   isSpeaking: boolean;
   isMuted: boolean;
+  isScreenSharing: boolean;
 }) {
   // Resolve name + avatar: LiveKit name (handle from token) > member cache > identity
   const cachedHandle = useMemberStore((s) => s.members[identity]?.handle);
@@ -31,7 +33,7 @@ function ParticipantTile({
       {/* Avatar with speaking glow */}
       <div
         className={clsx(
-          'relative rounded-full transition-shadow',
+          'inline-flex items-center justify-center shrink-0 h-8 w-8 rounded-full transition-shadow',
           isSpeaking ? 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)] duration-75' : 'duration-300',
         )}
       >
@@ -42,6 +44,18 @@ function ParticipantTile({
       <span className="flex-1 truncate text-sm text-text-secondary">
         {name}
       </span>
+
+      {/* Screen sharing icon */}
+      {isScreenSharing && (
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-cyan" aria-label="Streaming">
+          <title>Streaming</title>
+          <rect x="1" y="2" width="14" height="10" rx="1.5" />
+          <path d="M4 14h8" />
+          <path d="M6 12v2M10 12v2" />
+          <path d="M6.5 7l2-2 2 2" fill="none" />
+          <path d="M8.5 5v4" />
+        </svg>
+      )}
 
       {/* Muted icon */}
       {isMuted && (
@@ -71,6 +85,12 @@ function ParticipantTile({
 
 export function ParticipantList() {
   const participants = useParticipants();
+  const screenShareTracks = useTracks([Track.Source.ScreenShare], { onlySubscribed: false });
+
+  // Build a set of identities currently sharing their screen
+  const screenSharingIds = new Set(
+    screenShareTracks.map((t) => t.participant.identity).filter(Boolean),
+  );
 
   if (participants.length === 0) {
     return (
@@ -94,6 +114,7 @@ export function ParticipantList() {
             displayName={p.name}
             isSpeaking={p.isSpeaking}
             isMuted={audioTrack?.isMuted ?? true}
+            isScreenSharing={screenSharingIds.has(p.identity)}
           />
         );
       })}

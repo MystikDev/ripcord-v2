@@ -89,6 +89,7 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
   const setPendingVoiceJoin = useHubStore((s) => s.setPendingVoiceJoin);
   const participants = useVoiceStateStore((s) => s.voiceStates[channel.id] ?? EMPTY_PARTICIPANTS);
   const speakingUserIds = useVoiceStateStore((s) => s.speakingUserIds);
+  const screenSharingUserIds = useVoiceStateStore((s) => s.screenSharingUserIds);
   const members = useMemberStore((s) => s.members);
   const currentUserId = useAuthStore((s) => s.userId);
 
@@ -130,10 +131,11 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
         <div className="ml-4 border-l border-border/50 pl-3 py-0.5">
           {participants.map((p) => {
             const isSpeaking = speakingUserIds.includes(p.userId);
+            const isScreenSharing = screenSharingUserIds.includes(p.userId);
             return (
             <div
               key={p.userId}
-              className="flex items-center gap-2 py-0.5 text-xs text-text-muted"
+              className="flex items-center gap-2 py-0.5 text-xs text-text-muted select-none cursor-default"
               onContextMenu={(e) => {
                 if (p.userId === currentUserId) return;
                 e.preventDefault();
@@ -147,13 +149,23 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
             >
               <div
                 className={clsx(
-                  'rounded-full transition-shadow',
+                  'inline-flex items-center justify-center shrink-0 h-5 w-5 rounded-full transition-shadow',
                   isSpeaking ? 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)] duration-75' : 'duration-300',
                 )}
               >
                 <Avatar src={members[p.userId]?.avatarUrl} fallback={p.handle ?? p.userId.slice(0, 2)} size="sm" className="!h-5 !w-5 !text-[9px]" />
               </div>
               <span className="truncate">{p.handle ?? p.userId.slice(0, 8)}</span>
+              {isScreenSharing && (
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-cyan" aria-label="Streaming">
+                  <title>Streaming</title>
+                  <rect x="1" y="2" width="14" height="10" rx="1.5" />
+                  <path d="M4 14h8" />
+                  <path d="M6 12v2M10 12v2" />
+                  <path d="M6.5 7l2-2 2 2" fill="none" />
+                  <path d="M8.5 5v4" />
+                </svg>
+              )}
               {p.selfMute && (
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-danger/70" aria-label="Muted">
                   <rect x="5.5" y="1" width="5" height="8" rx="2.5" />

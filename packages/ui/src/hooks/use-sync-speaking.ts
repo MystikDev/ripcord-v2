@@ -21,7 +21,7 @@ import { useVoiceStateStore } from '../stores/voice-state-store';
 const EMPTY: string[] = [];
 
 /** How long to keep the indicator lit after speaking stops (ms). */
-const HOLD_MS = 300;
+const HOLD_MS = 100;
 
 export function useSyncSpeaking(): void {
   const participants = useParticipants();

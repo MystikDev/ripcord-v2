@@ -25,7 +25,7 @@ export function AdminConsole({ hubId, hubName, trigger }: AdminConsoleProps) {
       <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl bg-surface-1 shadow-xl">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-surface-1 shadow-xl">
           <div className="flex items-center justify-between border-b border-border px-6 py-4">
             <Dialog.Title className="text-lg font-semibold text-text-primary">
               {hubName} &mdash; Settings
@@ -42,7 +42,7 @@ export function AdminConsole({ hubId, hubName, trigger }: AdminConsoleProps) {
             </Dialog.Close>
           </div>
 
-          <Tabs defaultValue="overview" className="flex flex-1 flex-col overflow-hidden">
+          <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="members">Members</TabsTrigger>
