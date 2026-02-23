@@ -63,6 +63,19 @@ app.use(express.json({
   },
 }));
 
+// Reject non-JSON, non-image mutation requests to prevent CSRF via form submissions
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    const ct = req.headers['content-type'] ?? '';
+    // Allow image uploads and JSON requests; reject everything else
+    if (!ct.includes('application/json') && !ct.startsWith('image/')) {
+      res.status(415).json({ ok: false, error: 'Content-Type must be application/json' });
+      return;
+    }
+  }
+  next();
+});
+
 // Global rate limiter: 100 requests per 60 seconds per IP
 app.use(rateLimit({ windowMs: 60_000, max: 100, keyPrefix: 'rl:global' }));
 

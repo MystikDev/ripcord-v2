@@ -38,6 +38,18 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '16kb' }));
 
+// Reject non-JSON POST/PUT/DELETE requests to prevent CSRF via form submissions
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    const ct = req.headers['content-type'] ?? '';
+    if (!ct.includes('application/json')) {
+      res.status(415).json({ ok: false, error: 'Content-Type must be application/json' });
+      return;
+    }
+  }
+  next();
+});
+
 // ---------------------------------------------------------------------------
 // Health check (unauthenticated)
 // ---------------------------------------------------------------------------

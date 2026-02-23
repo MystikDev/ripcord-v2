@@ -42,7 +42,9 @@ export function PasswordLogin() {
       setTokens(tokens.accessToken, tokens.refreshToken);
       const avatarUrl = tokens.avatarUrl ? getUserAvatarUrl(tokens.userId) : undefined;
       setUser(tokens.userId, tokens.handle, tokens.deviceId, avatarUrl);
-      router.push(searchParams.get('redirect') ?? '/');
+      const redirect = searchParams.get('redirect');
+      const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/';
+      router.push(safeRedirect);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

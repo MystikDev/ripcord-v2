@@ -53,6 +53,28 @@ function collectRawBody(req: Request, limit: number): Buffer {
   throw ApiError.badRequest('No image data received');
 }
 
+/**
+ * Validate that the buffer's magic bytes match the claimed content type.
+ * Prevents uploading disguised files (e.g. executables renamed to .png).
+ */
+function validateImageMagicBytes(buf: Buffer, claimedType: string): void {
+  if (buf.length < 4) throw ApiError.badRequest('File too small to be a valid image');
+
+  const header = buf.subarray(0, 8);
+  const isJpeg = header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF;
+  const isPng = header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47;
+  const isGif = header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46;
+
+  const valid =
+    (claimedType === 'image/jpeg' && isJpeg) ||
+    (claimedType === 'image/png' && isPng) ||
+    (claimedType === 'image/gif' && isGif);
+
+  if (!valid) {
+    throw ApiError.badRequest('File content does not match declared Content-Type');
+  }
+}
+
 // ---------------------------------------------------------------------------
 // POST /v1/users/:id/avatar
 // ---------------------------------------------------------------------------
@@ -94,6 +116,8 @@ usersRouter.post(
       if (imageBuffer.length === 0) {
         throw ApiError.badRequest('No image data received');
       }
+
+      validateImageMagicBytes(imageBuffer, contentType);
 
       const ext = MIME_TO_EXT[contentType] ?? 'png';
       const storageKey = `user-avatars/${userId}/${randomUUID()}.${ext}`;

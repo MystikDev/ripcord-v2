@@ -56,8 +56,9 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'ripcord-auth',
+      // Only persist refresh token and user info — access token stays in memory
+      // to limit exposure from localStorage theft (XSS, extensions, etc.)
       partialize: (state) => ({
-        accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         userId: state.userId,
         handle: state.handle,

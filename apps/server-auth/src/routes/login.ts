@@ -109,10 +109,18 @@ loginRouter.post(
         storedCredential,
       );
 
-      // Update the signature counter to detect cloned authenticators
+      // Validate signature counter to detect cloned authenticators
+      const newCounter = verification.authenticationInfo.newCounter;
+      if (newCounter !== 0 && newCounter <= storedCredential.counter) {
+        logger.warn(
+          { userId: user.id, credentialId: storedCredential.credential_id, oldCounter: storedCredential.counter, newCounter },
+          'Possible cloned authenticator detected — counter did not advance',
+        );
+        throw ApiError.unauthorized('Authentication failed: possible cloned authenticator');
+      }
       await credentialRepo.updateCounter(
         storedCredential.credential_id,
-        verification.authenticationInfo.newCounter,
+        newCounter,
       );
 
       // Find or create the device

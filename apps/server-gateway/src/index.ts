@@ -54,7 +54,9 @@ const httpServer = createServer(async (req, res) => {
 // WebSocket Server
 // ---------------------------------------------------------------------------
 
-const wss = new WebSocketServer({ server: httpServer });
+const MAX_PAYLOAD_BYTES = 64 * 1024; // 64 KB per message
+
+const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD_BYTES });
 
 wss.on('connection', (ws: WebSocket) => {
   const conn = new ClientConnection(ws);

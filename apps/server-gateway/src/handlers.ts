@@ -158,6 +158,11 @@ export async function handleSubscribe(
     return;
   }
 
+  if (payload.channelIds.length > 200) {
+    conn.send(GatewayOpcode.ERROR, { message: 'Too many channelIds (max 200)' });
+    return;
+  }
+
   // Validate all IDs are valid UUIDs
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const invalidIds = payload.channelIds.filter(id => typeof id !== 'string' || !UUID_RE.test(id));
