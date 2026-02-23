@@ -1,6 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from '@tauri-apps/plugin-notification';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Initial delay before the first update check (seconds). */
+const INITIAL_DELAY_SEC = 5;
+
+/** How often to re-check for updates (30 minutes). */
+const POLL_INTERVAL_MS = 30 * 60 * 1000;
+
+/** Per-check timeout so a hung request doesn't block forever. */
+const CHECK_TIMEOUT_MS = 15_000;
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type UpdateState =
   | { status: 'idle' }
@@ -10,60 +32,111 @@ type UpdateState =
   | { status: 'ready'; version: string }
   | { status: 'error'; message: string };
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function notifyUser(version: string): Promise<void> {
+  try {
+    let allowed = await isPermissionGranted();
+    if (!allowed) {
+      const perm = await requestPermission();
+      allowed = perm === 'granted';
+    }
+    if (allowed) {
+      sendNotification({
+        title: 'Ripcord Update Available',
+        body: `Version ${version} has been downloaded and is ready to install. Click the banner in the app to restart.`,
+      });
+    }
+  } catch {
+    // Non-critical — swallow notification errors
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function UpdateChecker() {
   const [state, setState] = useState<UpdateState>({ status: 'idle' });
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  // Track whether an update was already found & installed so the
+  // periodic poll doesn't re-download.
+  const foundRef = useRef(false);
+  const cancelledRef = useRef(false);
 
-    async function checkForUpdate() {
-      setState({ status: 'checking' });
-      try {
-        const update = await check();
-        if (cancelled) return;
+  const checkForUpdate = useCallback(async () => {
+    // If we already found + installed an update, stop polling.
+    if (foundRef.current || cancelledRef.current) return;
 
-        if (update) {
-          setState({ status: 'available', version: update.version });
+    setState({ status: 'checking' });
 
-          // Auto-download in background
-          let downloaded = 0;
-          let total = 0;
-          await update.downloadAndInstall((event) => {
-            if (cancelled) return;
-            if (event.event === 'Started' && event.data.contentLength) {
-              total = event.data.contentLength;
-            } else if (event.event === 'Progress') {
-              downloaded += event.data.chunkLength;
-              const progress = total > 0 ? Math.round((downloaded / total) * 100) : 0;
-              setState({ status: 'downloading', progress });
-            } else if (event.event === 'Finished') {
-              setState({ status: 'ready', version: update.version });
-            }
-          });
+    try {
+      // Race the check against a timeout so we don't hang forever.
+      const update = await Promise.race([
+        check(),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('Update check timed out')), CHECK_TIMEOUT_MS),
+        ),
+      ]);
 
-          if (!cancelled) {
+      if (cancelledRef.current) return;
+
+      if (update) {
+        foundRef.current = true;
+        setState({ status: 'available', version: update.version });
+
+        // Auto-download in background
+        let downloaded = 0;
+        let total = 0;
+        await update.downloadAndInstall((event) => {
+          if (cancelledRef.current) return;
+          if (event.event === 'Started' && event.data.contentLength) {
+            total = event.data.contentLength;
+          } else if (event.event === 'Progress') {
+            downloaded += event.data.chunkLength;
+            const progress = total > 0 ? Math.round((downloaded / total) * 100) : 0;
+            setState({ status: 'downloading', progress });
+          } else if (event.event === 'Finished') {
             setState({ status: 'ready', version: update.version });
           }
-        } else {
-          setState({ status: 'idle' });
+        });
+
+        if (!cancelledRef.current) {
+          setState({ status: 'ready', version: update.version });
+          // Re-show banner if user previously dismissed it
+          setDismissed(false);
+          // Fire a system notification so tray-minimised users see it
+          await notifyUser(update.version);
         }
-      } catch (err) {
-        if (!cancelled) {
-          // Silently fail — don't bother user if update check fails
-          console.warn('[UpdateChecker]', err);
-          setState({ status: 'idle' });
-        }
+      } else {
+        setState({ status: 'idle' });
+      }
+    } catch (err) {
+      if (!cancelledRef.current) {
+        console.warn('[UpdateChecker]', err);
+        setState({ status: 'idle' });
       }
     }
-
-    // Check after a short delay so the app loads first
-    const timer = setTimeout(checkForUpdate, 5000);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
   }, []);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+
+    // First check after a short delay so the app loads first
+    const initialTimer = setTimeout(checkForUpdate, INITIAL_DELAY_SEC * 1000);
+
+    // Then re-check periodically
+    const pollTimer = setInterval(checkForUpdate, POLL_INTERVAL_MS);
+
+    return () => {
+      cancelledRef.current = true;
+      clearTimeout(initialTimer);
+      clearInterval(pollTimer);
+    };
+  }, [checkForUpdate]);
 
   if (dismissed || state.status === 'idle' || state.status === 'checking') {
     return null;
