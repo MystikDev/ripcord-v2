@@ -43,19 +43,20 @@ export function useVoiceLatency(): VoiceLatency {
 
   const pollStats = useCallback(async () => {
     try {
-      // Access the subscriber's RTCPeerConnection via the engine's
-      // PCTransportManager.  In livekit-client v2.x the path is:
-      //   room.engine.pcManager.subscriber  →  PCTransport wrapper
-      //   PCTransport.pc                    →  actual RTCPeerConnection
+      // In livekit-client v2.x the path is:
+      //   room.engine.pcManager.subscriber  →  PCTransport (optional)
+      //   room.engine.pcManager.publisher   →  PCTransport (always present)
+      // PCTransport has a public getStats() that returns RTCStatsReport.
+      // NOTE: .pc is private — call getStats() on the PCTransport directly.
+      // Prefer subscriber (receives other users' audio), fall back to
+      // publisher (always exists, even when alone in the channel).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const engine = (room as any).engine;
-      const subscriber = engine?.pcManager?.subscriber;
-      // PCTransport exposes the RTCPeerConnection via .pc (or .getPC())
-      const pc: RTCPeerConnection | undefined =
-        subscriber?.pc ?? subscriber?.getPC?.();
-      if (!pc) return;
+      const pcManager = engine?.pcManager;
+      const transport = pcManager?.subscriber ?? pcManager?.publisher;
+      if (!transport?.getStats) return;
 
-      const stats: RTCStatsReport = await pc.getStats();
+      const stats: RTCStatsReport = await transport.getStats();
       let rtt: number | null = null;
 
       stats.forEach((report) => {
