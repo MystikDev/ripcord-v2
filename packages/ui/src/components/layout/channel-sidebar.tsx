@@ -19,6 +19,7 @@ import { IconCropDialog } from '../admin/icon-crop-dialog';
 import { uploadUserAvatar, getUserAvatarUrl } from '../../lib/user-api';
 import { useCallback, useRef, useState } from 'react';
 import { useToast } from '../ui/toast';
+import { getAppVersion } from '../../lib/constants';
 
 const EMPTY_MESSAGES: never[] = [];
 
@@ -271,56 +272,67 @@ function UserPanel() {
     }
   }, [cropImageSrc]);
 
-  return (
-    <div className="flex items-center gap-2 border-t border-border bg-surface-1/50 px-3 py-2">
-      {/* Clickable avatar — opens file picker for upload */}
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        className="group relative shrink-0 rounded-full"
-        title="Change avatar"
-        disabled={uploading}
-      >
-        <Avatar src={avatarUrl ?? undefined} fallback={handle ?? '?'} size="sm" />
-        {/* Camera overlay on hover */}
-        <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
-            <path d="M5.5 3L4.6 1.6A1 1 0 005.5 0h5a1 1 0 00.9.6L12.5 3H14a2 2 0 012 2v7a2 2 0 01-2 2H2a2 2 0 01-2-2V5a2 2 0 012-2h1.5zM8 12a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" />
-          </svg>
-        </div>
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/gif"
-        className="hidden"
-        onChange={handleAvatarSelect}
-      />
-      <div className="flex-1 min-w-0">
-        <p className="truncate text-sm font-medium text-text-primary">
-          {handle ?? 'Unknown'}
-        </p>
-        <p className="text-xs text-text-muted capitalize">{status}</p>
-      </div>
-      <button
-        onClick={logout}
-        className="rounded-md p-1.5 text-text-muted hover:bg-surface-2 hover:text-text-secondary transition-colors"
-        title="Log out"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M11 11l3-3-3-3M14 8H6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
+  const version = getAppVersion();
 
-      {/* Crop dialog for avatar */}
-      {cropImageSrc && (
-        <IconCropDialog
-          open={cropDialogOpen}
-          onOpenChange={handleCropDialogChange}
-          imageSrc={cropImageSrc}
-          imageType={cropImageType}
-          onCropConfirm={handleCropConfirm}
+  return (
+    <div>
+      <div className="flex items-center gap-2 border-t border-border bg-surface-1/50 px-3 py-2">
+        {/* Clickable avatar — opens file picker for upload */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="group relative shrink-0 rounded-full"
+          title="Change avatar"
+          disabled={uploading}
+        >
+          <Avatar src={avatarUrl ?? undefined} fallback={handle ?? '?'} size="sm" />
+          {/* Camera overlay on hover */}
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
+              <path d="M5.5 3L4.6 1.6A1 1 0 005.5 0h5a1 1 0 00.9.6L12.5 3H14a2 2 0 012 2v7a2 2 0 01-2 2H2a2 2 0 01-2-2V5a2 2 0 012-2h1.5zM8 12a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" />
+            </svg>
+          </div>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif"
+          className="hidden"
+          onChange={handleAvatarSelect}
         />
-      )}
+        <div className="flex-1 min-w-0">
+          <p className="truncate text-sm font-medium text-text-primary">
+            {handle ?? 'Unknown'}
+          </p>
+          <p className="text-xs text-text-muted capitalize">{status}</p>
+        </div>
+        <button
+          onClick={logout}
+          className="rounded-md p-1.5 text-text-muted hover:bg-surface-2 hover:text-text-secondary transition-colors"
+          title="Log out"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M11 11l3-3-3-3M14 8H6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {/* Crop dialog for avatar */}
+        {cropImageSrc && (
+          <IconCropDialog
+            open={cropDialogOpen}
+            onOpenChange={handleCropDialogChange}
+            imageSrc={cropImageSrc}
+            imageType={cropImageType}
+            onCropConfirm={handleCropConfirm}
+          />
+        )}
+      </div>
+
+      {/* Version footer */}
+      <div className="flex items-center justify-center border-t border-border/50 bg-surface-1/30 py-1">
+        <span className="text-[10px] text-text-muted/50 select-none">
+          Ripcord v{version}
+        </span>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ export interface AppConfig {
   apiBaseUrl: string;
   authBaseUrl: string;
   gatewayUrl: string;
+  appVersion?: string;
 }
 
 const config: AppConfig = {
@@ -27,6 +28,10 @@ export function getAuthBaseUrl(): string {
 
 export function getGatewayUrl(): string {
   return config.gatewayUrl;
+}
+
+export function getAppVersion(): string {
+  return config.appVersion ?? 'dev';
 }
 
 // WebAuthn Relying Party

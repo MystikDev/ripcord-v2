@@ -3,7 +3,7 @@ export { RouterContext, useAppRouter, useAppSearchParams, useAppParams, useAppLi
 export type { AppRouter, AppRouterContext } from './lib/router';
 
 // Config
-export { setAppConfig, getApiBaseUrl, getAuthBaseUrl, getGatewayUrl } from './lib/constants';
+export { setAppConfig, getApiBaseUrl, getAuthBaseUrl, getGatewayUrl, getAppVersion } from './lib/constants';
 export type { AppConfig } from './lib/constants';
 
 // Layout components
