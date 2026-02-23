@@ -40,6 +40,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VITE_API_URL: https://api.ripcord.gg
+          VITE_AUTH_URL: https://auth.ripcord.gg
+          VITE_GATEWAY_URL: wss://gw.ripcord.gg
         with:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
