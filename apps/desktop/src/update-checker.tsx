@@ -6,6 +6,7 @@ import {
   requestPermission,
   sendNotification,
 } from '@tauri-apps/plugin-notification';
+import { getVersion } from '@tauri-apps/api/app';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -49,8 +50,8 @@ async function notifyUser(version: string): Promise<void> {
         body: `Version ${version} has been downloaded and is ready to install. Click the banner in the app to restart.`,
       });
     }
-  } catch {
-    // Non-critical — swallow notification errors
+  } catch (err) {
+    console.warn('[UpdateChecker] notification error:', err);
   }
 }
 
@@ -74,6 +75,9 @@ export function UpdateChecker() {
     setState({ status: 'checking' });
 
     try {
+      const currentVersion = await getVersion();
+      console.log(`[UpdateChecker] Current version: ${currentVersion}, checking for updates...`);
+
       // Race the check against a timeout so we don't hang forever.
       const update = await Promise.race([
         check(),
@@ -85,6 +89,7 @@ export function UpdateChecker() {
       if (cancelledRef.current) return;
 
       if (update) {
+        console.log(`[UpdateChecker] Update found: v${update.version} (current: ${currentVersion})`);
         foundRef.current = true;
         setState({ status: 'available', version: update.version });
 
@@ -95,11 +100,13 @@ export function UpdateChecker() {
           if (cancelledRef.current) return;
           if (event.event === 'Started' && event.data.contentLength) {
             total = event.data.contentLength;
+            console.log(`[UpdateChecker] Download started, size: ${total} bytes`);
           } else if (event.event === 'Progress') {
             downloaded += event.data.chunkLength;
             const progress = total > 0 ? Math.round((downloaded / total) * 100) : 0;
             setState({ status: 'downloading', progress });
           } else if (event.event === 'Finished') {
+            console.log('[UpdateChecker] Download finished');
             setState({ status: 'ready', version: update.version });
           }
         });
@@ -112,12 +119,18 @@ export function UpdateChecker() {
           await notifyUser(update.version);
         }
       } else {
+        console.log(`[UpdateChecker] No update available (current: ${currentVersion})`);
         setState({ status: 'idle' });
       }
     } catch (err) {
       if (!cancelledRef.current) {
-        console.warn('[UpdateChecker]', err);
-        setState({ status: 'idle' });
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('[UpdateChecker] Check failed:', message);
+        // Show error briefly then go idle — don't block the UI permanently
+        setState({ status: 'error', message });
+        setTimeout(() => {
+          setState((prev) => (prev.status === 'error' ? { status: 'idle' } : prev));
+        }, 10_000);
       }
     }
   }, []);
@@ -165,7 +178,7 @@ export function UpdateChecker() {
       )}
 
       {state.status === 'error' && (
-        <span>Update failed: {state.message}</span>
+        <span>Update check failed: {state.message}</span>
       )}
 
       <button

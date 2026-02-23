@@ -54,7 +54,7 @@ function MemberRow({ member }: { member: MemberInfo }) {
       className={clsx(
         'flex items-center gap-2 rounded-md px-2 py-1 transition-colors',
         'hover:bg-surface-2',
-        isOffline && 'opacity-30',
+        isOffline && 'opacity-40',
       )}
     >
       {/* Avatar with status indicator */}
@@ -72,7 +72,7 @@ function MemberRow({ member }: { member: MemberInfo }) {
       <span
         className={clsx(
           'truncate text-sm font-medium',
-          isOffline ? 'text-text-muted' : 'text-text-primary',
+          isOffline ? 'text-text-secondary' : 'text-text-primary',
         )}
       >
         {member.handle}
@@ -88,7 +88,7 @@ function MemberRow({ member }: { member: MemberInfo }) {
 function RoleGroupHeader({ name, count }: { name: string; count: number }) {
   return (
     <div className="px-2 pt-4 pb-1">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
         {name} — {count}
       </p>
     </div>

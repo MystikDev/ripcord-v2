@@ -99,8 +99,11 @@ export function CreateChannelDialog({ hubId, trigger }: { hubId: string; trigger
                 )}
               >
                 <div className="flex items-center gap-2 font-medium">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M8 1a2 2 0 00-2 2v4a2 2 0 104 0V3a2 2 0 00-2-2zM4 7a1 1 0 00-2 0 6 6 0 0012 0 1 1 0 10-2 0 4 4 0 01-8 0z" />
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
+                    <path d="M3 7.5a5 5 0 0 0 10 0" />
+                    <path d="M8 12v2.5" />
+                    <path d="M5.5 14.5h5" />
                   </svg>
                   Voice
                 </div>

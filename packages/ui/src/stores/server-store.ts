@@ -40,7 +40,7 @@ export interface HubState {
 // Store
 // ---------------------------------------------------------------------------
 
-export const useHubStore = create<HubState>()((set) => ({
+export const useHubStore = create<HubState>()((set, get) => ({
   hubs: [],
   activeHubId: null,
   channels: [],
@@ -49,7 +49,11 @@ export const useHubStore = create<HubState>()((set) => ({
 
   setHubs: (hubs) => set({ hubs }),
 
-  setActiveHub: (id) => set({ activeHubId: id, activeChannelId: null, channels: [] }),
+  setActiveHub: (id) => {
+    // No-op when clicking the already-active hub to avoid wiping channels
+    if (get().activeHubId === id) return;
+    set({ activeHubId: id, activeChannelId: null, channels: [] });
+  },
 
   setChannels: (channels) => set({ channels }),
 

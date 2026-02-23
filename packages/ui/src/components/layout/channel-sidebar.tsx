@@ -47,8 +47,11 @@ function ChannelItem({ channel, isActive }: { channel: Channel; isActive: boolea
   }
 
   const icon = channel.type === 'voice' ? (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
-      <path d="M8 1a2 2 0 00-2 2v4a2 2 0 104 0V3a2 2 0 00-2-2zM4 7a1 1 0 00-2 0 6 6 0 0012 0 1 1 0 10-2 0 4 4 0 01-8 0zM7 13.93A6.004 6.004 0 012 8a1 1 0 10-2 0 8.003 8.003 0 007 7.93V15H6a1 1 0 100 2h4a1 1 0 100-2H9v-.07z" />
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
+      <path d="M3 7.5a5 5 0 0 0 10 0" />
+      <path d="M8 12v2.5" />
+      <path d="M5.5 14.5h5" />
     </svg>
   ) : (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
@@ -108,8 +111,11 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
             : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
         )}
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
-          <path d="M8 1a2 2 0 00-2 2v4a2 2 0 104 0V3a2 2 0 00-2-2zM4 7a1 1 0 00-2 0 6 6 0 0012 0 1 1 0 10-2 0 4 4 0 01-8 0zM7 13.93A6.004 6.004 0 012 8a1 1 0 10-2 0 8.003 8.003 0 007 7.93V15H6a1 1 0 100 2h4a1 1 0 100-2H9v-.07z" />
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+          <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
+          <path d="M3 7.5a5 5 0 0 0 10 0" />
+          <path d="M8 12v2.5" />
+          <path d="M5.5 14.5h5" />
         </svg>
         <span className="truncate">{channel.name}</span>
         {participants.length > 0 && (
@@ -149,9 +155,10 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
               </div>
               <span className="truncate">{p.handle ?? p.userId.slice(0, 8)}</span>
               {p.selfMute && (
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="shrink-0 text-danger/70" aria-label="Muted">
-                  <path d="M8 1a2 2 0 00-2 2v4a2 2 0 104 0V3a2 2 0 00-2-2z" />
-                  <path d="M2.5 2.5l11 11M4 7a1 1 0 00-2 0c0 1.5.6 2.9 1.5 3.9L2 12.5" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" />
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-danger/70" aria-label="Muted">
+                  <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
+                  <path d="M3 7.5a5 5 0 0 0 10 0" />
+                  <path d="M2 2l12 12" strokeWidth="2" />
                 </svg>
               )}
               {p.selfDeaf && (

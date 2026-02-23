@@ -15,18 +15,22 @@ import clsx from 'clsx';
 // ---------------------------------------------------------------------------
 
 function MicIcon({ muted }: { muted: boolean }) {
-  if (muted) {
-    return (
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M8 1a2 2 0 00-2 2v4a2 2 0 104 0V3a2 2 0 00-2-2z" />
-        <path d="M2.7 2.7a1 1 0 011.4 0l9.2 9.2a1 1 0 01-1.4 1.4L2.7 4.1a1 1 0 010-1.4z" />
-        <path d="M4 7a1 1 0 00-2 0 6 6 0 008.5 5.45l-1.5-1.5A4 4 0 014 7zM12 7a1 1 0 012 0 6.002 6.002 0 01-.5 2.45l-1.5-1.5A3.98 3.98 0 0012 7z" />
-      </svg>
-    );
-  }
   return (
-    <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M8 1a2 2 0 00-2 2v4a2 2 0 104 0V3a2 2 0 00-2-2zM4 7a1 1 0 00-2 0 6 6 0 0012 0 1 1 0 10-2 0 4 4 0 01-8 0zM7 13.93A6.004 6.004 0 012 8a1 1 0 10-2 0 8.003 8.003 0 007 7.93V15H6a1 1 0 100 2h4a1 1 0 100-2H9v-.07z" />
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
+      <path d="M3 7.5a5 5 0 0 0 10 0" />
+      <path d="M8 12v2.5" />
+      <path d="M5.5 14.5h5" />
+      {muted && <path d="M2 2l12 12" strokeWidth="2" />}
     </svg>
   );
 }

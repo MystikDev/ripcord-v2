@@ -14,6 +14,8 @@ import { useSyncSpeaking } from '../../hooks/use-sync-speaking';
 import { useApplyUserVolumes } from '../../hooks/use-apply-user-volumes';
 import { VoiceControls } from './voice-controls';
 import { ScreenShareView } from './screen-share-view';
+import { SignalMeter } from './signal-meter';
+import { useVoiceLatency } from '../../hooks/use-voice-latency';
 import clsx from 'clsx';
 
 // Suppress noisy LiveKit SDK internal errors (e.g. "Tried to add a track for
@@ -77,6 +79,8 @@ function VoicePanelContent({
   useSyncSpeaking();
   // Apply per-user volume overrides from settings store to LiveKit tracks
   useApplyUserVolumes();
+  // Poll WebRTC stats for voice latency
+  const { latencyMs, quality } = useVoiceLatency();
 
   return (
     <div className="flex flex-col gap-2 p-3">
@@ -93,6 +97,9 @@ function VoicePanelContent({
                   ? 'Connection Error'
                   : 'Not Connected'}
           </span>
+          {connectionState === 'connected' && (
+            <SignalMeter latencyMs={latencyMs} quality={quality} />
+          )}
         </div>
         <span className="truncate text-xs text-text-muted max-w-[120px]">
           {channelName}
@@ -310,8 +317,11 @@ export function VoicePanel() {
               onClick={handleJoin}
               className="flex w-full items-center justify-center gap-2 rounded-md bg-success/20 px-3 py-2 text-sm font-medium text-success transition-colors hover:bg-success/30"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
-                <path d="M8 1a2 2 0 00-2 2v4a2 2 0 104 0V3a2 2 0 00-2-2zM4 7a1 1 0 00-2 0 6 6 0 0012 0 1 1 0 10-2 0 4 4 0 01-8 0zM7 13.93A6.004 6.004 0 012 8a1 1 0 10-2 0 8.003 8.003 0 007 7.93V15H6a1 1 0 100 2h4a1 1 0 100-2H9v-.07z" />
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
+                <path d="M3 7.5a5 5 0 0 0 10 0" />
+                <path d="M8 12v2.5" />
+                <path d="M5.5 14.5h5" />
               </svg>
               Join Voice
             </button>

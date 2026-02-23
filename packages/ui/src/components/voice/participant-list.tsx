@@ -49,12 +49,16 @@ function ParticipantTile({
           width="14"
           height="14"
           viewBox="0 0 16 16"
-          fill="currentColor"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           className="shrink-0 text-danger"
         >
-          <path d="M8 1a2 2 0 00-2 2v4a2 2 0 104 0V3a2 2 0 00-2-2z" />
-          <path d="M2.7 2.7a1 1 0 011.4 0l9.2 9.2a1 1 0 01-1.4 1.4L2.7 4.1a1 1 0 010-1.4z" />
-          <path d="M4 7a1 1 0 00-2 0 6 6 0 008.5 5.45l-1.5-1.5A4 4 0 014 7zM12 7a1 1 0 012 0 6.002 6.002 0 01-.5 2.45l-1.5-1.5A3.98 3.98 0 0012 7z" />
+          <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
+          <path d="M3 7.5a5 5 0 0 0 10 0" />
+          <path d="M2 2l12 12" strokeWidth="2" />
         </svg>
       )}
     </div>

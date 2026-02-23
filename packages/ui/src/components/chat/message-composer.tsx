@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback, useRef, type KeyboardEvent, type FormEvent } from 'react';
+import { useState, useCallback, useRef, type KeyboardEvent, type FormEvent, type ClipboardEvent } from 'react';
 import { useAuthStore } from '../../stores/auth-store';
 import { useMessageStore, type Message } from '../../stores/message-store';
 import { sendMessage } from '../../lib/hub-api';
 import { gateway } from '../../lib/gateway-client';
-import { FileUploadButton } from './file-upload-button';
+import { FileUploadButton, type FileUploadHandle } from './file-upload-button';
 import { CommandPalette } from './command-palette';
 import { useAIStore } from '../../stores/ai-store';
 import { getAIConfig } from '../../lib/ai/ai-client';
@@ -44,6 +44,7 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
   const setAIError = useAIStore((s) => s.setError);
   const aiProcessing = useAIStore((s) => s.isProcessing);
 
+  const fileUploadRef = useRef<FileUploadHandle>(null);
   const lastTypingSent = useRef(0);
   const TYPING_DEBOUNCE_MS = 3_000;
 
@@ -179,6 +180,15 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
     handleSend();
   };
 
+  const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = e.clipboardData?.files;
+    if (files && files.length > 0) {
+      e.preventDefault();
+      fileUploadRef.current?.uploadFile(files[0]);
+    }
+    // If no files, let the default text paste happen
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setContent(val);
@@ -198,6 +208,7 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
 
       <div className="flex items-end gap-2 rounded-lg bg-surface-1 px-4 py-2">
         <FileUploadButton
+          ref={fileUploadRef}
           channelId={channelId}
           onUploaded={(att) => {
             console.log('File uploaded:', att);
@@ -209,6 +220,7 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
           value={content}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={`Message #${channelName}`}
           rows={1}
           className="max-h-40 flex-1 resize-none bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
