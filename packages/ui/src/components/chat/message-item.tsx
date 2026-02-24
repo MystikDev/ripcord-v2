@@ -93,6 +93,7 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
                 attachmentId={att.id}
                 fileNameEncrypted={att.fileNameEncrypted}
                 fileSize={att.fileSize}
+                contentTypeEncrypted={att.contentTypeEncrypted}
                 encryptionKeyId={att.encryptionKeyId}
                 nonce={att.nonce}
               />

@@ -86,6 +86,7 @@ export async function sendMessage(
         id: a.id,
         fileNameEncrypted: a.fileNameEncrypted,
         fileSize: a.fileSize,
+        contentTypeEncrypted: a.contentTypeEncrypted,
         encryptionKeyId: a.encryptionKeyId,
         nonce: a.nonce,
       })) }
@@ -144,6 +145,7 @@ export async function getMessages(
           id: a.id,
           fileNameEncrypted: a.fileNameEncrypted,
           fileSize: a.fileSize,
+          contentTypeEncrypted: a.contentTypeEncrypted,
           encryptionKeyId: a.encryptionKeyId,
           nonce: a.nonce,
         })),

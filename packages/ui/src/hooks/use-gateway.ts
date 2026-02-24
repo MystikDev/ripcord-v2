@@ -65,6 +65,7 @@ export function useGateway() {
             id: string;
             fileNameEncrypted: string;
             fileSize: number;
+            contentTypeEncrypted?: string | null;
             encryptionKeyId: string;
             nonce: string;
           }>;

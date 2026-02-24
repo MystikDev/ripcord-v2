@@ -110,7 +110,7 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
   return (
     <div>
       <button
-        onClick={() => setPendingVoiceJoin(channel.id)}
+        onClick={() => setActiveChannel(channel.id)}
         onDoubleClick={() => setPendingVoiceJoin(channel.id)}
         className={clsx(
           'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',

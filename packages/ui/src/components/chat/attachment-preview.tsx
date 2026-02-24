@@ -1,22 +1,31 @@
 /**
  * @module attachment-preview
- * File attachment chip displayed within messages. Shows the decoded filename
- * and size; on click, downloads the encrypted blob, decrypts client-side,
- * and triggers a browser download.
+ * File attachment display within messages. For images, auto-fetches the
+ * encrypted blob, decrypts client-side, and renders an inline preview.
+ * For non-image files, shows a download chip with filename and size.
  */
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getDownloadUrl } from '../../lib/attachment-api';
 import { decryptFile } from '../../lib/file-crypto';
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
 interface AttachmentPreviewProps {
   attachmentId: string;
   fileNameEncrypted: string;
   fileSize: number;
+  contentTypeEncrypted?: string | null;
   encryptionKeyId: string;
   nonce: string;
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -32,30 +41,158 @@ function decryptFileName(encrypted: string): string {
   }
 }
 
-export function AttachmentPreview({
+/** Decode the base64-encoded MIME type. Returns null if missing/invalid. */
+function decodeMimeType(contentTypeEncrypted?: string | null): string | null {
+  if (!contentTypeEncrypted) return null;
+  try {
+    return atob(contentTypeEncrypted);
+  } catch {
+    return null;
+  }
+}
+
+/** Check whether a MIME type is a displayable image format. */
+function isDisplayableImage(mimeType: string | null): boolean {
+  if (!mimeType) return false;
+  return mimeType.startsWith('image/');
+}
+
+// ---------------------------------------------------------------------------
+// Inline Image Preview
+// ---------------------------------------------------------------------------
+
+function ImagePreview({
   attachmentId,
-  fileNameEncrypted,
+  fileName,
+  fileSize,
+  mimeType,
+  encryptionKeyId,
+  nonce,
+}: {
+  attachmentId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  encryptionKeyId: string;
+  nonce: string;
+}) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const blobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchAndDecrypt() {
+      try {
+        const { downloadUrl } = await getDownloadUrl(attachmentId);
+        const response = await fetch(downloadUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const encryptedData = await response.arrayBuffer();
+        const plaintext = await decryptFile(encryptedData, nonce, encryptionKeyId);
+
+        if (cancelled) return;
+
+        const blob = new Blob([plaintext], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
+        setBlobUrl(url);
+      } catch (err) {
+        console.error('Image preview failed:', err);
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchAndDecrypt();
+
+    return () => {
+      cancelled = true;
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, [attachmentId, nonce, encryptionKeyId, mimeType]);
+
+  const handleDownload = () => {
+    if (!blobUrl) return;
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // Error: fall back to download button
+  if (error) {
+    return (
+      <FileDownloadButton
+        attachmentId={attachmentId}
+        fileName={fileName}
+        fileSize={fileSize}
+        encryptionKeyId={encryptionKeyId}
+        nonce={nonce}
+      />
+    );
+  }
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <div className="mt-1 flex max-w-md items-center justify-center rounded-lg border border-border bg-surface-1 p-4">
+        <div className="flex items-center gap-2 text-sm text-text-muted">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent/30 border-t-accent" />
+          Loading image...
+        </div>
+      </div>
+    );
+  }
+
+  // Inline image
+  return (
+    <div className="mt-1 max-w-md">
+      <img
+        src={blobUrl!}
+        alt={fileName}
+        onClick={handleDownload}
+        title={`${fileName} (${formatFileSize(fileSize)}) — click to download`}
+        className="max-h-80 cursor-pointer rounded-lg border border-border object-contain transition-opacity hover:opacity-90"
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// File Download Button (non-image fallback)
+// ---------------------------------------------------------------------------
+
+function FileDownloadButton({
+  attachmentId,
+  fileName,
   fileSize,
   encryptionKeyId,
   nonce,
-}: AttachmentPreviewProps) {
+}: {
+  attachmentId: string;
+  fileName: string;
+  fileSize: number;
+  encryptionKeyId: string;
+  nonce: string;
+}) {
   const [downloading, setDownloading] = useState(false);
-  const fileName = decryptFileName(fileNameEncrypted);
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      // Get pre-signed download URL
       const { downloadUrl } = await getDownloadUrl(attachmentId);
-
-      // Download encrypted file
       const response = await fetch(downloadUrl);
       const encryptedData = await response.arrayBuffer();
-
-      // Decrypt
       const plaintext = await decryptFile(encryptedData, nonce, encryptionKeyId);
 
-      // Trigger browser download
       const blob = new Blob([plaintext]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -92,5 +229,44 @@ export function AttachmentPreview({
         <p className="text-xs text-text-muted">{formatFileSize(fileSize)}</p>
       </div>
     </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
+
+export function AttachmentPreview({
+  attachmentId,
+  fileNameEncrypted,
+  fileSize,
+  contentTypeEncrypted,
+  encryptionKeyId,
+  nonce,
+}: AttachmentPreviewProps) {
+  const fileName = decryptFileName(fileNameEncrypted);
+  const mimeType = decodeMimeType(contentTypeEncrypted);
+
+  if (isDisplayableImage(mimeType)) {
+    return (
+      <ImagePreview
+        attachmentId={attachmentId}
+        fileName={fileName}
+        fileSize={fileSize}
+        mimeType={mimeType!}
+        encryptionKeyId={encryptionKeyId}
+        nonce={nonce}
+      />
+    );
+  }
+
+  return (
+    <FileDownloadButton
+      attachmentId={attachmentId}
+      fileName={fileName}
+      fileSize={fileSize}
+      encryptionKeyId={encryptionKeyId}
+      nonce={nonce}
+    />
   );
 }
