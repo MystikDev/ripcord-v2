@@ -3,7 +3,6 @@ import { getApiBaseUrl } from './constants';
 
 export interface UploadRequest {
   channelId: string;
-  messageId: string;
   fileNameEncrypted: string;
   fileSize: number;
   contentTypeEncrypted?: string;
@@ -36,7 +35,6 @@ export async function requestUpload(params: UploadRequest): Promise<UploadRespon
     {
       method: 'POST',
       body: JSON.stringify({
-        messageId: params.messageId,
         fileNameEncrypted: params.fileNameEncrypted,
         fileSize: params.fileSize,
         contentTypeEncrypted: params.contentTypeEncrypted,

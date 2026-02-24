@@ -9,6 +9,7 @@
 import { useRef, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { encryptFile } from '../../lib/file-crypto';
 import { requestUpload } from '../../lib/attachment-api';
+import { useToast } from '../ui/toast';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +43,7 @@ export const FileUploadButton = forwardRef<FileUploadHandle, FileUploadButtonPro
     const inputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
+    const toast = useToast();
 
     const doUpload = useCallback(async (file: File) => {
       if (uploading) return;
@@ -62,11 +64,9 @@ export const FileUploadButton = forwardRef<FileUploadHandle, FileUploadButtonPro
         const fileNameEncrypted = btoa(unescape(encodeURIComponent(file.name)));
         const contentTypeEncrypted = file.type ? btoa(file.type) : undefined;
 
-        // Request pre-signed URL
-        const messageId = `msg-${Date.now()}`; // Placeholder
+        // Request upload URL from server
         const result = await requestUpload({
           channelId,
-          messageId,
           fileNameEncrypted,
           fileSize: encrypted.ciphertext.byteLength,
           contentTypeEncrypted,
@@ -75,12 +75,16 @@ export const FileUploadButton = forwardRef<FileUploadHandle, FileUploadButtonPro
         });
         setProgress(70);
 
-        // Upload encrypted file directly to S3/MinIO
-        await fetch(result.uploadUrl, {
+        // Upload encrypted file to the proxy blob endpoint
+        const putRes = await fetch(result.uploadUrl, {
           method: 'PUT',
-          body: encrypted.ciphertext,
+          body: new Uint8Array(encrypted.ciphertext),
           headers: { 'Content-Type': 'application/octet-stream' },
         });
+        if (!putRes.ok) {
+          const errText = await putRes.text().catch(() => putRes.statusText);
+          throw new Error(`Upload failed (${putRes.status}): ${errText}`);
+        }
         setProgress(100);
 
         onUploaded({
@@ -91,13 +95,15 @@ export const FileUploadButton = forwardRef<FileUploadHandle, FileUploadButtonPro
           nonce: encrypted.nonce,
         });
       } catch (err) {
-        console.error('File upload failed:', err);
+        const msg = err instanceof Error ? err.message : 'Unknown upload error';
+        console.error('File upload failed:', msg, err);
+        toast.error(`Upload failed: ${msg}`);
       } finally {
         setUploading(false);
         setProgress(0);
         if (inputRef.current) inputRef.current.value = '';
       }
-    }, [channelId, onUploaded, uploading]);
+    }, [channelId, onUploaded, uploading, toast]);
 
     // Expose uploadFile to parent (message composer paste handler)
     useImperativeHandle(ref, () => ({ uploadFile: doUpload }), [doUpload]);
