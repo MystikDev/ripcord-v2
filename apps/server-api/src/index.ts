@@ -83,8 +83,10 @@ app.use(express.json({
 app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     const ct = req.headers['content-type'] ?? '';
-    // Allow image uploads and JSON requests; reject everything else
-    if (!ct.includes('application/json') && !ct.startsWith('image/')) {
+    // Allow binary blob uploads (encrypted file bytes proxied to MinIO)
+    const isBlobUpload = req.method === 'PUT' && /\/attachments\/[^/]+\/blob/.test(req.path);
+    // Allow image uploads, JSON requests, and blob uploads; reject everything else
+    if (!ct.includes('application/json') && !ct.startsWith('image/') && !isBlobUpload) {
       res.status(415).json({ ok: false, error: 'Content-Type must be application/json' });
       return;
     }

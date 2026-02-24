@@ -1,4 +1,5 @@
 import { apiFetch } from './api';
+import { getApiBaseUrl } from './constants';
 
 export interface UploadRequest {
   channelId: string;
@@ -28,7 +29,7 @@ export interface DownloadResponse {
   };
 }
 
-/** Request a pre-signed upload URL. */
+/** Request an upload URL for an encrypted file. */
 export async function requestUpload(params: UploadRequest): Promise<UploadResponse> {
   const res = await apiFetch<{ ok: boolean; data: UploadResponse }>(
     `/v1/channels/${params.channelId}/attachments/upload`,
@@ -46,15 +47,29 @@ export async function requestUpload(params: UploadRequest): Promise<UploadRespon
   );
   if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to request upload');
   const payload = res.data as unknown as { ok?: boolean; data?: UploadResponse };
-  return payload.data ?? (res.data as unknown as UploadResponse);
+  const result = payload.data ?? (res.data as unknown as UploadResponse);
+
+  // Server returns relative URLs for proxied uploads — make them absolute
+  if (result.uploadUrl.startsWith('/')) {
+    result.uploadUrl = getApiBaseUrl() + result.uploadUrl;
+  }
+
+  return result;
 }
 
-/** Get a pre-signed download URL for an attachment. */
+/** Get a download URL for an attachment. */
 export async function getDownloadUrl(attachmentId: string): Promise<DownloadResponse> {
   const res = await apiFetch<{ ok: boolean; data: DownloadResponse }>(
     `/v1/attachments/${attachmentId}/download`,
   );
   if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to get download URL');
   const payload = res.data as unknown as { ok?: boolean; data?: DownloadResponse };
-  return payload.data ?? (res.data as unknown as DownloadResponse);
+  const result = payload.data ?? (res.data as unknown as DownloadResponse);
+
+  // Server returns relative URLs for proxied downloads — make them absolute
+  if (result.downloadUrl.startsWith('/')) {
+    result.downloadUrl = getApiBaseUrl() + result.downloadUrl;
+  }
+
+  return result;
 }
