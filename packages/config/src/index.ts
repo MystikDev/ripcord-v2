@@ -92,11 +92,16 @@ const envSchema = z.object({
   /*  MinIO (S3-compatible object storage)                              */
   /* ------------------------------------------------------------------ */
 
-  /** MinIO server hostname. */
+  /** MinIO server hostname (used for server-to-MinIO communication). */
   MINIO_ENDPOINT: z.string().default('localhost'),
 
   /** MinIO server port. */
   MINIO_PORT: z.coerce.number().default(9000),
+
+  /** Public MinIO URL returned to clients for presigned uploads/downloads.
+   *  Must be reachable from the desktop app (e.g. http://your-vps:9000).
+   *  Falls back to http://{MINIO_ENDPOINT}:{MINIO_PORT} if not set. */
+  MINIO_PUBLIC_URL: z.string().optional(),
 
   /** MinIO access key (root user in development). */
   MINIO_ACCESS_KEY: z.string().default('minioadmin'),

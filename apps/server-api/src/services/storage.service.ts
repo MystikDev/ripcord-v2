@@ -14,15 +14,29 @@ import { logger } from '../logger.js';
 const BUCKET = 'ripcord-attachments';
 const PRESIGN_EXPIRES_SEC = 3600; // 1 hour
 
-const s3 = new S3Client({
-  endpoint: `http://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}`,
+/** Internal endpoint — used by the server to talk to MinIO directly. */
+const internalEndpoint = `http://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}`;
+
+/** Public endpoint — used in presigned URLs that the desktop client fetches from.
+ *  Falls back to the internal endpoint for local dev (both are localhost). */
+const publicEndpoint = env.MINIO_PUBLIC_URL ?? internalEndpoint;
+
+const s3Opts = {
   region: 'us-east-1',
   credentials: {
     accessKeyId: env.MINIO_ACCESS_KEY,
     secretAccessKey: env.MINIO_SECRET_KEY,
   },
   forcePathStyle: true, // Required for MinIO
-});
+};
+
+/** Server-side operations (bucket management, direct uploads). */
+const s3 = new S3Client({ ...s3Opts, endpoint: internalEndpoint });
+
+/** Presigned URL generation — uses the public endpoint so clients can reach MinIO. */
+const s3Public = publicEndpoint === internalEndpoint
+  ? s3 // same client when no public URL is configured (local dev)
+  : new S3Client({ ...s3Opts, endpoint: publicEndpoint });
 
 /** Ensure the bucket exists and CORS is configured on startup. */
 export async function ensureBucket(): Promise<void> {
@@ -73,14 +87,14 @@ export async function ensureBucket(): Promise<void> {
   }
 }
 
-/** Generate a pre-signed PUT URL for uploading an encrypted file. */
+/** Generate a pre-signed PUT URL for uploading an encrypted file (uses public endpoint). */
 export async function getUploadUrl(storageKey: string, contentLength?: number): Promise<string> {
   const command = new PutObjectCommand({
     Bucket: BUCKET,
     Key: storageKey,
     ...(contentLength ? { ContentLength: contentLength } : {}),
   });
-  return getSignedUrl(s3, command, { expiresIn: PRESIGN_EXPIRES_SEC });
+  return getSignedUrl(s3Public, command, { expiresIn: PRESIGN_EXPIRES_SEC });
 }
 
 /** Upload a buffer directly to S3/MinIO (server-side). */
@@ -115,11 +129,11 @@ export async function getObject(storageKey: string): Promise<{
   };
 }
 
-/** Generate a pre-signed GET URL for downloading an encrypted file. */
+/** Generate a pre-signed GET URL for downloading an encrypted file (uses public endpoint). */
 export async function getDownloadUrl(storageKey: string): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET,
     Key: storageKey,
   });
-  return getSignedUrl(s3, command, { expiresIn: PRESIGN_EXPIRES_SEC });
+  return getSignedUrl(s3Public, command, { expiresIn: PRESIGN_EXPIRES_SEC });
 }
