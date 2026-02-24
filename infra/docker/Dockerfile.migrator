@@ -6,7 +6,8 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Copy server-side workspace package.json files for dependency resolution.
-# NOTE: packages/ui and apps/desktop are excluded by .dockerignore (client-only).
+# Client packages (packages/ui, apps/desktop, apps/web-client) are excluded
+# by .dockerignore or depend on excluded packages, so they are omitted.
 COPY packages/shared-types/package.json packages/shared-types/
 COPY packages/config/package.json packages/config/
 COPY packages/db/package.json packages/db/
@@ -15,7 +16,6 @@ COPY apps/server-api/package.json apps/server-api/
 COPY apps/server-auth/package.json apps/server-auth/
 COPY apps/server-gateway/package.json apps/server-gateway/
 COPY apps/server-keyservice/package.json apps/server-keyservice/
-COPY apps/web-client/package.json apps/web-client/
 COPY scripts/ scripts/
 COPY db/ db/
 COPY tsconfig.base.json ./
