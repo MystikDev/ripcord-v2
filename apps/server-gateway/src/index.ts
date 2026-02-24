@@ -66,13 +66,36 @@ const ALLOWED_ORIGINS = new Set(
   env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean),
 );
 
+/**
+ * Check whether a WebSocket origin should be permitted.
+ *
+ * Allows:
+ *  - No origin (non-browser clients, curl, etc.)
+ *  - Tauri desktop origins (`https://tauri.localhost`, `tauri://localhost`)
+ *  - Localhost on any port (development)
+ *  - Explicitly listed origins in CORS_ALLOWED_ORIGINS
+ */
+function isOriginAllowed(origin: string): boolean {
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  // Tauri desktop app origins (Windows = https://tauri.localhost, macOS/Linux = tauri://localhost)
+  if (origin === 'https://tauri.localhost' || origin === 'tauri://localhost') return true;
+  // Localhost on any port (development)
+  try {
+    const url = new URL(origin);
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return true;
+  } catch {
+    // malformed origin — reject
+  }
+  return false;
+}
+
 const wss = new WebSocketServer({
   server: httpServer,
   maxPayload: MAX_PAYLOAD_BYTES,
   verifyClient: ({ req }, done) => {
     const origin = req.headers.origin ?? '';
-    // Allow if no origin (non-browser clients like curl/Tauri desktop) OR origin is allowed
-    if (!origin || ALLOWED_ORIGINS.has(origin)) {
+    if (isOriginAllowed(origin)) {
       done(true);
     } else {
       log.warn({ origin }, 'WebSocket connection rejected — origin not allowed');

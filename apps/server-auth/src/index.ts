@@ -33,7 +33,17 @@ app.set('trust proxy', 1);
 app.use(securityHeaders);
 app.use(requestLogger);
 app.use(cors({
-  origin: env.CORS_ALLOWED_ORIGINS.split(',').map(s => s.trim()),
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const allowed = env.CORS_ALLOWED_ORIGINS.split(',').map(s => s.trim());
+    if (allowed.includes(origin)) return callback(null, true);
+    if (origin === 'https://tauri.localhost' || origin === 'tauri://localhost') return callback(null, true);
+    try {
+      const url = new URL(origin);
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return callback(null, true);
+    } catch { /* malformed origin */ }
+    callback(new Error('CORS: origin not allowed'));
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '16kb' }));

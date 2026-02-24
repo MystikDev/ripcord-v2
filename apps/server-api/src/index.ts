@@ -40,7 +40,23 @@ app.set('trust proxy', 1);
 app.use(securityHeaders);
 app.use(requestLogger);
 app.use(cors({
-  origin: env.CORS_ALLOWED_ORIGINS.split(',').map(s => s.trim()),
+  origin: (origin, callback) => {
+    // Allow requests with no origin (non-browser clients, same-origin, etc.)
+    if (!origin) return callback(null, true);
+    // Explicitly listed origins
+    const allowed = env.CORS_ALLOWED_ORIGINS.split(',').map(s => s.trim());
+    if (allowed.includes(origin)) return callback(null, true);
+    // Tauri desktop app origins (Windows = https://tauri.localhost, macOS/Linux = tauri://localhost)
+    if (origin === 'https://tauri.localhost' || origin === 'tauri://localhost') return callback(null, true);
+    // Localhost on any port (development)
+    try {
+      const url = new URL(origin);
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return callback(null, true);
+    } catch {
+      // malformed origin
+    }
+    callback(new Error('CORS: origin not allowed'));
+  },
   credentials: true,
 }));
 // Parse raw binary bodies for image uploads (must come BEFORE express.json)
