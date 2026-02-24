@@ -1,17 +1,35 @@
+/**
+ * @module admin-store
+ * Zustand store for hub administration state, holding the member and ban lists
+ * used by the admin panel along with loading/error status.
+ */
+
 import { create } from 'zustand';
 import type { MemberResponse, BanResponse } from '../lib/admin-api';
 
+/** State and actions for the hub admin panel. */
 interface AdminState {
+  /** Members of the current hub. */
   members: MemberResponse[];
+  /** Banned users for the current hub. */
   bans: BanResponse[];
+  /** Whether an admin data fetch is in progress. */
   isLoading: boolean;
+  /** Error message from the last failed admin operation. */
   error: string | null;
+  /** Replace the member list. */
   setMembers: (members: MemberResponse[]) => void;
+  /** Replace the ban list. */
   setBans: (bans: BanResponse[]) => void;
+  /** Set the loading flag. */
   setLoading: (loading: boolean) => void;
+  /** Set or clear the error message. */
   setError: (error: string | null) => void;
+  /** Optimistically remove a member by user ID. */
   removeMember: (userId: string) => void;
+  /** Optimistically remove a ban by user ID. */
   removeBan: (userId: string) => void;
+  /** Reset all admin state. */
   reset: () => void;
 }
 

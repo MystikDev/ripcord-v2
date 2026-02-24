@@ -1,20 +1,18 @@
 'use client';
 
+/**
+ * @module use-voice-latency
+ * Polls WebRTC stats to expose a smoothed voice-connection latency measurement
+ * and a qualitative quality label (excellent / good / poor).
+ */
+
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRoomContext } from '@livekit/components-react';
 
-// ---------------------------------------------------------------------------
-// useVoiceLatency
-//
-// Polls WebRTC stats from the LiveKit Room's subscriber PeerConnection to
-// extract the ICE candidate-pair `currentRoundTripTime`. Exposes a smoothed
-// latency value in ms and a qualitative quality label.
-//
-// Must be called inside a <LiveKitRoom> provider.
-// ---------------------------------------------------------------------------
-
+/** Qualitative connection quality derived from RTT thresholds. */
 export type LatencyQuality = 'excellent' | 'good' | 'poor' | 'unknown';
 
+/** Return value of {@link useVoiceLatency}. */
 export interface VoiceLatency {
   /** Smoothed RTT in milliseconds, or null if not yet measured */
   latencyMs: number | null;
@@ -36,6 +34,13 @@ function classifyLatency(ms: number | null): LatencyQuality {
   return 'poor';
 }
 
+/**
+ * Measures voice connection latency by polling the WebRTC ICE candidate-pair
+ * round-trip time. Returns an exponentially smoothed RTT in milliseconds and a
+ * qualitative quality label.
+ *
+ * Must be called inside a `<LiveKitRoom>` provider.
+ */
 export function useVoiceLatency(): VoiceLatency {
   const room = useRoomContext();
   const [latencyMs, setLatencyMs] = useState<number | null>(null);

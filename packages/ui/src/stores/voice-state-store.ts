@@ -1,9 +1,17 @@
+/**
+ * @module voice-state-store
+ * Zustand store for voice channel participation, speaking indicators, and
+ * screen-sharing state. Combines REST-hydrated data with real-time gateway
+ * events and LiveKit-bridged signals.
+ */
+
 import { create } from 'zustand';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/** A user present in a voice channel. */
 export interface VoiceParticipant {
   userId: string;
   handle?: string;

@@ -1,3 +1,10 @@
+/**
+ * @module settings-store
+ * Zustand store for user-configurable settings such as push-to-talk key,
+ * noise suppression, device selection, and per-user volume overrides.
+ * Persisted to localStorage under the `ripcord-settings` key.
+ */
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -11,6 +18,7 @@ export const DEFAULT_PTT_KEY = ' ';
 // Types
 // ---------------------------------------------------------------------------
 
+/** State and actions for all user-configurable application settings. */
 export interface SettingsState {
   /** PTT bind: keyboard key (KeyboardEvent.key) or mouse button ("Mouse{n}"). Default: ' ' (Space) */
   pttKey: string;
@@ -36,15 +44,25 @@ export interface SettingsState {
   /** Per-user voice volume overrides. Key = userId, value = float 0.0–2.0 (1.0 = 100%). */
   userVolumes: Record<string, number>;
 
+  /** Update the push-to-talk key binding. */
   setPttKey: (key: string) => void;
+  /** Reset the push-to-talk key to the default (Space). */
   resetPttKey: () => void;
+  /** Toggle visibility of the member list panel. */
   toggleMemberList: () => void;
+  /** Enable or disable the noise-gate processor. */
   setNoiseSuppressionEnabled: (enabled: boolean) => void;
+  /** Set the noise-gate strength (0 -- 100). */
   setNoiseSuppressionStrength: (strength: number) => void;
+  /** Set the preferred microphone device ID. */
   setSelectedMicDeviceId: (id: string | null) => void;
+  /** Set the preferred speaker device ID. */
   setSelectedSpeakerDeviceId: (id: string | null) => void;
+  /** Enable or disable voice join/leave notification sounds. */
   setVoiceNotificationSounds: (enabled: boolean) => void;
+  /** Set a per-user volume override (0.0 -- 2.0). */
   setUserVolume: (userId: string, volume: number) => void;
+  /** Remove a per-user volume override, returning to the default. */
   resetUserVolume: (userId: string) => void;
 }
 

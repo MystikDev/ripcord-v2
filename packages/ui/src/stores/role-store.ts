@@ -1,9 +1,16 @@
+/**
+ * @module role-store
+ * Zustand store for hub role definitions. Roles are loaded when the active hub
+ * changes and used for priority-based member grouping in the sidebar.
+ */
+
 import { create } from 'zustand';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/** A role definition within a hub, ordered by priority for display grouping. */
 export interface RoleDefinition {
   id: string;
   name: string;

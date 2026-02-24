@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * @module use-gateway
+ * Manages the WebSocket gateway lifecycle and routes incoming real-time events
+ * (messages, presence, typing, voice state) to the appropriate Zustand stores.
+ */
+
 import { useEffect } from 'react';
 import { useAuthStore } from '../stores/auth-store';
 import { useMessageStore, type Message } from '../stores/message-store';

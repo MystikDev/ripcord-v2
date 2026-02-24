@@ -1,23 +1,26 @@
 'use client';
 
+/**
+ * @module use-sync-screen-sharing
+ * Bridges LiveKit screen-share track state into the Zustand voice store so that
+ * components outside the LiveKitRoom context can display screen-sharing indicators.
+ */
+
 import { useEffect, useRef } from 'react';
 import { useTracks } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useVoiceStateStore } from '../stores/voice-state-store';
 
-// ---------------------------------------------------------------------------
-// useSyncScreenSharing
-//
-// Bridges LiveKit's real-time screen-share tracks into the Zustand voice store
-// so components outside the <LiveKitRoom> context (e.g. sidebar channel list)
-// can show a streaming icon next to participants who are sharing their screen.
-//
-// Must be called inside a <LiveKitRoom> provider.
-// ---------------------------------------------------------------------------
-
 /** Stable empty array to avoid unnecessary store writes. */
 const EMPTY: string[] = [];
 
+/**
+ * Syncs the set of screen-sharing participant IDs from LiveKit into the
+ * voice-state store. Only writes when the set actually changes to avoid
+ * unnecessary re-renders.
+ *
+ * Must be called inside a `<LiveKitRoom>` provider.
+ */
 export function useSyncScreenSharing(): void {
   const tracks = useTracks([Track.Source.ScreenShare], { onlySubscribed: false });
   const setScreenSharingUserIds = useVoiceStateStore((s) => s.setScreenSharingUserIds);

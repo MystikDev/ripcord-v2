@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * @module use-push-to-talk
+ * Provides a push-to-talk keybinding hook that supports both keyboard keys and
+ * mouse buttons, with automatic deactivation on window blur.
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isMouseButton, parseMouseButton } from '../lib/key-display';
 

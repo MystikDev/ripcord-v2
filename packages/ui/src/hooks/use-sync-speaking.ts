@@ -1,21 +1,14 @@
 'use client';
 
+/**
+ * @module use-sync-speaking
+ * Bridges LiveKit's real-time `isSpeaking` state into the Zustand voice store
+ * with a short hold timer to prevent flickering between words.
+ */
+
 import { useEffect, useRef } from 'react';
 import { useParticipants } from '@livekit/components-react';
 import { useVoiceStateStore } from '../stores/voice-state-store';
-
-// ---------------------------------------------------------------------------
-// useSyncSpeaking
-//
-// Bridges LiveKit's real-time `isSpeaking` state into the Zustand voice store
-// so components outside the <LiveKitRoom> context (e.g. sidebar channel list)
-// can show speaking indicators.
-//
-// Uses a hold timer per participant so the indicator stays lit while talking
-// and doesn't flicker off between words.
-//
-// Must be called inside a <LiveKitRoom> provider.
-// ---------------------------------------------------------------------------
 
 /** Stable empty array to avoid unnecessary store writes. */
 const EMPTY: string[] = [];
@@ -23,6 +16,15 @@ const EMPTY: string[] = [];
 /** How long to keep the indicator lit after speaking stops (ms). */
 const HOLD_MS = 100;
 
+/**
+ * Syncs speaking participant IDs from LiveKit into the voice-state store.
+ *
+ * A per-participant hold timer keeps the speaking indicator visible for a short
+ * period after speech ends, preventing rapid on/off flicker. Only writes to the
+ * store when the set of speaking IDs actually changes.
+ *
+ * Must be called inside a `<LiveKitRoom>` provider.
+ */
 export function useSyncSpeaking(): void {
   const participants = useParticipants();
   const setSpeakingUserIds = useVoiceStateStore((s) => s.setSpeakingUserIds);

@@ -1,10 +1,18 @@
+/**
+ * @module read-state-store
+ * Zustand store for per-channel read state, tracking the last read message and
+ * unread mention count to power unread badges in the channel list.
+ */
+
 import { create } from 'zustand';
 
+/** Read-state data for a single channel. */
 export interface ReadStateEntry {
   lastReadMessageId: string | null;
   mentionCount: number;
 }
 
+/** State and actions for channel read-state tracking. */
 export interface ReadStateState {
   /** channelId -> read state */
   readStates: Record<string, ReadStateEntry>;

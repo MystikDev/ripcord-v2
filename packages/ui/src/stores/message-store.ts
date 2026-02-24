@@ -1,9 +1,16 @@
+/**
+ * @module message-store
+ * Zustand store for channel message history. Holds messages keyed by channel ID,
+ * handles optimistic-send deduplication, and provides CRUD operations.
+ */
+
 import { create } from 'zustand';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/** A single chat message, potentially with encrypted attachments. */
 export interface Message {
   id: string;
   channelId: string;
@@ -21,12 +28,18 @@ export interface Message {
   }>;
 }
 
+/** State and actions for managing per-channel message lists. */
 export interface MessageState {
-  messages: Record<string, Message[]>; // channelId -> messages
+  /** Channel ID to ordered message array. */
+  messages: Record<string, Message[]>;
 
+  /** Append a message, deduplicating optimistic sends. */
   addMessage: (channelId: string, message: Message) => void;
+  /** Replace the entire message list for a channel. */
   setMessages: (channelId: string, messages: Message[]) => void;
+  /** Remove all messages for a channel. */
   clearChannel: (channelId: string) => void;
+  /** Reset all message data. */
   reset: () => void;
 }
 

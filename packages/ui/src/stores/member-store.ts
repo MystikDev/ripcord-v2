@@ -1,14 +1,22 @@
+/**
+ * @module member-store
+ * Zustand store for hub member data. Caches user handles, avatars, and role
+ * assignments for the currently active hub to support display and lookups.
+ */
+
 import { create } from 'zustand';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/** A role assigned to a member within a hub. */
 export interface MemberRole {
   id: string;
   name: string;
 }
 
+/** Profile information for a single hub member. */
 export interface MemberInfo {
   userId: string;
   handle: string;

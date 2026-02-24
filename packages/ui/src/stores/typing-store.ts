@@ -1,11 +1,20 @@
+/**
+ * @module typing-store
+ * Zustand store for real-time typing indicators. Tracks which users are
+ * currently typing in each channel with auto-expiring entries.
+ */
+
 import { create } from 'zustand';
 
+/** A single typing indicator entry with an auto-expiry timestamp. */
 export interface TypingUser {
   userId: string;
   handle: string;
+  /** Unix timestamp (ms) after which this indicator should be discarded. */
   expiresAt: number;
 }
 
+/** State and actions for managing per-channel typing indicators. */
 export interface TypingState {
   /** channelId -> array of currently typing users */
   typing: Record<string, TypingUser[]>;

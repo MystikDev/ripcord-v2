@@ -1,11 +1,19 @@
+/**
+ * @module presence-store
+ * Zustand store for user online/idle/dnd/offline presence state, updated in
+ * real time via the gateway WebSocket.
+ */
+
 import { create } from 'zustand';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/** The possible presence statuses for a user. */
 export type PresenceStatus = 'online' | 'idle' | 'dnd' | 'offline';
 
+/** State and actions for tracking user presence across all hubs. */
 export interface PresenceState {
   /** User ID -> presence status */
   presence: Record<string, PresenceStatus>;

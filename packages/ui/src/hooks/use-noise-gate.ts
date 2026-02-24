@@ -1,21 +1,24 @@
 'use client';
 
+/**
+ * @module use-noise-gate
+ * Bridges the noise-suppression settings with a LiveKit audio TrackProcessor so
+ * the user's microphone can be gated in real time.
+ */
+
 import { useEffect, useRef } from 'react';
 import { useLocalParticipant } from '@livekit/components-react';
 import type { LocalAudioTrack } from 'livekit-client';
 import { useSettingsStore } from '../stores/settings-store';
 import { NoiseGateProcessor } from '../lib/noise-gate-processor';
 
-// ---------------------------------------------------------------------------
-// useNoiseGate — bridges the settings store with a LiveKit TrackProcessor
-//
-// MUST be called inside a <LiveKitRoom> context (needs useLocalParticipant).
-//
-// • When enabled + mic track exists → creates & attaches the processor.
-// • When disabled → detaches the processor from the track.
-// • When strength changes → updates the threshold without rebuilding.
-// ---------------------------------------------------------------------------
-
+/**
+ * Attaches or detaches a {@link NoiseGateProcessor} on the local microphone
+ * track based on the current noise-suppression settings.
+ *
+ * Must be called inside a `<LiveKitRoom>` context. Strength changes are applied
+ * in-place without reattaching the processor to avoid audio glitches.
+ */
 export function useNoiseGate(): void {
   const { microphoneTrack } = useLocalParticipant();
   const enabled = useSettingsStore((s) => s.noiseSuppressionEnabled);

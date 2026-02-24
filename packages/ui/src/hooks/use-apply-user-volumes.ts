@@ -1,22 +1,15 @@
 'use client';
 
+/**
+ * @module use-apply-user-volumes
+ * Bridges per-user volume settings from the settings store to LiveKit audio
+ * tracks, including volume boost beyond 100 % via Web Audio GainNodes.
+ */
+
 import { useEffect, useRef } from 'react';
 import { useParticipants } from '@livekit/components-react';
 import { Track, RemoteAudioTrack } from 'livekit-client';
 import { useSettingsStore } from '../stores/settings-store';
-
-// ---------------------------------------------------------------------------
-// useApplyUserVolumes
-//
-// Bridges per-user volume settings from the Zustand settings store to LiveKit
-// RemoteAudioTrack instances.
-//
-// For volumes 0–1.0 we use the native HTMLMediaElement.volume property via
-// LiveKit's setVolume(). For volumes above 1.0 (boost) we insert a Web Audio
-// GainNode to amplify beyond the native 0–1 range.
-//
-// Must be called inside a <LiveKitRoom> provider.
-// ---------------------------------------------------------------------------
 
 interface GainEntry {
   gainNode: GainNode;
@@ -65,6 +58,13 @@ function removeGainNode(identity: string): void {
   gainNodes.delete(identity);
 }
 
+/**
+ * Applies per-user volume overrides to every remote participant's audio track.
+ *
+ * Must be called inside a `<LiveKitRoom>` provider. For volumes in the 0 -- 1
+ * range, the native `HTMLMediaElement.volume` is used. For boost values above 1
+ * a Web Audio `GainNode` chain is inserted to amplify beyond the browser cap.
+ */
 export function useApplyUserVolumes(): void {
   const participants = useParticipants();
   const userVolumes = useSettingsStore((s) => s.userVolumes);

@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * @module use-hub-data
+ * Orchestrates the data-loading lifecycle for hubs, channels, members, roles,
+ * messages, and read states. Acts as the primary data-fetching coordinator that
+ * hydrates Zustand stores after authentication and on navigation changes.
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../stores/auth-store';
 import { useHubStore } from '../stores/server-store';
