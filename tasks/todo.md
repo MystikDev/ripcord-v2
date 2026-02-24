@@ -28,6 +28,11 @@
 - [x] Add text document icon to `attachment-preview.tsx` (text/plain, JSON, CSV, etc.)
 - [x] TypeScript typecheck passes
 
+## Completed — UX Fixes (v0.7.4)
+- [x] Replace voice disconnect icon with bold hang-up phone + solid red button
+- [x] Add drag-and-drop file upload to chat area (with visual drop overlay)
+- [x] Fix X button to close app instead of minimizing to tray
+
 ## Backlog — Security (Future Sprints)
 - [ ] Encrypt AI API keys in localStorage (or proxy through backend)
 - [ ] Add token blacklist on logout (Redis-based)

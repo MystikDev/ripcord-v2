@@ -6,11 +6,12 @@
  */
 'use client';
 
+import { useRef, useState, useCallback, type DragEvent } from 'react';
 import { useHubStore } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useSettingsStore } from '../../stores/settings-store';
 import { MessageList } from '../chat/message-list';
-import { MessageComposer } from '../chat/message-composer';
+import { MessageComposer, type MessageComposerHandle } from '../chat/message-composer';
 import { TypingIndicator } from '../chat/typing-indicator';
 import { AIResponseCard } from '../chat/ai-response-card';
 import { sendMessage } from '../../lib/hub-api';
@@ -25,6 +26,41 @@ export function ChatArea() {
   const activeChannelId = useHubStore((s) => s.activeChannelId);
   const memberListVisible = useSettingsStore((s) => s.memberListVisible);
   const toggleMemberList = useSettingsStore((s) => s.toggleMemberList);
+
+  const composerRef = useRef<MessageComposerHandle>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const handleDrop = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      composerRef.current?.uploadFile(files[0]);
+    }
+  }, []);
 
   const activeChannel = channels.find((c) => c.id === activeChannelId);
 
@@ -55,7 +91,26 @@ export function ChatArea() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-bg">
+    <div
+      className="relative flex flex-1 flex-col bg-bg"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drop overlay */}
+      {isDragging && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-accent p-10">
+            <svg width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent">
+              <path d="M14 10v2.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V10M11 5l-3-3-3 3M8 2v8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <p className="text-lg font-medium text-text-primary">Drop to upload</p>
+            <p className="text-sm text-text-muted">File will be encrypted and attached</p>
+          </div>
+        </div>
+      )}
+
       {/* Channel header */}
       <div className="flex h-12 items-center border-b border-border px-4">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="mr-2 text-text-muted">
@@ -98,7 +153,7 @@ export function ChatArea() {
       />
 
       {/* Composer */}
-      <MessageComposer channelId={activeChannel.id} channelName={activeChannel.name} />
+      <MessageComposer ref={composerRef} channelId={activeChannel.id} channelName={activeChannel.name} />
     </div>
   );
 }

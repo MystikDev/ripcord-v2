@@ -64,17 +64,12 @@ function ScreenShareIcon({ active }: { active: boolean }) {
 function DisconnectIcon() {
   return (
     <svg
-      width="18"
-      height="18"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="currentColor"
     >
-      <path d="M1 1l14 14" />
-      <path d="M4.5 4.5C3 5.5 2 7 2 8.5c0 .8.3 1.5.8 2L8 8M11.5 4.5c1.5 1 2.5 2.5 2.5 4 0 .8-.3 1.5-.8 2L8 8" />
+      <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 010-1.36C3.15 8.99 7.33 7 12 7s8.85 1.99 11.71 4.72c.18.18.29.44.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28a11.27 11.27 0 00-2.67-1.85.996.996 0 01-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z" />
     </svg>
   );
 }
@@ -195,7 +190,7 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
       <Tooltip content="Disconnect" side="top">
         <button
           onClick={onDisconnect}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-danger/20 text-danger hover:bg-danger/30 transition-colors"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-danger text-white hover:bg-danger/80 transition-colors"
         >
           <DisconnectIcon />
         </button>

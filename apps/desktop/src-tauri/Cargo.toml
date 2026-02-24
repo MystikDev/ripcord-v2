@@ -1,6 +1,6 @@
 [package]
 name = "ripcord-desktop"
-version = "0.7.3"
+version = "0.7.4"
 description = "Ripcord Desktop Client"
 authors = ["you"]
 edition = "2021"

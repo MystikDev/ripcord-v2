@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useState, useCallback, useRef, type KeyboardEvent, type FormEvent, type ClipboardEvent } from 'react';
+import { useState, useCallback, useRef, useImperativeHandle, forwardRef, type KeyboardEvent, type FormEvent, type ClipboardEvent } from 'react';
 import { useAuthStore } from '../../stores/auth-store';
 import { useMessageStore, type Message } from '../../stores/message-store';
 import { sendMessage } from '../../lib/hub-api';
@@ -44,6 +44,11 @@ export interface MessageComposerProps {
   channelName: string;
 }
 
+/** Imperative handle exposed to parent (e.g. ChatArea for drag-and-drop). */
+export interface MessageComposerHandle {
+  uploadFile: (file: File) => void;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -66,7 +71,8 @@ function decryptFileName(encrypted: string): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export function MessageComposer({ channelId, channelName }: MessageComposerProps) {
+export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
+function MessageComposer({ channelId, channelName }, ref) {
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
@@ -83,6 +89,12 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
   const aiProcessing = useAIStore((s) => s.isProcessing);
 
   const fileUploadRef = useRef<FileUploadHandle>(null);
+
+  // Expose uploadFile to parent (ChatArea drag-and-drop handler)
+  useImperativeHandle(ref, () => ({
+    uploadFile: (file: File) => fileUploadRef.current?.uploadFile(file),
+  }), []);
+
   const lastTypingSent = useRef(0);
   const TYPING_DEBOUNCE_MS = 3_000;
 
@@ -338,4 +350,5 @@ export function MessageComposer({ channelId, channelName }: MessageComposerProps
       </div>
     </form>
   );
-}
+},
+);
