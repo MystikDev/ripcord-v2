@@ -14,6 +14,7 @@ import { Room, RoomOptions, setLogLevel, LogLevel } from 'livekit-client';
 import { useHubStore } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useSettingsStore } from '../../stores/settings-store';
+import { useVoiceStateStore } from '../../stores/voice-state-store';
 import { getVoiceToken } from '../../lib/voice-api';
 import { gateway } from '../../lib/gateway-client';
 import { useNoiseGate } from '../../hooks/use-noise-gate';
@@ -178,8 +179,17 @@ export function VoicePanel() {
       setVoiceChannelId(activeChannelId);
       setConnectionState('connected');
 
-      // Notify gateway of voice join
+      // Optimistic local update — show ourselves in the sidebar immediately
       const auth = useAuthStore.getState();
+      useVoiceStateStore.getState().addParticipant(activeChannelId, {
+        userId: auth.userId!,
+        handle: auth.handle ?? undefined,
+        selfMute: false,
+        selfDeaf: false,
+        joinedAt: new Date().toISOString(),
+      });
+
+      // Notify gateway of voice join (echo will de-duplicate)
       gateway.send(23, {
         channelId: activeChannelId,
         userId: auth.userId,
@@ -200,6 +210,10 @@ export function VoicePanel() {
     // Notify gateway of voice leave before clearing state
     if (voiceChannelId) {
       const auth = useAuthStore.getState();
+
+      // Optimistic local removal — hide from sidebar immediately
+      useVoiceStateStore.getState().removeParticipant(voiceChannelId, auth.userId!);
+
       gateway.send(23, {
         channelId: voiceChannelId,
         userId: auth.userId,
@@ -258,6 +272,10 @@ export function VoicePanel() {
     // If connected to a different channel, disconnect first
     if (voiceChannelId && connectionState === 'connected') {
       const auth = useAuthStore.getState();
+
+      // Optimistic local removal from old channel
+      useVoiceStateStore.getState().removeParticipant(voiceChannelId, auth.userId!);
+
       gateway.send(23, {
         channelId: voiceChannelId,
         userId: auth.userId,
@@ -281,6 +299,17 @@ export function VoicePanel() {
         setConnectionState('connected');
 
         const auth = useAuthStore.getState();
+
+        // Optimistic local addition to new channel — appear in sidebar immediately
+        useVoiceStateStore.getState().addParticipant(pendingVoiceJoin, {
+          userId: auth.userId!,
+          handle: auth.handle ?? undefined,
+          selfMute: false,
+          selfDeaf: false,
+          joinedAt: new Date().toISOString(),
+        });
+
+        // Notify gateway (echo will de-duplicate via addParticipant filter)
         gateway.send(23, {
           channelId: pendingVoiceJoin,
           userId: auth.userId,
