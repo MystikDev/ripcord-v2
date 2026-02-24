@@ -5,9 +5,19 @@ WORKDIR /app
 # Copy root package files + lockfile
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Copy only what the migrator needs
+# Copy ALL workspace package.json files so pnpm can resolve the full
+# workspace graph against the lockfile.
+COPY packages/shared-types/package.json packages/shared-types/
 COPY packages/config/package.json packages/config/
 COPY packages/db/package.json packages/db/
+COPY packages/crypto/package.json packages/crypto/
+COPY packages/ui/package.json packages/ui/
+COPY apps/server-api/package.json apps/server-api/
+COPY apps/server-auth/package.json apps/server-auth/
+COPY apps/server-gateway/package.json apps/server-gateway/
+COPY apps/server-keyservice/package.json apps/server-keyservice/
+COPY apps/desktop/package.json apps/desktop/
+COPY apps/web-client/package.json apps/web-client/
 COPY scripts/ scripts/
 COPY db/ db/
 COPY tsconfig.base.json ./
