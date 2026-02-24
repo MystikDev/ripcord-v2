@@ -1,3 +1,12 @@
+/**
+ * Invite API client — create, list, preview, accept, and revoke hub invites.
+ *
+ * Invite codes are short unique strings (e.g. "abc123") shareable as links.
+ * They can be limited by max uses and/or expiration time.
+ *
+ * @module invite-api
+ */
+
 import { apiFetch } from './api';
 
 // ---------------------------------------------------------------------------
@@ -33,6 +42,7 @@ export interface InviteAcceptResult {
 // API
 // ---------------------------------------------------------------------------
 
+/** Create a new invite link for a hub. Optionally set max uses and expiry. */
 export async function createInvite(
   hubId: string,
   options?: { maxUses?: number; expiresAt?: string },
@@ -47,6 +57,7 @@ export async function createInvite(
   return payload.data ?? (res.data as unknown as InviteResponse);
 }
 
+/** List all active invites for a hub. */
 export async function listInvites(hubId: string): Promise<InviteResponse[]> {
   const res = await apiFetch<{ ok: boolean; data: InviteResponse[] }>(`/v1/hubs/${hubId}/invites`);
   if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to fetch invites');
@@ -54,11 +65,13 @@ export async function listInvites(hubId: string): Promise<InviteResponse[]> {
   return payload.data ?? (res.data as unknown as InviteResponse[]);
 }
 
+/** Revoke (delete) an invite so it can no longer be used. */
 export async function revokeInvite(hubId: string, inviteId: string): Promise<void> {
   const res = await apiFetch(`/v1/hubs/${hubId}/invites/${inviteId}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(res.error ?? 'Failed to revoke invite');
 }
 
+/** Preview an invite by code (unauthenticated — shows hub name and validity). */
 export async function getInvitePreview(code: string): Promise<InvitePreview> {
   const res = await apiFetch<{ ok: boolean; data: InvitePreview }>(`/v1/invites/${code}`);
   if (!res.ok || !res.data) throw new Error(res.error ?? 'Invalid invite');
@@ -66,6 +79,7 @@ export async function getInvitePreview(code: string): Promise<InvitePreview> {
   return payload.data ?? (res.data as unknown as InvitePreview);
 }
 
+/** Accept an invite — joins the user to the hub. Increments the use count. */
 export async function acceptInvite(code: string): Promise<InviteAcceptResult> {
   const res = await apiFetch<{ ok: boolean; data: InviteAcceptResult }>(`/v1/invites/${code}/accept`, {
     method: 'POST',

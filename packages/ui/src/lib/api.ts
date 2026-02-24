@@ -1,9 +1,22 @@
+/**
+ * Core API fetch wrapper for the Ripcord client.
+ *
+ * All API calls flow through {@link apiFetch}, which handles:
+ *   - Automatic `Authorization: Bearer <token>` header injection
+ *   - Transparent 401 → token refresh → retry (one attempt)
+ *   - Server response unwrapping (`{ ok, data }` → `data`)
+ *   - Error extraction from structured server error responses
+ *
+ * @module api
+ */
+
 import { getApiBaseUrl, getAuthBaseUrl } from './constants';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/** Normalized response returned by {@link apiFetch}. */
 export interface ApiResponse<T> {
   ok: boolean;
   data?: T;
@@ -21,6 +34,10 @@ async function getAuthStore() {
   return useAuthStore;
 }
 
+/**
+ * Attempt to refresh the JWT access token using the stored refresh token.
+ * On success, updates the auth store with new tokens. On failure, logs out.
+ */
 async function refreshAccessToken(): Promise<string | null> {
   const store = await getAuthStore();
   const { refreshToken, setTokens, logout } = store.getState();
@@ -53,6 +70,17 @@ async function refreshAccessToken(): Promise<string | null> {
 // Core fetch wrapper
 // ---------------------------------------------------------------------------
 
+/**
+ * Authenticated fetch wrapper for the Ripcord API.
+ *
+ * Automatically attaches the JWT access token, sets Content-Type to JSON
+ * (unless overridden), and unwraps the server's `{ ok, data }` envelope.
+ * On 401, transparently refreshes the token and retries once.
+ *
+ * @param path   - API path (e.g. `/v1/hubs`). Prepended with `baseUrl`.
+ * @param options - Standard `RequestInit` plus optional `baseUrl` override.
+ * @returns Normalized response with `ok`, `data`, `error`, and `status`.
+ */
 export async function apiFetch<T>(
   path: string,
   options: RequestInit & { baseUrl?: string } = {},

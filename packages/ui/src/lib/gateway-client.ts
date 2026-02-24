@@ -1,3 +1,23 @@
+/**
+ * WebSocket client for the Ripcord realtime gateway.
+ *
+ * Handles connection lifecycle, automatic reconnection with exponential
+ * backoff, heartbeat keep-alive, and event dispatch. The gateway pushes
+ * events (messages, presence, voice state, etc.) and this client routes
+ * them to registered handlers.
+ *
+ * Protocol opcodes:
+ *   0 = AUTH (sent on connect with JWT access token)
+ *   6 = HEARTBEAT (sent every 30s to keep the connection alive)
+ *
+ * @example
+ *   gateway.connect(accessToken);
+ *   const unsub = gateway.on('MESSAGE_CREATED', (data) => { ... });
+ *   gateway.disconnect();
+ *
+ * @module gateway-client
+ */
+
 import {
   getGatewayUrl,
   HEARTBEAT_INTERVAL,
@@ -9,6 +29,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
+/** Server-dispatched event names carried in the `t` field of gateway payloads. */
 export type GatewayEvent =
   | 'MESSAGE_CREATED'
   | 'MESSAGE_UPDATED'
@@ -31,6 +52,12 @@ type EventHandler = (data: Record<string, unknown>) => void;
 // Gateway Client
 // ---------------------------------------------------------------------------
 
+/**
+ * Singleton WebSocket client with auto-reconnect and heartbeat.
+ *
+ * Reconnect uses exponential backoff (1s base, 30s max). The heartbeat
+ * prevents idle-timeout disconnects from proxies and load balancers.
+ */
 export class GatewayClient {
   private ws: WebSocket | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -44,6 +71,7 @@ export class GatewayClient {
   // Public API
   // -----------------------------------------------------------------------
 
+  /** Open a WebSocket connection and authenticate with the given JWT. */
   connect(accessToken: string): void {
     this.token = accessToken;
     this.intentionalClose = false;
@@ -51,11 +79,13 @@ export class GatewayClient {
     this.openSocket();
   }
 
+  /** Close the connection and suppress auto-reconnect. */
   disconnect(): void {
     this.intentionalClose = true;
     this.cleanup();
   }
 
+  /** Register an event handler. Returns an unsubscribe function. */
   on(event: GatewayEvent | 'open' | 'close' | 'error', handler: EventHandler): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
@@ -66,6 +96,7 @@ export class GatewayClient {
     };
   }
 
+  /** Send a gateway message. Silently no-ops if the socket isn't open. */
   send(op: number, data?: Record<string, unknown>): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ op, d: data, ts: Date.now() }));

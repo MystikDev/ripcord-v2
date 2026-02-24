@@ -1,3 +1,12 @@
+/**
+ * Roles API client — CRUD for hub RBAC roles.
+ *
+ * Roles use a bitfield permission system (bitsetPermissions). See
+ * `packages/shared-types/src/permissions.ts` for the flag definitions.
+ *
+ * @module roles-api
+ */
+
 import { apiFetch } from './api';
 import type { ApiResponse } from './api';
 
@@ -17,6 +26,7 @@ export interface RoleResponse {
 // API
 // ---------------------------------------------------------------------------
 
+/** Fetch all roles for a hub, including the @everyone default role. */
 export async function fetchRoles(hubId: string): Promise<RoleResponse[]> {
   const res = await apiFetch<{ ok: boolean; data: RoleResponse[] }>(`/v1/hubs/${hubId}/roles`);
   if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to fetch roles');
@@ -24,6 +34,7 @@ export async function fetchRoles(hubId: string): Promise<RoleResponse[]> {
   return payload.data ?? (res.data as unknown as RoleResponse[]);
 }
 
+/** Create a new role with a name, priority, and optional permission bitfield. */
 export async function createRole(
   hubId: string,
   data: { name: string; priority?: number; bitsetPermissions?: string },
@@ -38,6 +49,7 @@ export async function createRole(
   return payload.data ?? (res.data as unknown as RoleResponse);
 }
 
+/** Partial-update a role's name, priority, or permissions. */
 export async function updateRole(
   hubId: string,
   roleId: string,
@@ -56,11 +68,13 @@ export async function updateRole(
   return payload.data ?? (res.data as unknown as RoleResponse);
 }
 
+/** Delete a role. Members who had it lose those permissions immediately. */
 export async function deleteRole(hubId: string, roleId: string): Promise<void> {
   const res = await apiFetch(`/v1/hubs/${hubId}/roles/${roleId}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(res.error ?? 'Failed to delete role');
 }
 
+/** Permanently delete a hub and all its data. Owner-only. */
 export async function deleteHub(hubId: string): Promise<void> {
   const res = await apiFetch(`/v1/hubs/${hubId}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(res.error ?? 'Failed to delete hub');
