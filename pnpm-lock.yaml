@@ -412,6 +412,12 @@ importers:
         specifier: ^5.0.11
         version: 5.0.11(@types/react@19.2.14)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
+      '@tauri-apps/plugin-http':
+        specifier: ^2
+        version: 2.5.7
+      '@tauri-apps/plugin-shell':
+        specifier: ^2
+        version: 2.3.5
       '@types/react':
         specifier: ^19
         version: 19.2.14
