@@ -9,6 +9,9 @@
 import { motion } from 'framer-motion';
 import { Avatar } from '../ui/avatar';
 import { AttachmentPreview } from './attachment-preview';
+import { MessageContent } from './message-content';
+import { LinkPreview } from './link-preview';
+import { extractUrls } from '../../lib/url-utils';
 import { useMemberStore } from '../../stores/member-store';
 import type { Message } from '../../stores/message-store';
 
@@ -82,9 +85,14 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
             )}
           </div>
         )}
-        <p className="text-sm text-text-secondary leading-relaxed break-words">
-          {message.content}
-        </p>
+        <MessageContent content={message.content} />
+        {message.content && extractUrls(message.content).length > 0 && (
+          <div className="flex flex-col gap-1">
+            {extractUrls(message.content).slice(0, 3).map((url) => (
+              <LinkPreview key={url} url={url} />
+            ))}
+          </div>
+        )}
         {message.attachments && message.attachments.length > 0 && (
           <div className="flex flex-col gap-1">
             {message.attachments.map((att) => (

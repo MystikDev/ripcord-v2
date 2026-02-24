@@ -57,6 +57,25 @@ function isDisplayableImage(mimeType: string | null): boolean {
   return mimeType.startsWith('image/');
 }
 
+/** MIME types that represent text/document files. */
+const TEXT_DOCUMENT_TYPES = new Set([
+  'text/plain',
+  'text/markdown',
+  'text/csv',
+  'text/html',
+  'text/xml',
+  'application/json',
+  'application/xml',
+  'application/javascript',
+  'application/typescript',
+]);
+
+/** Check whether a MIME type is a text document format. */
+function isTextDocument(mimeType: string | null): boolean {
+  if (!mimeType) return false;
+  return TEXT_DOCUMENT_TYPES.has(mimeType) || mimeType.startsWith('text/');
+}
+
 // ---------------------------------------------------------------------------
 // Inline Image Preview
 // ---------------------------------------------------------------------------
@@ -176,12 +195,14 @@ function FileDownloadButton({
   fileSize,
   encryptionKeyId,
   nonce,
+  isDocument = false,
 }: {
   attachmentId: string;
   fileName: string;
   fileSize: number;
   encryptionKeyId: string;
   nonce: string;
+  isDocument?: boolean;
 }) {
   const [downloading, setDownloading] = useState(false);
 
@@ -218,6 +239,11 @@ function FileDownloadButton({
       <div className="flex h-8 w-8 items-center justify-center rounded bg-accent/10 text-accent">
         {downloading ? (
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent/30 border-t-accent" />
+        ) : isDocument ? (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M4 1h5.5L13 4.5V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z" strokeLinejoin="round" />
+            <path d="M9 1v4h4M5.5 8h5M5.5 10.5h5M5.5 13h3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         ) : (
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M2 10v2.5A1.5 1.5 0 003.5 14h9a1.5 1.5 0 001.5-1.5V10M5 7l3 3 3-3M8 10V2" strokeLinecap="round" strokeLinejoin="round" />
@@ -267,6 +293,7 @@ export function AttachmentPreview({
       fileSize={fileSize}
       encryptionKeyId={encryptionKeyId}
       nonce={nonce}
+      isDocument={isTextDocument(mimeType)}
     />
   );
 }
