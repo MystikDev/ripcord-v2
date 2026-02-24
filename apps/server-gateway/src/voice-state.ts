@@ -7,6 +7,9 @@ import type { ConnectionManager } from './connection-manager.js';
 /** Redis key prefix for voice channel state hashes. */
 const VOICE_PREFIX = 'voice:';
 
+/** Redis key prefix tracking which voice channel a user is currently in. */
+const VOICE_CURRENT_PREFIX = 'voice-current:';
+
 /** TTL for voice state keys (seconds). Refreshed on each heartbeat. */
 const VOICE_TTL_SEC = 90;
 
@@ -16,6 +19,11 @@ const VOICE_TTL_SEC = 90;
 
 /**
  * Record a user joining a voice channel.
+ *
+ * Enforces the "one voice channel at a time" invariant: if the user is
+ * already in a different voice channel, they are automatically removed
+ * from it first (with a leave broadcast to subscribers).
+ *
  * Stores their info in Redis and broadcasts to all channel subscribers.
  */
 export async function joinVoiceChannel(
@@ -24,6 +32,16 @@ export async function joinVoiceChannel(
   handle: string | undefined,
   manager: ConnectionManager,
 ): Promise<void> {
+  // --- Enforce single-channel: auto-leave previous channel if different ---
+  const currentKey = `${VOICE_CURRENT_PREFIX}${userId}`;
+  const previousChannelId = await redis.get(currentKey);
+
+  if (previousChannelId && previousChannelId !== channelId) {
+    log.debug({ userId, from: previousChannelId, to: channelId }, 'Auto-leaving previous voice channel');
+    await leaveVoiceChannel(previousChannelId, userId, manager);
+  }
+
+  // --- Join the new channel ---
   const key = `${VOICE_PREFIX}${channelId}`;
   const participant: VoiceParticipant = {
     userId,
@@ -35,6 +53,9 @@ export async function joinVoiceChannel(
 
   await redis.hset(key, userId, JSON.stringify(participant));
   await redis.expire(key, VOICE_TTL_SEC);
+
+  // Track the user's current channel
+  await redis.set(currentKey, channelId, 'EX', VOICE_TTL_SEC);
 
   // Broadcast to all subscribers of this channel
   manager.broadcastToChannel(
@@ -49,7 +70,8 @@ export async function joinVoiceChannel(
 
 /**
  * Record a user leaving a voice channel.
- * Removes their entry from Redis and broadcasts to all channel subscribers.
+ * Removes their entry from Redis, clears the current-channel tracker,
+ * and broadcasts to all channel subscribers.
  */
 export async function leaveVoiceChannel(
   channelId: string,
@@ -63,6 +85,13 @@ export async function leaveVoiceChannel(
   const remaining = await redis.hlen(key);
   if (remaining === 0) {
     await redis.del(key);
+  }
+
+  // Clear the current-channel tracker (only if it still points to this channel)
+  const currentKey = `${VOICE_CURRENT_PREFIX}${userId}`;
+  const tracked = await redis.get(currentKey);
+  if (tracked === channelId) {
+    await redis.del(currentKey);
   }
 
   // Broadcast leave to all subscribers
@@ -170,7 +199,13 @@ export async function cleanupUserVoiceStates(
   subscribedChannels: ReadonlySet<string>,
   manager: ConnectionManager,
 ): Promise<void> {
-  for (const channelId of subscribedChannels) {
+  // Also check the current-channel tracker in case the subscribed set is stale
+  const currentKey = `${VOICE_CURRENT_PREFIX}${userId}`;
+  const trackedChannel = await redis.get(currentKey);
+  const channelsToCheck = new Set(subscribedChannels);
+  if (trackedChannel) channelsToCheck.add(trackedChannel);
+
+  for (const channelId of channelsToCheck) {
     const key = `${VOICE_PREFIX}${channelId}`;
     const raw = await redis.hget(key, userId);
     if (!raw) continue;
@@ -206,5 +241,12 @@ export async function refreshVoiceStateTTL(
     if (exists) {
       await redis.expire(key, VOICE_TTL_SEC);
     }
+  }
+
+  // Also refresh the current-channel tracker TTL
+  const currentKey = `${VOICE_CURRENT_PREFIX}${userId}`;
+  const tracked = await redis.get(currentKey);
+  if (tracked) {
+    await redis.expire(currentKey, VOICE_TTL_SEC);
   }
 }
