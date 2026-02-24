@@ -31,6 +31,28 @@ async function run(): Promise<void> {
     );
   `);
 
+  // Detect if this is an existing database that predates the migration tracker.
+  // If schema_migrations is empty but core tables already exist, seed the tracker
+  // with all migration files so we don't re-run them.
+  const { rowCount: trackedCount } = await client.query('SELECT 1 FROM schema_migrations LIMIT 1');
+  if (!trackedCount || trackedCount === 0) {
+    const { rowCount: usersExist } = await client.query(
+      `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users' LIMIT 1`,
+    );
+    if (usersExist && usersExist > 0) {
+      console.log('[migrator] Existing database detected — seeding migration tracker with all files');
+      const allFiles = await readdir(migrationsDir);
+      const sqlFiles = allFiles.filter((f) => f.endsWith('.sql')).sort();
+      for (const file of sqlFiles) {
+        await client.query('INSERT INTO schema_migrations(filename) VALUES ($1) ON CONFLICT DO NOTHING', [file]);
+        console.log(`[migrator] Marked ${file} as already applied`);
+      }
+      console.log(`[migrator] Done. Seeded ${String(sqlFiles.length)} existing migration(s).`);
+      await client.end();
+      return;
+    }
+  }
+
   // Read and sort migration files
   const allFiles = await readdir(migrationsDir);
   const sqlFiles = allFiles.filter((f) => f.endsWith('.sql')).sort();

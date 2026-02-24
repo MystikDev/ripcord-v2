@@ -1,0 +1,13 @@
+node_modules
+dist
+.next
+.git
+.env
+.env.*
+*.md
+!README.md
+apps/desktop
+packages/ui
+*.tsbuildinfo
+.turbo
+.cache

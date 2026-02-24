@@ -1,0 +1,76 @@
+# ============================================================================
+# Dockerfile.server — multi-stage build for any Ripcord server app
+#
+# Usage:
+#   docker build -f infra/docker/Dockerfile.server \
+#     --build-arg APP=server-api \
+#     -t ripcord-server-api .
+#
+# Supports: server-api, server-gateway, server-auth, server-keyservice
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Install dependencies and build
+# ---------------------------------------------------------------------------
+FROM node:22-slim AS builder
+
+# Required for argon2 (server-auth) native compilation
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+
+# Which app to build (e.g. server-api, server-gateway)
+ARG APP
+RUN test -n "$APP" || (echo "ERROR: --build-arg APP=<name> is required" && exit 1)
+
+WORKDIR /app
+
+# 1. Copy workspace config first (layer cache)
+COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
+
+# 2. Copy all package.json files for dependency resolution
+COPY packages/shared-types/package.json packages/shared-types/
+COPY packages/config/package.json packages/config/
+COPY packages/db/package.json packages/db/
+COPY packages/crypto/package.json packages/crypto/
+COPY apps/${APP}/package.json apps/${APP}/
+
+# 3. Install pnpm and dependencies
+RUN npm install -g pnpm && pnpm install --no-frozen-lockfile
+
+# 4. Copy source for workspace packages (needed for tsc build)
+COPY packages/shared-types/ packages/shared-types/
+COPY packages/config/ packages/config/
+COPY packages/db/ packages/db/
+COPY packages/crypto/ packages/crypto/
+
+# 5. Copy the target app source
+COPY apps/${APP}/ apps/${APP}/
+
+# 6. Build workspace packages first, then the app
+RUN pnpm --filter @ripcord/types build && \
+    pnpm --filter @ripcord/config build && \
+    pnpm --filter @ripcord/db build && \
+    pnpm --filter @ripcord/crypto build && \
+    pnpm --filter @ripcord/${APP} build
+
+# ---------------------------------------------------------------------------
+# Stage 2: Production runtime
+# ---------------------------------------------------------------------------
+FROM node:22-slim AS runtime
+
+# argon2 needs libstdc++ at runtime
+RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 curl && rm -rf /var/lib/apt/lists/*
+
+ARG APP
+ENV NODE_ENV=production
+
+WORKDIR /app
+
+# Copy the full workspace structure with built artifacts
+COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/node_modules/ node_modules/
+COPY --from=builder /app/packages/ packages/
+COPY --from=builder /app/apps/${APP}/ apps/${APP}/
+
+WORKDIR /app/apps/${APP}
+
+CMD ["node", "dist/index.js"]
