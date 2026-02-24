@@ -1,3 +1,9 @@
+/**
+ * @module role-editor
+ * Two-column layout for CRUD operations on hub roles. The left sidebar
+ * lists existing roles; the right panel shows name, priority, and the
+ * PermissionGrid for the selected role.
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';

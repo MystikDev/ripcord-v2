@@ -1,3 +1,7 @@
+/**
+ * @module hub-settings
+ * Simple rename-only hub settings dialog for lower-privilege contexts.
+ */
 'use client';
 
 import { useState, type FormEvent } from 'react';

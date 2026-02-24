@@ -1,3 +1,8 @@
+/**
+ * @module command-palette
+ * Autocomplete dropdown for slash commands. Appears when the composer input
+ * starts with `/` and supports keyboard navigation (arrows, Enter/Tab, Escape).
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';

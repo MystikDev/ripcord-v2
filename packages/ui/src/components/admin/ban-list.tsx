@@ -1,3 +1,8 @@
+/**
+ * @module ban-list
+ * Displays the list of banned users for a hub with unban buttons.
+ * Fetches bans via listBans() and syncs them into the admin store.
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';

@@ -1,3 +1,9 @@
+/**
+ * @module permission-grid
+ * Toggle-switch grid for editing a role's permission bitset, grouped into
+ * General, Text, Voice, and Admin categories. The Administrator bit
+ * implicitly enables all other permissions.
+ */
 'use client';
 
 import { useMemo } from 'react';

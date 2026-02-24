@@ -1,3 +1,9 @@
+/**
+ * @module member-list
+ * Paginated member list using cursor-based pagination (50 per page).
+ * Each row displays avatar, handle, join date, role badges, and a
+ * MemberActions dropdown.
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';

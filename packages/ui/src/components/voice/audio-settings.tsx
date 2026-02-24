@@ -1,3 +1,8 @@
+/**
+ * @module audio-settings
+ * Settings dialog for audio device selection (microphone and speaker via LiveKit)
+ * with a noise suppression toggle and strength slider.
+ */
 'use client';
 
 import { useState } from 'react';

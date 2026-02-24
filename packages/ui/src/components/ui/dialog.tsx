@@ -1,3 +1,9 @@
+/**
+ * @module Dialog
+ * Modal dialog wrapper built on Radix UI Dialog primitives.
+ * DialogContent renders a centered overlay with animated open/close transitions,
+ * a required title, optional description, and a close button.
+ */
 'use client';
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';

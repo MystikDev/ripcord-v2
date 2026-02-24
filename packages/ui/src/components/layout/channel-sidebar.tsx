@@ -1,3 +1,10 @@
+/**
+ * @module channel-sidebar
+ * Second-column sidebar for the active hub. Displays the hub name header with
+ * admin gear, text/voice channel lists with create buttons, VoiceChannelItem
+ * tiles with participant status, VoicePanel for connected sessions, and
+ * UserPanel at the bottom.
+ */
 'use client';
 
 import { useHubStore, type Channel } from '../../stores/server-store';

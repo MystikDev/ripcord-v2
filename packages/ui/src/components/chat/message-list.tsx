@@ -1,3 +1,8 @@
+/**
+ * @module message-list
+ * Scrollable message list for a channel. Groups consecutive same-author
+ * messages, auto-scrolls on new arrivals, and shows an empty-state placeholder.
+ */
 'use client';
 
 import { useEffect, useRef } from 'react';

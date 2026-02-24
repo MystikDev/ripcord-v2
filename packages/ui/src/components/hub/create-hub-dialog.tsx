@@ -1,3 +1,8 @@
+/**
+ * @module create-hub-dialog
+ * Three-screen dialog: choose mode, create a new hub, or join an existing
+ * hub via invite code/URL.
+ */
 'use client';
 
 import { useState, type FormEvent } from 'react';

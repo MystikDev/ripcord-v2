@@ -1,3 +1,8 @@
+/**
+ * @module Separator
+ * Decorative divider built on Radix UI Separator primitives.
+ * Renders as a 1px-tall horizontal rule or a 1px-wide vertical rule.
+ */
 'use client';
 
 import * as SeparatorPrimitive from '@radix-ui/react-separator';

@@ -1,3 +1,9 @@
+/**
+ * @module chat-area
+ * Center content column. Renders an empty-channel placeholder or composes the
+ * channel header, MessageList, TypingIndicator, AIResponseCard, and
+ * MessageComposer for the active text channel.
+ */
 'use client';
 
 import { useHubStore } from '../../stores/server-store';

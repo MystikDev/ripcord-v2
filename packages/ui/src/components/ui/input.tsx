@@ -1,3 +1,9 @@
+/**
+ * @module Input
+ * Accessible text input with an optional label and error state.
+ * Displays a red border and error message when validation fails.
+ * Supports ref forwarding for integration with form libraries.
+ */
 'use client';
 
 import { forwardRef, type InputHTMLAttributes } from 'react';

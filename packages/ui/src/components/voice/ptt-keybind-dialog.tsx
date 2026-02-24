@@ -1,3 +1,9 @@
+/**
+ * @module ptt-keybind-dialog
+ * Dialog for reassigning the push-to-talk keybind. Listens for the next
+ * keydown or mousedown event, displays the captured key in a large tile,
+ * and offers Save, Cancel, Reset, and Try Again actions.
+ */
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';

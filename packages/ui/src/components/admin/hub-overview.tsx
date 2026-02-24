@@ -1,3 +1,8 @@
+/**
+ * @module hub-overview
+ * Read-only stats panel showing hub name, owner, channel count,
+ * member count, and hub ID.
+ */
 'use client';
 
 import { useHubStore } from '../../stores/server-store';

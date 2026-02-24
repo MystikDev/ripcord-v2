@@ -1,3 +1,8 @@
+/**
+ * @module passkey-login
+ * Passkey (WebAuthn) sign-in form. Collects the user's handle, initiates
+ * loginPasskey(), stores auth tokens, and redirects to the target route.
+ */
 import { useState, type FormEvent } from 'react';
 import { useAppRouter, useAppSearchParams, useAppLink } from '../../lib/router';
 import { motion } from 'framer-motion';

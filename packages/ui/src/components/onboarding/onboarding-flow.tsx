@@ -1,3 +1,9 @@
+/**
+ * @module onboarding-flow
+ * First-launch onboarding modal for users with no hubs. Presents a
+ * non-dismissible three-step flow: choose action, create a new hub,
+ * or join an existing hub via invite code.
+ */
 'use client';
 
 import { useState } from 'react';

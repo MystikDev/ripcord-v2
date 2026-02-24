@@ -1,3 +1,11 @@
+/**
+ * @module voice-panel
+ * Main voice session manager rendered at the bottom of the ChannelSidebar.
+ * Handles the full LiveKit lifecycle: fetches a voice token, wraps children
+ * in a LiveKitRoom provider, and activates hooks for noise gate, speaker
+ * restoration, speaking sync, screen-share sync, volume, and latency.
+ * Displays either a "Join Voice" button or the active VoicePanelContent.
+ */
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';

@@ -1,3 +1,9 @@
+/**
+ * @module Tabs
+ * Styled tab primitives built on Radix UI Tabs.
+ * Exports Tabs root, TabsList row, TabsTrigger with an active underline indicator,
+ * and TabsContent as a scrollable panel.
+ */
 'use client';
 
 import * as TabsPrimitive from '@radix-ui/react-tabs';

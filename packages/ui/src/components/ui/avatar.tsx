@@ -1,3 +1,9 @@
+/**
+ * @module Avatar
+ * Circular user avatar built on Radix UI Avatar primitives.
+ * Displays an image with a fallback showing the first two characters of the provided string.
+ * Supports sm, md, and lg sizes.
+ */
 'use client';
 
 import * as AvatarPrimitive from '@radix-ui/react-avatar';

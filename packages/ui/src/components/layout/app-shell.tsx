@@ -1,3 +1,8 @@
+/**
+ * @module app-shell
+ * Three-column app chrome. Composes HubSidebar, ChannelSidebar, ChatArea,
+ * and optionally MemberListPanel into the main application layout.
+ */
 'use client';
 
 import { HubSidebar } from './server-sidebar';

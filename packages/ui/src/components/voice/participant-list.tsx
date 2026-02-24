@@ -1,3 +1,8 @@
+/**
+ * @module participant-list
+ * LiveKit-connected participant list displaying each user's avatar with a
+ * speaking glow, handle, screen-share icon, and muted-microphone indicator.
+ */
 'use client';
 
 import { useParticipants, useTracks } from '@livekit/components-react';

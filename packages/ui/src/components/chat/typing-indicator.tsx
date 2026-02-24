@@ -1,3 +1,9 @@
+/**
+ * @module typing-indicator
+ * Fixed-height bar showing who is currently typing. Prunes expired entries
+ * every second, formats text for 1/2/3+ typists, and reserves layout space
+ * when empty to prevent content shift.
+ */
 'use client';
 
 import { useEffect } from 'react';

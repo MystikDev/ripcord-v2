@@ -1,3 +1,8 @@
+/**
+ * @module participant-context-menu
+ * Right-click context menu for voice channel participants. Provides a per-user
+ * volume slider (0-400%) persisted to the settings store and a reset-to-100% button.
+ */
 'use client';
 
 import { useEffect, useRef } from 'react';

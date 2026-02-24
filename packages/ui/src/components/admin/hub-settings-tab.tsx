@@ -1,3 +1,9 @@
+/**
+ * @module hub-settings-tab
+ * Admin settings panel for hub icon upload (with crop dialog), hub rename,
+ * and danger-zone hub deletion. Deletion is owner-only and requires typing
+ * the hub name to confirm.
+ */
 'use client';
 
 import { useCallback, useRef, useState, type FormEvent } from 'react';

@@ -1,3 +1,9 @@
+/**
+ * @module signal-meter
+ * Cell-signal-style four-bar latency indicator. Bar color escalates from
+ * green to yellow to red based on connection quality, with a tooltip
+ * displaying the numeric millisecond value.
+ */
 'use client';
 
 import clsx from 'clsx';

@@ -1,3 +1,9 @@
+/**
+ * @module app-layout
+ * Root authenticated layout. Guards auth (redirects to /login), connects the
+ * WebSocket gateway, loads hub data, provides Toast/Tooltip context, renders
+ * AppShell, and overlays OnboardingFlow for first-time users.
+ */
 import { useEffect } from 'react';
 import { useAppRouter } from '../../lib/router';
 import { useAuthStore } from '../../stores/auth-store';

@@ -1,3 +1,8 @@
+/**
+ * @module member-list-panel
+ * Right sidebar showing hub members grouped by highest-priority role, sorted
+ * by presence then alphabetically, with status dot overlays.
+ */
 'use client';
 
 import { useMemo } from 'react';

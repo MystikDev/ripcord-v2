@@ -1,3 +1,9 @@
+/**
+ * @module voice-controls
+ * Bottom control bar for a voice session: mute toggle, push-to-talk toggle
+ * with active pulse, inline PTT keybind dialog, screen-share toggle,
+ * AudioSettings gear button, and a disconnect button.
+ */
 'use client';
 
 import { useCallback } from 'react';

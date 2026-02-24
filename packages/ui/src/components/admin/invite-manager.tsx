@@ -1,3 +1,8 @@
+/**
+ * @module invite-manager
+ * Admin panel for creating, listing, and revoking hub invite links.
+ * Supports optional max-uses and expiry configuration per invite.
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';

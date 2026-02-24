@@ -1,3 +1,9 @@
+/**
+ * @module message-item
+ * Individual message row. Renders avatar (collapsed for consecutive same-author
+ * messages), display name, timestamp, text body, and file attachments.
+ * Uses Framer Motion for slide-in animation.
+ */
 'use client';
 
 import { motion } from 'framer-motion';

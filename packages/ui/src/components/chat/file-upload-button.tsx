@@ -1,3 +1,9 @@
+/**
+ * @module file-upload-button
+ * Icon button that opens a file picker, encrypts the selected file with
+ * {@link encryptFile}, uploads ciphertext to S3/MinIO, and returns attachment
+ * metadata. Shows a progress bar during upload. Exposes a ref for paste-to-upload.
+ */
 'use client';
 
 import { useRef, useState, useCallback, useImperativeHandle, forwardRef } from 'react';

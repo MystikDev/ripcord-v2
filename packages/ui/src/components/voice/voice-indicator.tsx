@@ -1,3 +1,8 @@
+/**
+ * @module voice-indicator
+ * Small inline badge rendered next to voice channels showing the current
+ * participant count and/or a connected-status dot.
+ */
 'use client';
 
 import clsx from 'clsx';

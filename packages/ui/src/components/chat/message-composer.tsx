@@ -1,3 +1,9 @@
+/**
+ * @module message-composer
+ * Primary text input for sending messages. Features a growing textarea, pending
+ * attachments strip, slash-command palette, paste-to-upload, typing-event
+ * debouncing via the gateway, and AI slash-command dispatch with streaming.
+ */
 'use client';
 
 import { useState, useCallback, useRef, type KeyboardEvent, type FormEvent, type ClipboardEvent } from 'react';

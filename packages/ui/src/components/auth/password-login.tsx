@@ -1,3 +1,8 @@
+/**
+ * @module password-login
+ * Traditional username + password sign-in form. Validates inputs,
+ * calls loginPassword(), stores auth tokens, and redirects.
+ */
 import { useState, type FormEvent } from 'react';
 import { useAppRouter, useAppSearchParams, useAppLink } from '../../lib/router';
 import { motion } from 'framer-motion';

@@ -1,3 +1,8 @@
+/**
+ * @module create-channel-dialog
+ * Modal dialog for creating a new channel (name + Text/Voice toggle).
+ * Auto-navigates to the newly created text channel on success.
+ */
 'use client';
 
 import { useState, type FormEvent } from 'react';

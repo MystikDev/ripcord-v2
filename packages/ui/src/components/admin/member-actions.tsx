@@ -1,3 +1,8 @@
+/**
+ * @module member-actions
+ * Three-dot dropdown menu rendered on member rows with Kick and Ban actions.
+ * The Ban action includes an optional reason field via a confirmation dialog.
+ */
 'use client';
 
 import { useState, useRef, useEffect } from 'react';

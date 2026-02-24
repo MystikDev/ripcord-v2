@@ -1,3 +1,8 @@
+/**
+ * @module audit-log
+ * Paginated audit-log table for hub admins. Supports filtering by action type,
+ * color-coded event rows, and 50-per-page pagination with Load More.
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';

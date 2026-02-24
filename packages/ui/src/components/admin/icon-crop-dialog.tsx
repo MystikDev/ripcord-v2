@@ -1,3 +1,8 @@
+/**
+ * @module icon-crop-dialog
+ * Modal dialog wrapping react-easy-crop for cropping a hub icon
+ * to a 1:1 aspect ratio before upload.
+ */
 'use client';
 
 import { useCallback, useState } from 'react';

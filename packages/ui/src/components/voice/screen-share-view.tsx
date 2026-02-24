@@ -1,3 +1,9 @@
+/**
+ * @module screen-share-view
+ * Renders the first active screen-share track in a video element with a header
+ * overlay showing the sharer's identity, a Stop button for local shares,
+ * and a fullscreen toggle.
+ */
 'use client';
 
 import { useTracks, useLocalParticipant } from '@livekit/components-react';

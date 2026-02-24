@@ -1,3 +1,9 @@
+/**
+ * @module Tooltip
+ * Tooltip wrapper built on Radix UI Tooltip primitives.
+ * TooltipProvider wraps the app with a 300ms hover delay. Tooltip renders a styled
+ * floating bubble with a configurable side (top, right, bottom, left).
+ */
 'use client';
 
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';

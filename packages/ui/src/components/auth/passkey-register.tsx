@@ -1,3 +1,9 @@
+/**
+ * @module passkey-register
+ * Passkey account registration form. Collects a handle (min 3 chars),
+ * calls registerPasskey() to create a WebAuthn credential, stores tokens,
+ * and redirects on success.
+ */
 import { useState, type FormEvent } from 'react';
 import { useAppRouter, useAppSearchParams, useAppLink } from '../../lib/router';
 import { motion } from 'framer-motion';

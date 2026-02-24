@@ -1,3 +1,8 @@
+/**
+ * @module ai-response-card
+ * In-channel card displaying streaming AI assistant responses with a loading
+ * animation, Copy and Send-as-message buttons, and Dismiss.
+ */
 'use client';
 
 import { useAIStore } from '../../stores/ai-store';

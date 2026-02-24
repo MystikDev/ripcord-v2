@@ -1,3 +1,9 @@
+/**
+ * @module ai-settings
+ * Dialog for configuring the AI assistant provider (OpenAI, Anthropic, or Ollama).
+ * Manages API key, model name, and base URL. All settings are persisted
+ * in localStorage only and never sent to the server.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';

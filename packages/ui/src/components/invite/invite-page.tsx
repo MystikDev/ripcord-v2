@@ -1,3 +1,9 @@
+/**
+ * @module invite-page
+ * Full-page invite acceptance view. Redirects unauthenticated users to login,
+ * fetches an invite preview to display hub name and status, and calls
+ * acceptInvite() when the user confirms.
+ */
 import { useState, useEffect } from 'react';
 import { useAppRouter } from '../../lib/router';
 import { Button } from '../ui/button';

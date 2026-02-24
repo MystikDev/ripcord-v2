@@ -1,3 +1,9 @@
+/**
+ * @module Toast
+ * Context-based toast notification system with animated bottom-right stack.
+ * ToastProvider manages the toast lifecycle; useToast() exposes success, error,
+ * and info methods. Toasts auto-dismiss after 4 seconds.
+ */
 'use client';
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';

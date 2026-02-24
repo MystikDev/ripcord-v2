@@ -1,3 +1,9 @@
+/**
+ * @module Button
+ * Animated button component powered by framer-motion.
+ * Provides primary, secondary, ghost, and danger variants with sm/md/lg sizes.
+ * Includes a loading state that displays an inline spinner and disables interaction.
+ */
 'use client';
 
 import { type ReactNode } from 'react';

@@ -1,3 +1,9 @@
+/**
+ * @module password-register
+ * Password-based account creation form. Collects handle, password (min 8 chars),
+ * and confirm password with mismatch validation. Calls registerPassword(),
+ * stores tokens, and redirects on success.
+ */
 import { useState, type FormEvent } from 'react';
 import { useAppRouter, useAppSearchParams, useAppLink } from '../../lib/router';
 import { motion } from 'framer-motion';

@@ -1,3 +1,8 @@
+/**
+ * @module server-sidebar
+ * Far-left narrow sidebar (72 px) with hub icons, a HomeButton placeholder,
+ * and an AddHubDialog button. Exported as HubSidebar.
+ */
 'use client';
 
 import { useHubStore, type Hub } from '../../stores/server-store';

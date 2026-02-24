@@ -1,3 +1,8 @@
+/**
+ * @module ScrollArea
+ * Custom scrollable container built on Radix UI ScrollArea primitives.
+ * Renders a styled vertical scrollbar thumb and accepts className for height overrides.
+ */
 'use client';
 
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';

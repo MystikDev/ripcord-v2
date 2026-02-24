@@ -1,3 +1,9 @@
+/**
+ * @module admin-console
+ * Full-screen modal dialog serving as the hub administration center.
+ * Renders tabbed navigation routing to sub-panels: Overview, Members,
+ * Bans, Roles, Invites, Audit Log, and Settings.
+ */
 'use client';
 
 import { useState } from 'react';

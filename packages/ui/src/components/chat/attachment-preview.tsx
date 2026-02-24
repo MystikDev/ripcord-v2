@@ -1,3 +1,9 @@
+/**
+ * @module attachment-preview
+ * File attachment chip displayed within messages. Shows the decoded filename
+ * and size; on click, downloads the encrypted blob, decrypts client-side,
+ * and triggers a browser download.
+ */
 'use client';
 
 import { useState } from 'react';
