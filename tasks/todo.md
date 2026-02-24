@@ -41,6 +41,12 @@
 - [x] Wire hook into voice panel alongside existing volume/noise hooks
 - [x] TypeScript typecheck passes
 
+## Completed — iMessage Typing Bubbles (v0.7.7)
+- [x] Add `@keyframes typing-dot` pulse animation to globals.css
+- [x] Create `typing-bubble.tsx` — iMessage-style speech bubble with avatar + pulsing dots
+- [x] Refactor `typing-indicator.tsx` — AnimatePresence with per-user bubbles, self-filtering
+- [x] TypeScript typecheck passes
+
 ## Backlog — Security (Future Sprints)
 - [ ] Encrypt AI API keys in localStorage (or proxy through backend)
 - [ ] Add token blacklist on logout (Redis-based)
