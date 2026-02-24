@@ -2,7 +2,7 @@ import { query } from '@ripcord/db';
 
 export interface AttachmentRow {
   id: string;
-  messageId: string;
+  messageId: string | null;
   channelId: string;
   uploaderUserId: string;
   fileNameEncrypted: string;
@@ -16,7 +16,7 @@ export interface AttachmentRow {
 
 /** Create a pending attachment record. */
 export async function create(params: {
-  messageId: string;
+  messageId: string | null;
   channelId: string;
   uploaderUserId: string;
   fileNameEncrypted: string;

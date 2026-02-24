@@ -27,13 +27,14 @@ export const hubsRouter: Router = Router();
 
 /**
  * Default permissions for the @everyone role.
- * VIEW_CHANNELS | SEND_MESSAGES | CONNECT_VOICE | SPEAK_VOICE
+ * VIEW_CHANNELS | SEND_MESSAGES | CONNECT_VOICE | SPEAK_VOICE | ATTACH_FILES
  */
 const DEFAULT_EVERYONE_PERMISSIONS =
   Permission.VIEW_CHANNELS |
   Permission.SEND_MESSAGES |
   Permission.CONNECT_VOICE |
-  Permission.SPEAK_VOICE;
+  Permission.SPEAK_VOICE |
+  Permission.ATTACH_FILES;
 
 /**
  * GET /v1/hubs

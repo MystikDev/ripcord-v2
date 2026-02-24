@@ -39,17 +39,25 @@ export async function ensureBucket(): Promise<void> {
     }
   }
 
-  // Configure CORS so the browser can PUT directly to presigned URLs
+  // Configure CORS so the browser can PUT directly to presigned URLs.
+  // Include Tauri desktop origins and explicit CORS_ALLOWED_ORIGINS.
   try {
+    const origins = [
+      ...env.CORS_ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
+      'https://tauri.localhost',
+      'tauri://localhost',
+      'http://localhost:*',
+    ];
+    // Deduplicate
+    const uniqueOrigins = [...new Set(origins)];
+
     await s3.send(
       new PutBucketCorsCommand({
         Bucket: BUCKET,
         CORSConfiguration: {
           CORSRules: [
             {
-              AllowedOrigins: env.CORS_ALLOWED_ORIGINS.split(',').map((s) =>
-                s.trim(),
-              ),
+              AllowedOrigins: uniqueOrigins,
               AllowedMethods: ['GET', 'PUT', 'HEAD'],
               AllowedHeaders: ['*'],
               ExposeHeaders: ['ETag'],
@@ -59,7 +67,7 @@ export async function ensureBucket(): Promise<void> {
         },
       }),
     );
-    logger.info({ bucket: BUCKET }, 'S3 bucket CORS configured');
+    logger.info({ bucket: BUCKET, origins: uniqueOrigins }, 'S3 bucket CORS configured');
   } catch (err) {
     logger.warn({ err, bucket: BUCKET }, 'Failed to set S3 bucket CORS');
   }

@@ -17,7 +17,9 @@ export const attachmentsRouter: Router = Router({ mergeParams: true });
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
 const UploadAttachmentSchema = z.object({
-  messageId: z.string().uuid(),
+  // messageId is ignored — attachments are created as pending (null message_id)
+  // and linked to a real message when the user sends it.
+  messageId: z.string().optional(),
   fileNameEncrypted: z.string().min(1).max(1024),
   fileSize: z.number().int().min(1).max(MAX_FILE_SIZE),
   contentTypeEncrypted: z.string().max(512).optional(),
@@ -65,14 +67,14 @@ attachmentsRouter.post(
       if (!hasAttachPerm) throw ApiError.forbidden('Missing ATTACH_FILES permission');
 
       const {
-        messageId, fileNameEncrypted, fileSize,
+        fileNameEncrypted, fileSize,
         contentTypeEncrypted, encryptionKeyId, nonce,
       } = req.body as z.infer<typeof UploadAttachmentSchema>;
 
       const storageKey = `${channelId}/${randomUUID()}`;
 
       const attachment = await attachmentRepo.create({
-        messageId,
+        messageId: null, // Pending — linked to real message on send
         channelId,
         uploaderUserId: auth.sub,
         fileNameEncrypted,

@@ -3,7 +3,7 @@
  */
 export interface Attachment {
   id: string;
-  messageId: string;
+  messageId: string | null;
   channelId: string;
   uploaderUserId: string;
   fileNameEncrypted: string;
