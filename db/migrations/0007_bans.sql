@@ -1,3 +1,7 @@
+-- 0007_bans.sql
+-- Hub-level user bans. Banned users are ejected from the hub and cannot rejoin.
+-- banned_by tracks which moderator/admin issued the ban for accountability.
+
 CREATE TABLE hub_bans (
   hub_id    UUID NOT NULL REFERENCES hubs(id) ON DELETE CASCADE,
   user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

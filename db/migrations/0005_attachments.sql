@@ -1,3 +1,10 @@
+-- 0005_attachments.sql
+-- Encrypted file attachments stored in MinIO (S3-compatible object storage).
+--
+-- Files are encrypted client-side with AES-256-GCM before upload. The server
+-- only stores encrypted bytes and metadata (encrypted filename, key ID, nonce).
+-- storage_key is the MinIO object key (e.g. "{channelId}/{uuid}").
+
 CREATE TABLE attachments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
