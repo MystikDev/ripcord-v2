@@ -171,6 +171,13 @@ invitesRouter.delete(
         throw ApiError.forbidden('Missing MANAGE_HUB permission');
       }
 
+      // Verify the invite actually belongs to this hub
+      const invite = await inviteRepo.findByHub(hubId);
+      const target = invite.find((i) => i.id === inviteId);
+      if (!target) {
+        throw ApiError.notFound('Invite not found in this hub');
+      }
+
       await inviteRepo.deleteInvite(inviteId);
 
       logger.info({ hubId, inviteId, actorId: auth.sub }, 'Invite revoked');
@@ -213,7 +220,7 @@ invitesRouter.post(
         }
       }
 
-      // Check max uses
+      // Check max uses (preliminary check; the atomic claim below is authoritative)
       if (invite.maxUses !== null && invite.uses >= invite.maxUses) {
         throw ApiError.badRequest('Invite has been used the maximum number of times');
       }
@@ -236,9 +243,14 @@ invitesRouter.post(
         throw ApiError.conflict('You are already a member of this hub');
       }
 
+      // Atomically claim the invite use (race-condition safe)
+      const claimed = await inviteRepo.claimUse(invite.id);
+      if (!claimed) {
+        throw ApiError.badRequest('Invite has been used the maximum number of times');
+      }
+
       // Join hub
       await memberRepo.add(invite.hubId, auth.sub);
-      await inviteRepo.incrementUses(invite.id);
 
       // Audit event
       auditRepo.create(

@@ -93,7 +93,7 @@ async function checkChannelAccess(
   // ADMIN short-circuit
   if (hasPermission(permissions, Permission.ADMINISTRATOR)) return true;
 
-  // Layer 3: Channel role overrides (table may not exist yet)
+  // Layer 3: Channel role overrides (uses unified channel_overrides table)
   try {
     const allRoleIds = memberRoles.map(r => r.id);
     if (everyoneRole) {
@@ -105,11 +105,11 @@ async function checkChannelAccess(
     }
 
     if (allRoleIds.length > 0) {
-      const placeholders = allRoleIds.map((_, i) => `$${i + 2}`).join(',');
+      const placeholders = allRoleIds.map((_, i) => `$${i + 3}`).join(',');
       const overrides = await query<{ allow_bitset: string; deny_bitset: string }>(
-        `SELECT allow_bitset, deny_bitset FROM channel_role_overrides
-         WHERE channel_id = $1 AND role_id IN (${placeholders})`,
-        [channelId, ...allRoleIds],
+        `SELECT allow_bitset, deny_bitset FROM channel_overrides
+         WHERE channel_id = $1 AND target_type = $2 AND target_id IN (${placeholders})`,
+        [channelId, 'role', ...allRoleIds],
       );
       for (const ov of overrides) {
         permissions |= Number(ov.allow_bitset);
@@ -120,11 +120,11 @@ async function checkChannelAccess(
     // Table may not exist yet — skip channel role overrides
   }
 
-  // Layer 4: Channel member overrides (table may not exist yet)
+  // Layer 4: Channel member overrides (uses unified channel_overrides table)
   try {
     const memberOv = await queryOne<{ allow_bitset: string; deny_bitset: string }>(
-      `SELECT allow_bitset, deny_bitset FROM channel_member_overrides
-       WHERE channel_id = $1 AND user_id = $2`,
+      `SELECT allow_bitset, deny_bitset FROM channel_overrides
+       WHERE channel_id = $1 AND target_type = 'member' AND target_id = $2`,
       [channelId, userId],
     );
     if (memberOv) {
@@ -304,6 +304,12 @@ export function handleTypingStart(
     return;
   }
 
+  // Verify sender is subscribed to the channel
+  if (!conn.subscribedChannels.has(payload.channelId)) {
+    conn.send(GatewayOpcode.ERROR, { message: 'Not subscribed to this channel' });
+    return;
+  }
+
   // Broadcast to channel subscribers except sender
   manager.broadcastToChannelExcept(
     payload.channelId,
@@ -340,6 +346,12 @@ export async function handleVoiceStateUpdate(
 
   if (!payload.action) {
     conn.send(GatewayOpcode.ERROR, { message: 'action is required' });
+    return;
+  }
+
+  // Verify sender is subscribed to the voice channel
+  if (!conn.subscribedChannels.has(payload.channelId)) {
+    conn.send(GatewayOpcode.ERROR, { message: 'Not subscribed to this channel' });
     return;
   }
 

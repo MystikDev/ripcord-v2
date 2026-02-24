@@ -58,9 +58,24 @@ export async function sendMessage(
   let attachments: Awaited<ReturnType<typeof attachmentRepo.findByMessageId>> = [];
   if (validated.attachmentIds && validated.attachmentIds.length > 0) {
     try {
+      // Verify the caller owns every attachment before linking
+      for (const attId of validated.attachmentIds) {
+        const att = await attachmentRepo.findById(attId);
+        if (!att) {
+          throw ApiError.badRequest(`Attachment ${attId} not found`);
+        }
+        if (att.uploaderUserId !== authUserId) {
+          throw ApiError.forbidden(`Attachment ${attId} does not belong to you`);
+        }
+        if (att.channelId !== validated.channelId) {
+          throw ApiError.badRequest(`Attachment ${attId} was uploaded to a different channel`);
+        }
+      }
+
       await attachmentRepo.updateMessageId(validated.attachmentIds, message.id);
       attachments = await attachmentRepo.findByMessageId(message.id);
     } catch (err) {
+      if (err instanceof ApiError) throw err;
       logger.error({ err, messageId: message.id }, 'Failed to link attachments');
     }
   }

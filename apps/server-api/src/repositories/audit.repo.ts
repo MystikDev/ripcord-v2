@@ -108,6 +108,7 @@ export async function findByHub(
   }
 
   const limit = Math.min(options?.limit ?? 50, 100);
+  params.push(limit);
 
   const sql = `
     SELECT
@@ -123,7 +124,7 @@ export async function findByHub(
     FROM audit_events
     WHERE ${conditions.join(' AND ')}
     ORDER BY created_at DESC, id DESC
-    LIMIT ${limit}
+    LIMIT $${paramIdx}
   `;
 
   return query<AuditEventRow>(sql, params);

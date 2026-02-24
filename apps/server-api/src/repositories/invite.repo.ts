@@ -98,13 +98,23 @@ export async function findByHub(hubId: string): Promise<Invite[]> {
 }
 
 /**
- * Increment the usage count of an invite.
+ * Atomically claim a use of this invite.
+ *
+ * Increments `uses` only if the invite has not yet reached `max_uses`
+ * (or `max_uses` is NULL, meaning unlimited). Returns the updated row
+ * if the claim succeeded, or `null` if the invite was already exhausted
+ * (race-condition safe).
  */
-export async function incrementUses(inviteId: string): Promise<void> {
-  await query(
-    `UPDATE hub_invites SET uses = uses + 1 WHERE id = $1`,
+export async function claimUse(inviteId: string): Promise<Invite | null> {
+  const rows = await query<InviteRow>(
+    `UPDATE hub_invites
+       SET uses = uses + 1
+     WHERE id = $1
+       AND (max_uses IS NULL OR uses < max_uses)
+     RETURNING id, hub_id, code, created_by, max_uses, uses, expires_at, created_at`,
     [inviteId],
   );
+  return rows[0] ? toInvite(rows[0]) : null;
 }
 
 /**

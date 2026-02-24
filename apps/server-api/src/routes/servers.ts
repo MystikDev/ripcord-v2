@@ -304,61 +304,8 @@ hubsRouter.delete(
   },
 );
 
-/**
- * POST /v1/hubs/:id/join
- *
- * Join a hub. Adds the caller as a member.
- *
- * Response: { ok: true, data: { message: "Joined hub" } }
- */
-hubsRouter.post(
-  '/:id/join',
-  requireAuth,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const auth = req.auth!;
-      const hubId = req.params['id'] as string | undefined;
-
-      if (!hubId) {
-        throw ApiError.badRequest('Hub ID is required');
-      }
-
-      // Verify hub exists
-      const hub = await hubRepo.findById(hubId);
-      if (!hub) {
-        throw ApiError.notFound('Hub not found');
-      }
-
-      // Check if user is banned
-      const ban = await banRepo.findOne(hubId, auth.sub);
-      if (ban) {
-        throw ApiError.forbidden('You are banned from this hub');
-      }
-
-      await memberRepo.add(hubId, auth.sub);
-
-      // Audit event
-      auditRepo.create(
-        auth.sub,
-        auth.did,
-        AuditAction.MEMBER_JOINED,
-        'hub',
-        hubId,
-        {},
-        hubId,
-      ).catch((err: unknown) => {
-        logger.error({ err }, 'Failed to create join audit event');
-      });
-
-      logger.info({ hubId, userId: auth.sub }, 'User joined hub');
-
-      const body: ApiResponse = { ok: true, data: { message: 'Joined hub' } };
-      res.json(body);
-    } catch (err) {
-      next(err);
-    }
-  },
-);
+// NOTE: POST /:id/join removed — all hub joins must go through invites
+// (POST /v1/invites/:code/accept) to prevent unauthorized membership.
 
 /**
  * POST /v1/hubs/:id/leave

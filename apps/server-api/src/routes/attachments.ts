@@ -3,16 +3,27 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { ApiError, Permission } from '@ripcord/types';
 import type { ApiResponse, PresignedUploadResponse, PresignedDownloadResponse } from '@ripcord/types';
 import { requireAuth } from '../middleware/require-auth.js';
+import { validate } from '../middleware/validate.js';
 import * as attachmentRepo from '../repositories/attachment.repo.js';
 import * as channelRepo from '../repositories/channel.repo.js';
 import * as memberRepo from '../repositories/member.repo.js';
 import * as permissionService from '../services/permission.service.js';
 import * as storage from '../services/storage.service.js';
 import { rateLimit } from '../middleware/rate-limit.js';
+import { z } from 'zod';
 
 export const attachmentsRouter: Router = Router({ mergeParams: true });
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+
+const UploadAttachmentSchema = z.object({
+  messageId: z.string().uuid(),
+  fileNameEncrypted: z.string().min(1).max(1024),
+  fileSize: z.number().int().min(1).max(MAX_FILE_SIZE),
+  contentTypeEncrypted: z.string().max(512).optional(),
+  encryptionKeyId: z.string().min(1).max(256),
+  nonce: z.string().min(1).max(128),
+});
 
 const attachmentRateLimit = rateLimit({
   windowMs: 60_000,
@@ -33,6 +44,7 @@ attachmentsRouter.post(
   '/channels/:channelId/attachments/upload',
   requireAuth,
   attachmentRateLimit,
+  validate(UploadAttachmentSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const auth = req.auth!;
@@ -55,22 +67,7 @@ attachmentsRouter.post(
       const {
         messageId, fileNameEncrypted, fileSize,
         contentTypeEncrypted, encryptionKeyId, nonce,
-      } = req.body as {
-        messageId: string;
-        fileNameEncrypted: string;
-        fileSize: number;
-        contentTypeEncrypted?: string;
-        encryptionKeyId: string;
-        nonce: string;
-      };
-
-      if (!messageId || !fileNameEncrypted || !fileSize || !encryptionKeyId || !nonce) {
-        throw ApiError.badRequest('Missing required fields');
-      }
-
-      if (fileSize > MAX_FILE_SIZE) {
-        throw ApiError.badRequest(`File size exceeds maximum of ${MAX_FILE_SIZE / 1024 / 1024} MB`);
-      }
+      } = req.body as z.infer<typeof UploadAttachmentSchema>;
 
       const storageKey = `${channelId}/${randomUUID()}`;
 

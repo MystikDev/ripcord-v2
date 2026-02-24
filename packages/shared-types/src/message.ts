@@ -34,12 +34,12 @@ export const EncryptedEnvelopeSchema = z.object({
   senderDeviceId: z.string().uuid(),
   /** ISO-8601 datetime string set by the sending client. */
   sentAt: z.string().datetime(),
-  /** Base64-encoded encrypted payload. */
-  ciphertext: z.string().min(1, "Ciphertext must not be empty"),
-  /** Base64-encoded nonce / IV used for encryption. */
-  nonce: z.string().min(1, "Nonce must not be empty"),
-  /** Identifier for the key used to encrypt this envelope. */
-  keyId: z.string().min(1, "Key id must not be empty"),
+  /** Base64-encoded encrypted payload (max ~48 KB after base64). */
+  ciphertext: z.string().min(1, "Ciphertext must not be empty").max(65_536, "Ciphertext exceeds maximum size"),
+  /** Base64-encoded nonce / IV used for encryption (max 64 bytes base64). */
+  nonce: z.string().min(1, "Nonce must not be empty").max(128, "Nonce too large"),
+  /** Identifier for the key used to encrypt this envelope (max 256 chars). */
+  keyId: z.string().min(1, "Key id must not be empty").max(256, "Key id too large"),
   /** Optional Ed25519 signature over the envelope fields. */
   signature: z.string().optional(),
   /** Optional attachment IDs to link to this message after creation. */

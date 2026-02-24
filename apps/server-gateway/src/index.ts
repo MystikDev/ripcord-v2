@@ -21,6 +21,11 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const AUTH_TIMEOUT_MS = 10_000;
 const MAX_MISSED_HEARTBEATS = 2;
 
+/** Per-connection rate limit: max messages within the sliding window. */
+const RATE_LIMIT_MAX = 120;
+/** Sliding window duration in milliseconds (60 seconds). */
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
 // ---------------------------------------------------------------------------
 // Singletons
 // ---------------------------------------------------------------------------
@@ -56,7 +61,25 @@ const httpServer = createServer(async (req, res) => {
 
 const MAX_PAYLOAD_BYTES = 64 * 1024; // 64 KB per message
 
-const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD_BYTES });
+/** Allowed origins parsed from the comma-separated env var. */
+const ALLOWED_ORIGINS = new Set(
+  env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean),
+);
+
+const wss = new WebSocketServer({
+  server: httpServer,
+  maxPayload: MAX_PAYLOAD_BYTES,
+  verifyClient: ({ req }, done) => {
+    const origin = req.headers.origin ?? '';
+    // Allow if no origin (non-browser clients like curl/Tauri desktop) OR origin is allowed
+    if (!origin || ALLOWED_ORIGINS.has(origin)) {
+      done(true);
+    } else {
+      log.warn({ origin }, 'WebSocket connection rejected — origin not allowed');
+      done(false, 403, 'Origin not allowed');
+    }
+  },
+});
 
 wss.on('connection', (ws: WebSocket) => {
   const conn = new ClientConnection(ws);
@@ -76,8 +99,25 @@ wss.on('connection', (ws: WebSocket) => {
     }
   }, AUTH_TIMEOUT_MS);
 
+  // Per-connection sliding-window rate limiter
+  const messageTimestamps: number[] = [];
+
   // Message handler
   ws.on('message', (raw: RawData) => {
+    // Rate limit check (sliding window)
+    const now = Date.now();
+    messageTimestamps.push(now);
+    // Evict expired timestamps
+    while (messageTimestamps.length > 0 && messageTimestamps[0]! <= now - RATE_LIMIT_WINDOW_MS) {
+      messageTimestamps.shift();
+    }
+    if (messageTimestamps.length > RATE_LIMIT_MAX) {
+      log.warn({ connId: conn.id, userId: conn.userId }, 'Rate limit exceeded — disconnecting');
+      conn.send(GatewayOpcode.ERROR, { message: 'Rate limit exceeded' });
+      conn.close(4029, 'Rate limit exceeded');
+      return;
+    }
+
     let msg: GatewayMessage;
 
     try {
