@@ -2,7 +2,7 @@
  * @module voice-controls
  * Bottom control bar for a voice session: mute toggle, push-to-talk toggle
  * with active pulse, inline PTT keybind dialog, screen-share toggle,
- * AudioSettings gear button, and a disconnect button.
+ * deafen toggle, AudioSettings gear button, and a disconnect button.
  */
 'use client';
 
@@ -10,6 +10,8 @@ import { useCallback } from 'react';
 import { useLocalParticipant } from '@livekit/components-react';
 import { usePushToTalk } from '../../hooks/use-push-to-talk';
 import { useSettingsStore } from '../../stores/settings-store';
+import { useAuthStore } from '../../stores/auth-store';
+import { gateway } from '../../lib/gateway-client';
 import { getKeyDisplayLabel } from '../../lib/key-display';
 import { PttKeybindDialog } from './ptt-keybind-dialog';
 import { AudioSettings } from './audio-settings';
@@ -61,6 +63,30 @@ function ScreenShareIcon({ active }: { active: boolean }) {
   );
 }
 
+function DeafenIcon({ deafened }: { deafened: boolean }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {/* Headphone band */}
+      <path d="M2 10V8a6 6 0 0 1 12 0v2" />
+      {/* Left earpiece */}
+      <rect x="1" y="10" width="3" height="4" rx="1" />
+      {/* Right earpiece */}
+      <rect x="12" y="10" width="3" height="4" rx="1" />
+      {/* Slash when deafened */}
+      {deafened && <path d="M2 2l12 12" strokeWidth="2" />}
+    </svg>
+  );
+}
+
 function DisconnectIcon() {
   return (
     <svg
@@ -85,15 +111,19 @@ export interface VoiceControlsProps {
   onTogglePtt: () => void;
   /** Disconnect from the voice channel */
   onDisconnect: () => void;
+  /** ID of the voice channel currently connected to (for gateway updates) */
+  voiceChannelId: string;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceControlsProps) {
+export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect, voiceChannelId }: VoiceControlsProps) {
   const { localParticipant } = useLocalParticipant();
   const pttKey = useSettingsStore((s) => s.pttKey);
+  const isDeafened = useSettingsStore((s) => s.isDeafened);
+  const toggleDeafen = useSettingsStore((s) => s.toggleDeafen);
 
   const isMicMuted = !localParticipant.isMicrophoneEnabled;
   const isScreenSharing = localParticipant.isScreenShareEnabled;
@@ -120,6 +150,23 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
     onActivate: handlePttActivate,
     onDeactivate: handlePttDeactivate,
   });
+
+  // ----- Deafen -----
+
+  const handleToggleDeafen = useCallback(() => {
+    const newDeafState = !isDeafened;
+    toggleDeafen();
+
+    // Notify the gateway so other users see the deafen icon
+    const auth = useAuthStore.getState();
+    gateway.send(23, {
+      channelId: voiceChannelId,
+      userId: auth.userId,
+      action: 'update',
+      selfMute: isMicMuted,
+      selfDeaf: newDeafState,
+    });
+  }, [isDeafened, toggleDeafen, voiceChannelId, isMicMuted]);
 
   // ----- Screen share -----
 
@@ -180,6 +227,21 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
           )}
         >
           <ScreenShareIcon active={isScreenSharing} />
+        </button>
+      </Tooltip>
+
+      {/* Deafen toggle */}
+      <Tooltip content={isDeafened ? 'Undeafen' : 'Deafen'} side="top">
+        <button
+          onClick={handleToggleDeafen}
+          className={clsx(
+            'flex h-9 w-9 items-center justify-center rounded-full transition-colors',
+            isDeafened
+              ? 'bg-danger/20 text-danger hover:bg-danger/30'
+              : 'bg-surface-3 text-text-secondary hover:bg-surface-2 hover:text-text-primary',
+          )}
+        >
+          <DeafenIcon deafened={isDeafened} />
         </button>
       </Tooltip>
 

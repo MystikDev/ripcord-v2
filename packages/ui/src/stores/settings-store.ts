@@ -44,6 +44,9 @@ export interface SettingsState {
   /** Per-user voice volume overrides. Key = userId, value = float 0.0–2.0 (1.0 = 100%). */
   userVolumes: Record<string, number>;
 
+  /** Whether the user has self-deafened (muted all incoming audio). */
+  isDeafened: boolean;
+
   /** Update the push-to-talk key binding. */
   setPttKey: (key: string) => void;
   /** Reset the push-to-talk key to the default (Space). */
@@ -64,6 +67,8 @@ export interface SettingsState {
   setUserVolume: (userId: string, volume: number) => void;
   /** Remove a per-user volume override, returning to the default. */
   resetUserVolume: (userId: string) => void;
+  /** Toggle self-deafen (mute all incoming audio). */
+  toggleDeafen: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +86,7 @@ export const useSettingsStore = create<SettingsState>()(
       selectedSpeakerDeviceId: null,
       voiceNotificationSounds: true,
       userVolumes: {},
+      isDeafened: false,
 
       setPttKey: (key) => set({ pttKey: key }),
 
@@ -107,6 +113,8 @@ export const useSettingsStore = create<SettingsState>()(
           const { [userId]: _, ...rest } = s.userVolumes;
           return { userVolumes: rest };
         }),
+
+      toggleDeafen: () => set((s) => ({ isDeafened: !s.isDeafened })),
     }),
     {
       name: 'ripcord-settings',
@@ -119,6 +127,7 @@ export const useSettingsStore = create<SettingsState>()(
         selectedSpeakerDeviceId: state.selectedSpeakerDeviceId,
         voiceNotificationSounds: state.voiceNotificationSounds,
         userVolumes: state.userVolumes,
+        isDeafened: state.isDeafened,
       }),
     },
   ),

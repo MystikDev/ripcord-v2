@@ -33,6 +33,14 @@
 - [x] Add drag-and-drop file upload to chat area (with visual drop overlay)
 - [x] Fix X button to close app instead of minimizing to tray
 
+## Completed — Voice Deafen (v0.7.5)
+- [x] Add `isDeafened` state + `toggleDeafen` action to settings store (persisted)
+- [x] Add deafen button (headphone icon) to voice controls bar
+- [x] Send gateway `selfDeaf` update (opcode 23) so other users see deafen icon
+- [x] Create `use-deafen-remote-audio.ts` hook — mutes all remote audio tracks
+- [x] Wire hook into voice panel alongside existing volume/noise hooks
+- [x] TypeScript typecheck passes
+
 ## Backlog — Security (Future Sprints)
 - [ ] Encrypt AI API keys in localStorage (or proxy through backend)
 - [ ] Add token blacklist on logout (Redis-based)

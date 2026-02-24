@@ -21,6 +21,7 @@ import { useRestoreSpeaker } from '../../hooks/use-restore-speaker';
 import { useSyncSpeaking } from '../../hooks/use-sync-speaking';
 import { useSyncScreenSharing } from '../../hooks/use-sync-screen-sharing';
 import { useApplyUserVolumes } from '../../hooks/use-apply-user-volumes';
+import { useDeafenRemoteAudio } from '../../hooks/use-deafen-remote-audio';
 import { VoiceControls } from './voice-controls';
 import { ScreenShareView } from './screen-share-view';
 import { SignalMeter } from './signal-meter';
@@ -73,12 +74,14 @@ function VoicePanelContent({
   pttEnabled,
   onTogglePtt,
   onDisconnect,
+  voiceChannelId,
 }: {
   channelName: string;
   connectionState: ConnectionState;
   pttEnabled: boolean;
   onTogglePtt: () => void;
   onDisconnect: () => void;
+  voiceChannelId: string;
 }) {
   // Activate noise-gate processor based on user settings
   useNoiseGate();
@@ -90,6 +93,8 @@ function VoicePanelContent({
   useSyncScreenSharing();
   // Apply per-user volume overrides from settings store to LiveKit tracks
   useApplyUserVolumes();
+  // Mute/unmute all remote audio when self-deafened
+  useDeafenRemoteAudio();
   // Poll WebRTC stats for voice latency
   const { latencyMs, quality } = useVoiceLatency();
 
@@ -126,6 +131,7 @@ function VoicePanelContent({
           pttEnabled={pttEnabled}
           onTogglePtt={onTogglePtt}
           onDisconnect={onDisconnect}
+          voiceChannelId={voiceChannelId}
         />
       )}
     </div>
@@ -316,6 +322,7 @@ export function VoicePanel() {
             pttEnabled={pttEnabled}
             onTogglePtt={handleTogglePtt}
             onDisconnect={handleDisconnect}
+            voiceChannelId={voiceChannelId!}
           />
         </LiveKitRoom>
       )}
