@@ -94,8 +94,8 @@ app.use((req: express.Request, res: express.Response, next: express.NextFunction
   next();
 });
 
-// Global rate limiter: 100 requests per 60 seconds per IP
-app.use(rateLimit({ windowMs: 60_000, max: 100, keyPrefix: 'rl:global' }));
+// Global rate limiter (configurable via RATE_LIMIT_WINDOW_MS / RATE_LIMIT_MAX_REQUESTS)
+app.use(rateLimit({ windowMs: env.RATE_LIMIT_WINDOW_MS, max: env.RATE_LIMIT_MAX_REQUESTS, keyPrefix: 'rl:global' }));
 
 // ---------------------------------------------------------------------------
 // Health check (unauthenticated)
