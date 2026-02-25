@@ -91,6 +91,7 @@ async function doFetch(url: string): Promise<LinkMetadata | null> {
  * CORS via Rust-side request), falls back to browser fetch for web client.
  */
 async function httpFetch(url: string): Promise<string> {
+  // Attempt Tauri HTTP plugin (CORS-free, desktop only)
   try {
     const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
     const res = await tauriFetch(url, {
@@ -100,20 +101,20 @@ async function httpFetch(url: string): Promise<string> {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.text();
-  } catch (e: unknown) {
-    // If the Tauri plugin just isn't available (web client), try browser fetch
-    if (e instanceof TypeError || (e as { message?: string })?.message?.includes('plugin-http')) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      try {
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.text();
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    }
-    throw e;
+  } catch (tauriErr) {
+    // Any failure (scope error, plugin missing, network error) — try browser fallback
+    console.debug('[LinkMetadata] Tauri fetch failed, trying browser fetch:', tauriErr);
+  }
+
+  // Fallback to browser fetch (works for CORS-permissive sites)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

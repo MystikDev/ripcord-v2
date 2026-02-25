@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.8.2',
+    date: '2026-02-25',
+    highlights: [
+      'Discord-style link previews — URLs in chat now show rich embed cards with title, description, and image',
+      'Fixed Tauri HTTP plugin scope so link metadata fetching works for all HTTPS sites',
+    ],
+  },
+  {
     version: '0.8.1',
     date: '2026-02-25',
     highlights: [
