@@ -90,7 +90,12 @@ export async function apiFetch<T>(
   const { accessToken } = store.getState();
 
   const headers = new Headers(init.headers);
-  if (!headers.has('Content-Type') && init.body) {
+  // Always set Content-Type for mutation methods — the server rejects
+  // POST/PUT/DELETE/PATCH without application/json even when bodyless.
+  const isMutation = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(
+    (init.method ?? 'GET').toUpperCase(),
+  );
+  if (!headers.has('Content-Type') && (init.body || isMutation)) {
     headers.set('Content-Type', 'application/json');
   }
   if (accessToken) {

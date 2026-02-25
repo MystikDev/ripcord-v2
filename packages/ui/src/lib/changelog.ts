@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.8.5',
+    date: '2026-02-25',
+    highlights: [
+      'Fixed invite codes failing with "Content-Type must be application/json" — invites now work correctly',
+    ],
+  },
+  {
     version: '0.8.4',
     date: '2026-02-25',
     highlights: [
