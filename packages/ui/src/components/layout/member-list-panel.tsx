@@ -50,16 +50,15 @@ function StatusDot({ status }: { status: PresenceStatus }) {
 // Member row — subscribes to its own presence for granular re-renders
 // ---------------------------------------------------------------------------
 
-function MemberRow({ member }: { member: MemberInfo }) {
+function MemberRow({ member, offline }: { member: MemberInfo; offline?: boolean }) {
   const status = usePresenceStore((s) => s.getStatus(member.userId));
-  const isOffline = status === 'offline';
 
   return (
     <div
       className={clsx(
         'flex items-center gap-2 rounded-md px-2 py-1 transition-colors',
         'hover:bg-surface-2',
-        isOffline && 'opacity-40',
+        offline && 'opacity-40',
       )}
     >
       {/* Avatar with status indicator */}
@@ -73,11 +72,11 @@ function MemberRow({ member }: { member: MemberInfo }) {
         <StatusDot status={status} />
       </div>
 
-      {/* Handle */}
+      {/* Handle — bright white for online, dim for offline */}
       <span
         className={clsx(
           'truncate text-sm font-medium',
-          isOffline ? 'text-text-secondary' : 'text-text-primary',
+          offline ? 'text-text-muted' : 'text-white',
         )}
       >
         {member.handle}
@@ -111,21 +110,36 @@ interface RoleGroup {
   members: MemberInfo[];
 }
 
+interface GroupedMembers {
+  /** Role groups containing only online/idle/dnd members */
+  onlineGroups: RoleGroup[];
+  /** All offline members regardless of role */
+  offlineMembers: MemberInfo[];
+}
+
 function buildRoleGroups(
   members: Record<string, MemberInfo>,
   roles: RoleDefinition[],
   presenceMap: Record<string, PresenceStatus>,
-): RoleGroup[] {
+): GroupedMembers {
   // Build lookup: roleId -> RoleDefinition
   const roleById = new Map<string, RoleDefinition>();
   for (const r of roles) {
     roleById.set(r.id, r);
   }
 
-  // Group members by their highest-priority non-@everyone role
+  // Separate online and offline, group online by role
   const groupMap = new Map<string | null, MemberInfo[]>();
+  const offlineMembers: MemberInfo[] = [];
 
   for (const member of Object.values(members)) {
+    const status = presenceMap[member.userId] ?? 'offline';
+
+    if (status === 'offline') {
+      offlineMembers.push(member);
+      continue;
+    }
+
     const memberRoles = member.roles ?? [];
 
     // Find highest-priority (lowest number) non-@everyone role
@@ -145,11 +159,11 @@ function buildRoleGroups(
     groupMap.set(groupKey, existing);
   }
 
-  // Build group array
-  const groups: RoleGroup[] = [];
+  // Build group array (online only)
+  const onlineGroups: RoleGroup[] = [];
   for (const [roleId, groupMembers] of groupMap) {
     const def = roleId ? roleById.get(roleId) : null;
-    groups.push({
+    onlineGroups.push({
       roleId,
       name: def?.name ?? 'Members',
       priority: def?.priority ?? Number.MAX_SAFE_INTEGER,
@@ -158,10 +172,10 @@ function buildRoleGroups(
   }
 
   // Sort groups by priority (ascending = highest rank first), catch-all last
-  groups.sort((a, b) => a.priority - b.priority);
+  onlineGroups.sort((a, b) => a.priority - b.priority);
 
-  // Within each group, sort by presence weight (online first), then alphabetical
-  for (const group of groups) {
+  // Within each group, sort by presence weight then alphabetical
+  for (const group of onlineGroups) {
     group.members.sort((a, b) => {
       const pa = PRESENCE_WEIGHT[presenceMap[a.userId] ?? 'offline'];
       const pb = PRESENCE_WEIGHT[presenceMap[b.userId] ?? 'offline'];
@@ -170,7 +184,10 @@ function buildRoleGroups(
     });
   }
 
-  return groups;
+  // Sort offline members alphabetically
+  offlineMembers.sort((a, b) => a.handle.localeCompare(b.handle));
+
+  return { onlineGroups, offlineMembers };
 }
 
 // ---------------------------------------------------------------------------
@@ -182,12 +199,13 @@ export function MemberListPanel() {
   const roles = useRoleStore((s) => s.roles);
   const presenceMap = usePresenceStore((s) => s.presence);
 
-  const groups = useMemo(
+  const { onlineGroups, offlineMembers } = useMemo(
     () => buildRoleGroups(members, roles, presenceMap),
     [members, roles, presenceMap],
   );
 
   const totalCount = Object.keys(members).length;
+  const onlineCount = totalCount - offlineMembers.length;
 
   return (
     <div className="flex h-full w-60 flex-col border-l border-border bg-surface-1">
@@ -197,14 +215,15 @@ export function MemberListPanel() {
           Members
         </h3>
         <span className="ml-1.5 text-xs text-text-muted">
-          {totalCount}
+          {onlineCount}/{totalCount}
         </span>
       </div>
 
       {/* Scrollable member list */}
       <ScrollArea className="flex-1">
         <div className="p-2">
-          {groups.map((group) => (
+          {/* Online members grouped by role */}
+          {onlineGroups.map((group) => (
             <div key={group.roleId ?? '__members'}>
               <RoleGroupHeader name={group.name} count={group.members.length} />
               {group.members.map((member) => (
@@ -212,6 +231,16 @@ export function MemberListPanel() {
               ))}
             </div>
           ))}
+
+          {/* Offline section — visually separated */}
+          {offlineMembers.length > 0 && (
+            <div>
+              <RoleGroupHeader name="Offline" count={offlineMembers.length} />
+              {offlineMembers.map((member) => (
+                <MemberRow key={member.userId} member={member} offline />
+              ))}
+            </div>
+          )}
 
           {totalCount === 0 && (
             <p className="px-2 pt-8 text-center text-sm text-text-muted">

@@ -27,6 +27,7 @@ export const changelog: ChangelogEntry[] = [
       'Voice state hydration now fully replaces stale data instead of merging',
       'Gateway reconnect automatically re-subscribes channels and refreshes voice states',
       'Speaking indicator is now truly instantaneous — zero CSS transition delay',
+      'Member list now separates online and offline users with brighter text for online members',
     ],
   },
   {
