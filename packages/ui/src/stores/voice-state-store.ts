@@ -30,6 +30,15 @@ export interface VoiceStateStore {
   /** User IDs currently screen-sharing (bridged from LiveKit context). Runtime-only. */
   screenSharingUserIds: string[];
 
+  /** Voice channel we're currently connected to (null = not in voice). */
+  connectedChannelId: string | null;
+
+  /** Whether the local mic is muted (bridged from LiveKit for UserPanel). */
+  localMicMuted: boolean;
+
+  /** Callback to toggle mic (set by VoiceControls inside LiveKitRoom). */
+  toggleMicFn: (() => void) | null;
+
   /** Add a participant to a voice channel. */
   addParticipant: (channelId: string, participant: VoiceParticipant) => void;
 
@@ -47,6 +56,10 @@ export interface VoiceStateStore {
 
   /** Set the list of currently screen-sharing user IDs. */
   setScreenSharingUserIds: (ids: string[]) => void;
+
+  setConnectedChannelId: (id: string | null) => void;
+  setLocalMicMuted: (muted: boolean) => void;
+  setToggleMicFn: (fn: (() => void) | null) => void;
 
   /** Reset all voice state data. */
   reset: () => void;
@@ -66,6 +79,9 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
   voiceStates: {},
   speakingUserIds: [],
   screenSharingUserIds: [],
+  connectedChannelId: null,
+  localMicMuted: false,
+  toggleMicFn: null,
 
   addParticipant: (channelId, participant) =>
     set((state) => {
@@ -117,5 +133,16 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
 
   setScreenSharingUserIds: (ids) => set({ screenSharingUserIds: ids }),
 
-  reset: () => set({ voiceStates: {}, speakingUserIds: [], screenSharingUserIds: [] }),
+  setConnectedChannelId: (id) => set({ connectedChannelId: id }),
+  setLocalMicMuted: (muted) => set({ localMicMuted: muted }),
+  setToggleMicFn: (fn) => set({ toggleMicFn: fn }),
+
+  reset: () => set({
+    voiceStates: {},
+    speakingUserIds: [],
+    screenSharingUserIds: [],
+    connectedChannelId: null,
+    localMicMuted: false,
+    toggleMicFn: null,
+  }),
 }));

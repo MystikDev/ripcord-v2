@@ -75,14 +75,12 @@ function VoicePanelContent({
   pttEnabled,
   onTogglePtt,
   onDisconnect,
-  voiceChannelId,
 }: {
   channelName: string;
   connectionState: ConnectionState;
   pttEnabled: boolean;
   onTogglePtt: () => void;
   onDisconnect: () => void;
-  voiceChannelId: string;
 }) {
   // Activate noise-gate processor based on user settings
   useNoiseGate();
@@ -132,7 +130,6 @@ function VoicePanelContent({
           pttEnabled={pttEnabled}
           onTogglePtt={onTogglePtt}
           onDisconnect={onDisconnect}
-          voiceChannelId={voiceChannelId}
         />
       )}
     </div>
@@ -178,6 +175,7 @@ export function VoicePanel() {
       setLivekitUrl(url);
       setVoiceChannelId(activeChannelId);
       setConnectionState('connected');
+      useVoiceStateStore.getState().setConnectedChannelId(activeChannelId);
 
       // Optimistic local update — show ourselves in the sidebar immediately
       const auth = useAuthStore.getState();
@@ -227,6 +225,7 @@ export function VoicePanel() {
     setConnectionState('idle');
     setError(null);
     setPttEnabled(false);
+    useVoiceStateStore.getState().setConnectedChannelId(null);
   }, [voiceChannelId]);
 
   // ----- Room callbacks -----
@@ -285,6 +284,7 @@ export function VoicePanel() {
       setLivekitUrl(null);
       setVoiceChannelId(null);
       setPttEnabled(false);
+      useVoiceStateStore.getState().setConnectedChannelId(null);
     }
 
     // Join the new channel
@@ -297,6 +297,7 @@ export function VoicePanel() {
         setLivekitUrl(url);
         setVoiceChannelId(pendingVoiceJoin);
         setConnectionState('connected');
+        useVoiceStateStore.getState().setConnectedChannelId(pendingVoiceJoin);
 
         const auth = useAuthStore.getState();
 
@@ -351,7 +352,6 @@ export function VoicePanel() {
             pttEnabled={pttEnabled}
             onTogglePtt={handleTogglePtt}
             onDisconnect={handleDisconnect}
-            voiceChannelId={voiceChannelId!}
           />
         </LiveKitRoom>
       )}

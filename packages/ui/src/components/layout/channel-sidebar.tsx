@@ -17,13 +17,16 @@ import { Avatar } from '../ui/avatar';
 import clsx from 'clsx';
 import { usePresenceStore } from '../../stores/presence-store';
 import { useVoiceStateStore, EMPTY_PARTICIPANTS } from '../../stores/voice-state-store';
+import { useSettingsStore } from '../../stores/settings-store';
 import { useMemberStore } from '../../stores/member-store';
 import { VoicePanel } from '../voice/voice-panel';
 import { ParticipantContextMenu } from '../voice/participant-context-menu';
 import { CreateChannelDialog } from '../hub/create-channel-dialog';
 import { AdminConsole } from '../admin/admin-console';
 import { IconCropDialog } from '../admin/icon-crop-dialog';
+import { Tooltip } from '../ui/tooltip';
 import { uploadUserAvatar, getUserAvatarUrl } from '../../lib/user-api';
+import { gateway } from '../../lib/gateway-client';
 import { useCallback, useRef, useState } from 'react';
 import { useToast } from '../ui/toast';
 import { getAppVersion } from '../../lib/constants';
@@ -298,7 +301,30 @@ function UserPanel() {
     }
   }, [cropImageSrc]);
 
+  // Voice control state (bridged from LiveKit via store)
+  const connectedChannelId = useVoiceStateStore((s) => s.connectedChannelId);
+  const localMicMuted = useVoiceStateStore((s) => s.localMicMuted);
+  const toggleMicFn = useVoiceStateStore((s) => s.toggleMicFn);
+  const isDeafened = useSettingsStore((s) => s.isDeafened);
+  const toggleDeafen = useSettingsStore((s) => s.toggleDeafen);
+
+  const handleToggleDeafen = useCallback(() => {
+    const newDeafState = !isDeafened;
+    toggleDeafen();
+
+    if (connectedChannelId) {
+      gateway.send(23, {
+        channelId: connectedChannelId,
+        userId,
+        action: 'update',
+        selfMute: localMicMuted,
+        selfDeaf: newDeafState,
+      });
+    }
+  }, [isDeafened, toggleDeafen, connectedChannelId, userId, localMicMuted]);
+
   const version = getAppVersion();
+  const inVoice = connectedChannelId !== null;
 
   return (
     <div>
@@ -325,6 +351,50 @@ function UserPanel() {
           className="hidden"
           onChange={handleAvatarSelect}
         />
+
+        {/* Mic / Deafen buttons (visible when in voice) */}
+        {inVoice && (
+          <>
+            <Tooltip content={localMicMuted ? 'Unmute' : 'Mute'} side="top">
+              <button
+                onClick={() => toggleMicFn?.()}
+                className={clsx(
+                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors',
+                  localMicMuted
+                    ? 'bg-danger/20 text-danger hover:bg-danger/30'
+                    : 'bg-surface-3 text-text-secondary hover:bg-surface-2 hover:text-text-primary',
+                )}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
+                  <path d="M3 7.5a5 5 0 0 0 10 0" />
+                  <path d="M8 12v2.5" />
+                  <path d="M5.5 14.5h5" />
+                  {localMicMuted && <path d="M2 2l12 12" strokeWidth="2" />}
+                </svg>
+              </button>
+            </Tooltip>
+            <Tooltip content={isDeafened ? 'Undeafen' : 'Deafen'} side="top">
+              <button
+                onClick={handleToggleDeafen}
+                className={clsx(
+                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors',
+                  isDeafened
+                    ? 'bg-danger/20 text-danger hover:bg-danger/30'
+                    : 'bg-surface-3 text-text-secondary hover:bg-surface-2 hover:text-text-primary',
+                )}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 10V8a6 6 0 0 1 12 0v2" />
+                  <rect x="1" y="10" width="3" height="4" rx="1" />
+                  <rect x="12" y="10" width="3" height="4" rx="1" />
+                  {isDeafened && <path d="M2 2l12 12" strokeWidth="2" />}
+                </svg>
+              </button>
+            </Tooltip>
+          </>
+        )}
+
         <div className="flex-1 min-w-0">
           <p className="truncate text-sm font-medium text-text-primary">
             {handle ?? 'Unknown'}
