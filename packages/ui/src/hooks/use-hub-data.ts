@@ -16,6 +16,7 @@ import { useReadStateStore } from '../stores/read-state-store';
 import { useVoiceStateStore, type VoiceParticipant } from '../stores/voice-state-store';
 import { useMemberStore } from '../stores/member-store';
 import { useRoleStore } from '../stores/role-store';
+import { usePresenceStore, type PresenceStatus } from '../stores/presence-store';
 import { gateway } from '../lib/gateway-client';
 import { apiFetch } from '../lib/api';
 import { getApiBaseUrl } from '../lib/constants';
@@ -54,6 +55,7 @@ export function useHubData() {
   const setVoiceStates = useVoiceStateStore((s) => s.setMany);
   const setMembersStore = useMemberStore((s) => s.setMembers);
   const setRolesStore = useRoleStore((s) => s.setRoles);
+  const setPresenceMany = usePresenceStore((s) => s.setMany);
 
   // Onboarding flag — true when user has zero hubs
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -155,6 +157,17 @@ export function useHubData() {
         if (!cancelled) console.error('Failed to load roles:', err);
       });
 
+    // Hydrate presence for all hub members
+    apiFetch<Array<{ userId: string; status: PresenceStatus }>>(`/v1/hubs/${activeHubId}/presence`)
+      .then((res) => {
+        if (!cancelled && res.ok && res.data) {
+          setPresenceMany(res.data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Failed to load presence:', err);
+      });
+
     // Clear stale subscriptions — this is a fresh hub load
     subscribedRef.current.clear();
 
@@ -200,7 +213,7 @@ export function useHubData() {
     return () => {
       cancelled = true;
     };
-  }, [activeHubId, setChannels, setActiveChannel, setVoiceStates, setMembersStore, setRolesStore]);
+  }, [activeHubId, setChannels, setActiveChannel, setVoiceStates, setMembersStore, setRolesStore, setPresenceMany]);
 
   // Re-subscribe channels & re-hydrate voice states on gateway reconnect
   useEffect(() => {
@@ -223,10 +236,21 @@ export function useHubData() {
         .catch((err) => {
           console.error('Failed to re-hydrate voice states on reconnect:', err);
         });
+
+      // Re-hydrate presence to catch status changes during disconnect
+      apiFetch<Array<{ userId: string; status: PresenceStatus }>>(`/v1/hubs/${activeHubId}/presence`)
+        .then((res) => {
+          if (res.ok && res.data) {
+            setPresenceMany(res.data);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to re-hydrate presence on reconnect:', err);
+        });
     });
 
     return unsub;
-  }, [activeHubId, setVoiceStates]);
+  }, [activeHubId, setVoiceStates, setPresenceMany]);
 
   // Load messages when channel changes
   useEffect(() => {

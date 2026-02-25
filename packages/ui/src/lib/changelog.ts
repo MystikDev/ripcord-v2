@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.8.4',
+    date: '2026-02-25',
+    highlights: [
+      'Fixed member list showing all users as offline — presence now hydrated from REST on hub load',
+      'Added /v1/hubs/:hubId/presence endpoint for bulk presence lookups via Redis pipeline',
+      'Presence re-hydrated automatically on gateway reconnect',
+    ],
+  },
+  {
     version: '0.8.3',
     date: '2026-02-25',
     highlights: [

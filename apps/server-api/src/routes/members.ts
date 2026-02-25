@@ -14,8 +14,58 @@ import * as channelRepo from '../repositories/channel.repo.js';
 import * as auditRepo from '../repositories/audit.repo.js';
 import * as permissionService from '../services/permission.service.js';
 import { logger } from '../logger.js';
+import { redis } from '../redis.js';
 
 export const membersRouter: Router = Router();
+
+// ---------------------------------------------------------------------------
+// GET /v1/hubs/:hubId/presence — Bulk presence for all hub members
+// ---------------------------------------------------------------------------
+
+membersRouter.get(
+  '/hubs/:hubId/presence',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = req.auth!;
+      const hubId = req.params['hubId'] as string | undefined;
+
+      if (!hubId) {
+        throw ApiError.badRequest('Hub ID is required');
+      }
+
+      // Verify membership
+      const membership = await memberRepo.findOne(hubId, auth.sub);
+      if (!membership) {
+        throw ApiError.forbidden('You are not a member of this hub');
+      }
+
+      // Get all members of this hub
+      const members = await memberRepo.findByHub(hubId, 200);
+
+      // Batch-read presence from Redis using pipeline
+      const pipeline = redis.pipeline();
+      for (const m of members) {
+        pipeline.get(`presence:${m.userId}`);
+      }
+      const results = await pipeline.exec();
+
+      // Build response: array of { userId, status }
+      const presenceData = members.map((m, i) => {
+        const [err, value] = results?.[i] ?? [null, null];
+        const status = !err && (value === 'online' || value === 'idle' || value === 'dnd')
+          ? value
+          : 'offline';
+        return { userId: m.userId, status };
+      });
+
+      const body: ApiResponse = { ok: true, data: presenceData };
+      res.json(body);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
