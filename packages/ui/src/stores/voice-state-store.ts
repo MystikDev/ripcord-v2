@@ -33,6 +33,15 @@ export interface VoiceStateStore {
   /** Voice channel we're currently connected to (null = not in voice). */
   connectedChannelId: string | null;
 
+  /** Identity of the user whose screen share we're actively viewing (null = auto first). */
+  activeScreenShareId: string | null;
+
+  /** User ID whose streaming icon is being hovered (for preview popover). */
+  hoveredScreenShareUserId: string | null;
+
+  /** Anchor position for the hover preview popover. */
+  hoveredScreenShareAnchor: { x: number; y: number } | null;
+
   /** Whether the local mic is muted (bridged from LiveKit for UserPanel). */
   localMicMuted: boolean;
 
@@ -58,6 +67,8 @@ export interface VoiceStateStore {
   setScreenSharingUserIds: (ids: string[]) => void;
 
   setConnectedChannelId: (id: string | null) => void;
+  setActiveScreenShareId: (id: string | null) => void;
+  setHoveredScreenShare: (userId: string | null, anchor?: { x: number; y: number }) => void;
   setLocalMicMuted: (muted: boolean) => void;
   setToggleMicFn: (fn: (() => void) | null) => void;
 
@@ -80,6 +91,9 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
   speakingUserIds: [],
   screenSharingUserIds: [],
   connectedChannelId: null,
+  activeScreenShareId: null,
+  hoveredScreenShareUserId: null,
+  hoveredScreenShareAnchor: null,
   localMicMuted: false,
   toggleMicFn: null,
 
@@ -132,6 +146,12 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
   setScreenSharingUserIds: (ids) => set({ screenSharingUserIds: ids }),
 
   setConnectedChannelId: (id) => set({ connectedChannelId: id }),
+  setActiveScreenShareId: (id) => set({ activeScreenShareId: id }),
+  setHoveredScreenShare: (userId, anchor) =>
+    set({
+      hoveredScreenShareUserId: userId,
+      hoveredScreenShareAnchor: anchor ?? null,
+    }),
   setLocalMicMuted: (muted) => set({ localMicMuted: muted }),
   setToggleMicFn: (fn) => set({ toggleMicFn: fn }),
 
@@ -140,6 +160,9 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
     speakingUserIds: [],
     screenSharingUserIds: [],
     connectedChannelId: null,
+    activeScreenShareId: null,
+    hoveredScreenShareUserId: null,
+    hoveredScreenShareAnchor: null,
     localMicMuted: false,
     toggleMicFn: null,
   }),

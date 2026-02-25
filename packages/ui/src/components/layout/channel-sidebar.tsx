@@ -167,14 +167,32 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
               </div>
               <span className="truncate">{p.handle ?? p.userId.slice(0, 8)}</span>
               {isScreenSharing && (
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-cyan" aria-label="Streaming">
-                  <title>Streaming</title>
-                  <rect x="1" y="2" width="14" height="10" rx="1.5" />
-                  <path d="M4 14h8" />
-                  <path d="M6 12v2M10 12v2" />
-                  <path d="M6.5 7l2-2 2 2" fill="none" />
-                  <path d="M8.5 5v4" />
-                </svg>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    useVoiceStateStore.getState().setActiveScreenShareId(p.userId);
+                  }}
+                  onMouseEnter={(e) => {
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    useVoiceStateStore.getState().setHoveredScreenShare(p.userId, {
+                      x: rect.right + 8,
+                      y: rect.top,
+                    });
+                  }}
+                  onMouseLeave={() => {
+                    useVoiceStateStore.getState().setHoveredScreenShare(null);
+                  }}
+                  className="shrink-0 text-cyan hover:brightness-125 hover:scale-110 transition-all cursor-pointer"
+                  title={`View ${p.handle ?? 'user'}'s screen`}
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-label="Streaming">
+                    <rect x="1" y="2" width="14" height="10" rx="1.5" />
+                    <path d="M4 14h8" />
+                    <path d="M6 12v2M10 12v2" />
+                    <path d="M6.5 7l2-2 2 2" fill="none" />
+                    <path d="M8.5 5v4" />
+                  </svg>
+                </button>
               )}
               {p.selfMute && (
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-danger/70" aria-label="Muted">

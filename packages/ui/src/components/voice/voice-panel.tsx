@@ -25,6 +25,7 @@ import { useApplyUserVolumes } from '../../hooks/use-apply-user-volumes';
 import { useDeafenRemoteAudio } from '../../hooks/use-deafen-remote-audio';
 import { VoiceControls } from './voice-controls';
 import { ScreenShareView } from './screen-share-view';
+import { StreamPreview } from './stream-preview';
 import { SignalMeter } from './signal-meter';
 import { useVoiceLatency } from '../../hooks/use-voice-latency';
 import clsx from 'clsx';
@@ -123,6 +124,9 @@ function VoicePanelContent({
 
       {/* Screen share */}
       {connectionState === 'connected' && <ScreenShareView />}
+
+      {/* Hover preview portal (rendered inside LiveKitRoom for track access) */}
+      {connectionState === 'connected' && <StreamPreview />}
 
       {/* Controls */}
       {connectionState === 'connected' && (
