@@ -2,17 +2,22 @@
  * @module app-layout
  * Root authenticated layout. Guards auth (redirects to /login), connects the
  * WebSocket gateway, loads hub data, provides Toast/Tooltip context, renders
- * AppShell, and overlays OnboardingFlow for first-time users.
+ * AppShell, overlays OnboardingFlow for first-time users, and shows the
+ * What's New dialog after version updates.
  */
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAppRouter } from '../../lib/router';
 import { useAuthStore } from '../../stores/auth-store';
+import { useSettingsStore } from '../../stores/settings-store';
 import { useGateway } from '../../hooks/use-gateway';
 import { useHubData } from '../../hooks/use-hub-data';
+import { getAppVersion } from '../../lib/constants';
+import { getChangelogForVersion } from '../../lib/changelog';
 import { TooltipProvider } from '../ui/tooltip';
 import { ToastProvider } from '../ui/toast';
 import { AppShell } from './app-shell';
 import { OnboardingFlow } from '../onboarding/onboarding-flow';
+import { WhatsNewDialog } from '../ui/whats-new-dialog';
 
 /**
  * App layout: wraps the 3-column shell, guards auth,
@@ -33,6 +38,41 @@ export function AppLayout() {
     }
   }, [isAuthenticated, router]);
 
+  // ---- What's New dialog ----
+  const hideWhatsNew = useSettingsStore((s) => s.hideWhatsNew);
+  const lastSeenVersion = useSettingsStore((s) => s.lastSeenVersion);
+  const setHideWhatsNew = useSettingsStore((s) => s.setHideWhatsNew);
+  const setLastSeenVersion = useSettingsStore((s) => s.setLastSeenVersion);
+
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const currentVersion = getAppVersion();
+  const changelogEntry = getChangelogForVersion(currentVersion);
+
+  useEffect(() => {
+    if (
+      isAuthenticated &&
+      !hideWhatsNew &&
+      lastSeenVersion !== currentVersion &&
+      currentVersion !== 'dev' &&
+      changelogEntry
+    ) {
+      setWhatsNewOpen(true);
+    }
+    // Intentionally narrow deps — decide once at mount / login time
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  const handleWhatsNewClose = useCallback(
+    (dontShowAgain: boolean) => {
+      setWhatsNewOpen(false);
+      setLastSeenVersion(currentVersion);
+      if (dontShowAgain) {
+        setHideWhatsNew(true);
+      }
+    },
+    [currentVersion, setLastSeenVersion, setHideWhatsNew],
+  );
+
   if (!isAuthenticated) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-bg">
@@ -49,6 +89,13 @@ export function AppLayout() {
           open={showOnboarding}
           onComplete={() => setShowOnboarding(false)}
         />
+        {changelogEntry && (
+          <WhatsNewDialog
+            open={whatsNewOpen}
+            onClose={handleWhatsNewClose}
+            entry={changelogEntry}
+          />
+        )}
       </TooltipProvider>
     </ToastProvider>
   );

@@ -1,3 +1,6 @@
+// Side-effect: clear persisted auth on fresh launch (MUST be first import)
+import './clear-session';
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

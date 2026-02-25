@@ -69,6 +69,15 @@ export interface SettingsState {
   resetUserVolume: (userId: string) => void;
   /** Toggle self-deafen (mute all incoming audio). */
   toggleDeafen: () => void;
+
+  /** Whether the user has permanently opted out of the What's New dialog. */
+  hideWhatsNew: boolean;
+  /** The last app version for which the user dismissed the What's New dialog. */
+  lastSeenVersion: string | null;
+  /** Permanently hide the What's New dialog for all future versions. */
+  setHideWhatsNew: (hide: boolean) => void;
+  /** Record that the user has seen the What's New dialog for a given version. */
+  setLastSeenVersion: (version: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +124,11 @@ export const useSettingsStore = create<SettingsState>()(
         }),
 
       toggleDeafen: () => set((s) => ({ isDeafened: !s.isDeafened })),
+
+      hideWhatsNew: false,
+      lastSeenVersion: null,
+      setHideWhatsNew: (hide) => set({ hideWhatsNew: hide }),
+      setLastSeenVersion: (version) => set({ lastSeenVersion: version }),
     }),
     {
       name: 'ripcord-settings',
@@ -128,6 +142,8 @@ export const useSettingsStore = create<SettingsState>()(
         voiceNotificationSounds: state.voiceNotificationSounds,
         userVolumes: state.userVolumes,
         isDeafened: state.isDeafened,
+        hideWhatsNew: state.hideWhatsNew,
+        lastSeenVersion: state.lastSeenVersion,
       }),
     },
   ),

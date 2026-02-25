@@ -2,92 +2,42 @@
 
 /**
  * @module use-sync-speaking
- * Bridges LiveKit's real-time `isSpeaking` state into the Zustand voice store
- * with a short hold timer to prevent flickering between words.
+ * Bridges LiveKit's real-time active-speaker events directly into the Zustand
+ * voice store. Uses RoomEvent.ActiveSpeakersChanged for instant updates,
+ * bypassing the React render cycle entirely.
  */
 
-import { useEffect, useRef } from 'react';
-import { useParticipants } from '@livekit/components-react';
+import { useEffect } from 'react';
+import { useRoomContext } from '@livekit/components-react';
+import { RoomEvent, type Participant } from 'livekit-client';
 import { useVoiceStateStore } from '../stores/voice-state-store';
 
 /** Stable empty array to avoid unnecessary store writes. */
 const EMPTY: string[] = [];
 
-/** How long to keep the indicator lit after speaking stops (ms). */
-const HOLD_MS = 100;
-
 /**
  * Syncs speaking participant IDs from LiveKit into the voice-state store.
  *
- * A per-participant hold timer keeps the speaking indicator visible for a short
- * period after speech ends, preventing rapid on/off flicker. Only writes to the
- * store when the set of speaking IDs actually changes.
+ * Subscribes directly to RoomEvent.ActiveSpeakersChanged for minimal latency —
+ * the event fires from the LiveKit SDK and updates the Zustand store in the
+ * same microtask, without waiting for React re-renders.
  *
  * Must be called inside a `<LiveKitRoom>` provider.
  */
 export function useSyncSpeaking(): void {
-  const participants = useParticipants();
-  const setSpeakingUserIds = useVoiceStateStore((s) => s.setSpeakingUserIds);
-  const prevRef = useRef<string[]>(EMPTY);
-  const holdTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const heldIds = useRef<Set<string>>(new Set());
+  const room = useRoomContext();
 
   useEffect(() => {
-    const nowSpeaking = new Set(
-      participants.filter((p) => p.isSpeaking).map((p) => p.identity),
-    );
+    const handler = (speakers: Participant[]) => {
+      const ids = speakers.map((s) => s.identity).filter(Boolean);
+      useVoiceStateStore.getState().setSpeakingUserIds(ids.length > 0 ? ids : EMPTY);
+    };
 
-    // For each participant currently speaking, clear any pending release timer
-    for (const id of nowSpeaking) {
-      const timer = holdTimers.current.get(id);
-      if (timer) {
-        clearTimeout(timer);
-        holdTimers.current.delete(id);
-      }
-      heldIds.current.add(id);
-    }
+    room.on(RoomEvent.ActiveSpeakersChanged, handler);
 
-    // For each held ID that stopped speaking, start a release timer
-    for (const id of heldIds.current) {
-      if (!nowSpeaking.has(id) && !holdTimers.current.has(id)) {
-        const timer = setTimeout(() => {
-          holdTimers.current.delete(id);
-          heldIds.current.delete(id);
-          // Recompute and push to store
-          const updated = [...heldIds.current];
-          const prev = prevRef.current;
-          const changed = updated.length !== prev.length || updated.some((v, i) => v !== prev[i]);
-          if (changed) {
-            prevRef.current = updated.length > 0 ? updated : EMPTY;
-            setSpeakingUserIds(prevRef.current);
-          }
-        }, HOLD_MS);
-        holdTimers.current.set(id, timer);
-      }
-    }
-
-    // Compute the visible speaking set (includes held IDs)
-    const speaking = [...heldIds.current];
-    const prev = prevRef.current;
-    const changed =
-      speaking.length !== prev.length ||
-      speaking.some((id, i) => id !== prev[i]);
-
-    if (changed) {
-      prevRef.current = speaking.length > 0 ? speaking : EMPTY;
-      setSpeakingUserIds(prevRef.current);
-    }
-  });
-
-  // Clear all timers and speaking state on unmount (voice disconnect)
-  useEffect(() => {
     return () => {
-      for (const timer of holdTimers.current.values()) {
-        clearTimeout(timer);
-      }
-      holdTimers.current.clear();
-      heldIds.current.clear();
+      room.off(RoomEvent.ActiveSpeakersChanged, handler);
       useVoiceStateStore.getState().setSpeakingUserIds(EMPTY);
     };
-  }, []);
+  }, [room]);
 }

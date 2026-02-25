@@ -312,7 +312,14 @@ function UserPanel() {
     const newDeafState = !isDeafened;
     toggleDeafen();
 
-    if (connectedChannelId) {
+    if (connectedChannelId && userId) {
+      // Optimistic update: instantly show deafen icon in sidebar participant list
+      useVoiceStateStore.getState().updateParticipant(connectedChannelId, userId, {
+        selfMute: localMicMuted,
+        selfDeaf: newDeafState,
+      });
+
+      // Notify gateway so other users see the deafen change
       gateway.send(23, {
         channelId: connectedChannelId,
         userId,
@@ -351,6 +358,13 @@ function UserPanel() {
           className="hidden"
           onChange={handleAvatarSelect}
         />
+
+        <div className="flex-1 min-w-0">
+          <p className="truncate text-sm font-medium text-text-primary">
+            {handle ?? 'Unknown'}
+          </p>
+          <p className="text-xs text-text-muted capitalize">{status}</p>
+        </div>
 
         {/* Mic / Deafen buttons (visible when in voice) */}
         {inVoice && (
@@ -395,12 +409,6 @@ function UserPanel() {
           </>
         )}
 
-        <div className="flex-1 min-w-0">
-          <p className="truncate text-sm font-medium text-text-primary">
-            {handle ?? 'Unknown'}
-          </p>
-          <p className="text-xs text-text-muted capitalize">{status}</p>
-        </div>
         <button
           onClick={logout}
           className="rounded-md p-1.5 text-text-muted hover:bg-surface-2 hover:text-text-secondary transition-colors"

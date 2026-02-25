@@ -10,7 +10,9 @@ import { useCallback, useEffect } from 'react';
 import { useLocalParticipant } from '@livekit/components-react';
 import { usePushToTalk } from '../../hooks/use-push-to-talk';
 import { useSettingsStore } from '../../stores/settings-store';
+import { useAuthStore } from '../../stores/auth-store';
 import { useVoiceStateStore } from '../../stores/voice-state-store';
+import { gateway } from '../../lib/gateway-client';
 import { getKeyDisplayLabel } from '../../lib/key-display';
 import { PttKeybindDialog } from './ptt-keybind-dialog';
 import { AudioSettings } from './audio-settings';
@@ -78,10 +80,27 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
   const isMicMuted = !localParticipant.isMicrophoneEnabled;
   const isScreenSharing = localParticipant.isScreenShareEnabled;
 
-  // ----- Bridge mic state to Zustand store (consumed by UserPanel) -----
+  // ----- Bridge mic state to Zustand store + optimistic sidebar update -----
 
   useEffect(() => {
-    useVoiceStateStore.getState().setLocalMicMuted(isMicMuted);
+    const vs = useVoiceStateStore.getState();
+    vs.setLocalMicMuted(isMicMuted);
+
+    // Optimistic update: instantly show mute icon in sidebar participant list
+    const channelId = vs.connectedChannelId;
+    const userId = useAuthStore.getState().userId;
+    if (channelId && userId) {
+      vs.updateParticipant(channelId, userId, { selfMute: isMicMuted });
+
+      // Notify gateway so other users see the mute change
+      gateway.send(23, {
+        channelId,
+        userId,
+        action: 'update',
+        selfMute: isMicMuted,
+        selfDeaf: useSettingsStore.getState().isDeafened,
+      });
+    }
   }, [isMicMuted]);
 
   useEffect(() => {
