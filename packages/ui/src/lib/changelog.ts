@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.8.3',
+    date: '2026-02-25',
+    highlights: [
+      'Fixed users disappearing from voice channels when switching or rejoining',
+      'Voice state hydration now fully replaces stale data instead of merging',
+      'Gateway reconnect automatically re-subscribes channels and refreshes voice states',
+      'Speaking indicator is now truly instantaneous — zero CSS transition delay',
+    ],
+  },
+  {
     version: '0.8.2',
     date: '2026-02-25',
     highlights: [

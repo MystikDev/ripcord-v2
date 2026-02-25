@@ -155,6 +155,9 @@ export function useHubData() {
         if (!cancelled) console.error('Failed to load roles:', err);
       });
 
+    // Clear stale subscriptions — this is a fresh hub load
+    subscribedRef.current.clear();
+
     fetchChannels(activeHubId)
       .then((channels) => {
         if (cancelled) return;
@@ -174,15 +177,12 @@ export function useHubData() {
         }
 
         // Subscribe to all channels via gateway
-        const newIds = mapped.map((c) => c.id).filter((id) => !subscribedRef.current.has(id));
-        if (newIds.length > 0) {
-          for (const channelId of newIds) {
-            gateway.send(OP_SUBSCRIBE, { channelIds: [channelId] });
-            subscribedRef.current.add(channelId);
-          }
+        for (const ch of mapped) {
+          gateway.send(OP_SUBSCRIBE, { channelIds: [ch.id] });
+          subscribedRef.current.add(ch.id);
         }
 
-        // Hydrate voice states for this hub
+        // Hydrate voice states for this hub (full replace, not merge)
         apiFetch<Record<string, VoiceParticipant[]>>(`/v1/voice/states/${activeHubId}`)
           .then((res) => {
             if (!cancelled && res.ok && res.data) {
@@ -201,6 +201,32 @@ export function useHubData() {
       cancelled = true;
     };
   }, [activeHubId, setChannels, setActiveChannel, setVoiceStates, setMembersStore, setRolesStore]);
+
+  // Re-subscribe channels & re-hydrate voice states on gateway reconnect
+  useEffect(() => {
+    if (!activeHubId) return;
+
+    const unsub = gateway.on('open', () => {
+      // Server-side subscriptions are lost on reconnect — re-subscribe all channels
+      const channelIds = Array.from(subscribedRef.current);
+      for (const channelId of channelIds) {
+        gateway.send(OP_SUBSCRIBE, { channelIds: [channelId] });
+      }
+
+      // Re-hydrate voice states from REST to catch any changes during disconnect
+      apiFetch<Record<string, VoiceParticipant[]>>(`/v1/voice/states/${activeHubId}`)
+        .then((res) => {
+          if (res.ok && res.data) {
+            setVoiceStates(res.data);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to re-hydrate voice states on reconnect:', err);
+        });
+    });
+
+    return unsub;
+  }, [activeHubId, setVoiceStates]);
 
   // Load messages when channel changes
   useEffect(() => {

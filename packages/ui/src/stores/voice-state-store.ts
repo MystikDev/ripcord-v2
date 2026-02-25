@@ -125,9 +125,7 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
     }),
 
   setMany: (states) =>
-    set((prev) => ({
-      voiceStates: { ...prev.voiceStates, ...states },
-    })),
+    set({ voiceStates: states }),
 
   setSpeakingUserIds: (ids) => set({ speakingUserIds: ids }),
 
