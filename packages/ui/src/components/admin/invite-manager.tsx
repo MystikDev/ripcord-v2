@@ -101,10 +101,10 @@ export function InviteManager({ hubId }: { hubId: string }) {
       setMaxUses('');
       setExpiryHours('');
 
-      // Copy to clipboard
-      const inviteUrl = `${window.location.origin}/invite/${invite.code}`;
-      await navigator.clipboard.writeText(inviteUrl);
-      toast.success('Invite created and link copied to clipboard!');
+      // Copy invite code to clipboard (no URL — Tauri's window.location.origin
+      // is localhost/tauri:// which is useless for sharing)
+      await navigator.clipboard.writeText(invite.code);
+      toast.success('Invite created! Code copied to clipboard.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create invite');
     } finally {
@@ -123,9 +123,8 @@ export function InviteManager({ hubId }: { hubId: string }) {
   };
 
   const handleCopyLink = async (code: string) => {
-    const inviteUrl = `${window.location.origin}/invite/${code}`;
-    await navigator.clipboard.writeText(inviteUrl);
-    toast.info('Invite link copied!');
+    await navigator.clipboard.writeText(code);
+    toast.info('Invite code copied!');
   };
 
   return (
@@ -162,7 +161,7 @@ export function InviteManager({ hubId }: { hubId: string }) {
             />
           </div>
           <Button loading={creating} onClick={handleCreate}>
-            Create & Copy Link
+            Create & Copy Code
           </Button>
         </div>
       )}
@@ -217,7 +216,7 @@ export function InviteManager({ hubId }: { hubId: string }) {
                       <button
                         onClick={() => handleCopyLink(invite.code)}
                         className="rounded-md px-2 py-1 text-xs text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
-                        title="Copy link"
+                        title="Copy code"
                       >
                         Copy
                       </button>
