@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.8.7',
+    date: '2026-02-25',
+    highlights: [
+      'Multi-stream screen share — switch between simultaneous streams with tab switcher',
+      'Click blue streaming icon in sidebar to jump to that user\'s stream',
+      'Hover streaming icon for a live preview popover of their screen',
+      'Persistent Stop Sharing button visible even when viewing another stream',
+    ],
+  },
+  {
     version: '0.8.6',
     date: '2026-02-25',
     highlights: [
