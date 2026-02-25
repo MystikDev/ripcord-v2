@@ -10,7 +10,12 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_updater::Builder::new()
+                .header("User-Agent", "Ripcord-Desktop-Updater/1.0")
+                .expect("failed to set updater User-Agent")
+                .build(),
+        )
         .plugin(tauri_plugin_http::init())
         .setup(|app| {
             // Build system tray menu
