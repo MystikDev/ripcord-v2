@@ -167,7 +167,7 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
               >
                 <Avatar src={members[p.userId]?.avatarUrl} fallback={p.handle ?? p.userId.slice(0, 2)} size="sm" className="!h-[45px] !w-[45px] !text-[20px]" />
               </div>
-              <span className="truncate" style={{ fontSize: 'var(--font-size-base, 30px)' }}>{p.handle ?? p.userId.slice(0, 8)}</span>
+              <span className="truncate text-text-primary" style={{ fontSize: 'var(--font-size-base, 30px)' }}>{p.handle ?? p.userId.slice(0, 8)}</span>
               {isScreenSharing && (
                 <button
                   onClick={(e) => {
