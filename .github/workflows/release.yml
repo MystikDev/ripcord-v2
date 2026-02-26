@@ -14,9 +14,6 @@ jobs:
           - os: windows-latest
             label: windows
             args: ''
-          - os: macos-latest
-            label: macos
-            args: --target universal-apple-darwin
           - os: ubuntu-22.04
             label: linux
             args: ''
@@ -46,12 +43,6 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install macOS Rust targets
-        if: matrix.label == 'macos'
-        run: |
-          rustup target add aarch64-apple-darwin
-          rustup target add x86_64-apple-darwin
-
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -69,13 +60,6 @@ jobs:
           VITE_API_URL: https://api.ripcord.gg
           VITE_AUTH_URL: https://auth.ripcord.gg
           VITE_GATEWAY_URL: wss://gw.ripcord.gg
-          # macOS code signing & notarization (ignored on other platforms)
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
