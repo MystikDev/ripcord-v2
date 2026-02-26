@@ -336,7 +336,8 @@ function MessageComposer({ channelId, channelName }, ref) {
           onPaste={handlePaste}
           placeholder={`Message #${channelName}`}
           rows={1}
-          className="max-h-40 flex-1 resize-none bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+          className="max-h-40 flex-1 resize-none bg-transparent text-text-primary placeholder:text-text-muted focus:outline-none"
+          style={{ fontSize: 'var(--font-size-base, 14px)' }}
         />
         <button
           type="submit"

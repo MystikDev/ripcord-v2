@@ -23,7 +23,7 @@ const AUTH_TIMEOUT_MS = 10_000;
 const MAX_MISSED_HEARTBEATS = 2;
 
 /** Per-connection rate limit: max messages within the sliding window. */
-const RATE_LIMIT_MAX = 120;
+const RATE_LIMIT_MAX = 500;
 /** Sliding window duration in milliseconds (60 seconds). */
 const RATE_LIMIT_WINDOW_MS = 60_000;
 

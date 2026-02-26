@@ -161,11 +161,11 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
             >
               <div
                 className={clsx(
-                  'flex items-center justify-center shrink-0 h-5 w-5 rounded-full',
+                  'flex items-center justify-center shrink-0 h-[60px] w-[60px] rounded-full',
                   isSpeaking && 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)]',
                 )}
               >
-                <Avatar src={members[p.userId]?.avatarUrl} fallback={p.handle ?? p.userId.slice(0, 2)} size="sm" className="!h-5 !w-5 !text-[9px]" />
+                <Avatar src={members[p.userId]?.avatarUrl} fallback={p.handle ?? p.userId.slice(0, 2)} size="sm" className="!h-[60px] !w-[60px] !text-[27px]" />
               </div>
               <span className="truncate">{p.handle ?? p.userId.slice(0, 8)}</span>
               {isScreenSharing && (

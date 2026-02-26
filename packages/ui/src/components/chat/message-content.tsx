@@ -39,14 +39,14 @@ export function MessageContent({ content }: MessageContentProps) {
   // No URLs detected — render plain text (zero overhead)
   if (segments.length === 1 && segments[0].type === 'text') {
     return (
-      <p className="text-sm text-text-secondary leading-relaxed break-words">
+      <p className="text-text-secondary leading-relaxed break-words" style={{ fontSize: 'var(--font-size-base, 14px)' }}>
         {content}
       </p>
     );
   }
 
   return (
-    <p className="text-sm text-text-secondary leading-relaxed break-words">
+    <p className="text-text-secondary leading-relaxed break-words" style={{ fontSize: 'var(--font-size-base, 14px)' }}>
       {segments.map((seg, i) =>
         seg.type === 'url' ? (
           <a
