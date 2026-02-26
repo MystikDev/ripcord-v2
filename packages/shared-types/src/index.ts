@@ -72,6 +72,13 @@ export {
   ResendCodeSchema,
   type ResendCodeInput,
   type PendingVerificationResponse,
+  ForgotPasswordSchema,
+  type ForgotPasswordInput,
+  ResetPasswordSchema,
+  type ResetPasswordInput,
+  ResendResetCodeSchema,
+  type ResendResetCodeInput,
+  type ForgotPasswordResponse,
 } from "./auth.js";
 
 // E2EE key management

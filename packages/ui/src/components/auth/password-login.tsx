@@ -13,6 +13,7 @@ import { getUserAvatarUrl } from '../../lib/user-api';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { VerifyEmail } from './verify-email';
+import { ForgotPassword } from './forgot-password';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +43,8 @@ export function PasswordLogin() {
 
   // When set, shows the verification screen instead of the login form
   const [pendingVerification, setPendingVerification] = useState<VerificationInfo | null>(null);
+  // When true, shows the forgot password flow
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -92,6 +95,16 @@ export function PasswordLogin() {
     );
   }
 
+  // Show forgot password flow
+  if (showForgotPassword) {
+    return (
+      <ForgotPassword
+        onBack={() => setShowForgotPassword(false)}
+        initialHandle={handle}
+      />
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -115,15 +128,26 @@ export function PasswordLogin() {
           autoFocus
         />
 
-        <Input
-          label="Password"
-          type="password"
-          placeholder="Enter your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          error={error}
-        />
+        <div>
+          <Input
+            label="Password"
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            error={error}
+          />
+          <div className="mt-1 text-right">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-xs text-accent hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+        </div>
 
         <Button type="submit" loading={loading} className="w-full">
           Sign In with Password

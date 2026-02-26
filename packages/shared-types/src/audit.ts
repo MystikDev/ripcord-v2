@@ -73,6 +73,10 @@ export const AuditAction = {
   EMAIL_VERIFIED: "EMAIL_VERIFIED",
   /** A verification code was resent to a user. */
   VERIFICATION_RESENT: "VERIFICATION_RESENT",
+  /** A password reset was requested. */
+  PASSWORD_RESET_REQUESTED: "PASSWORD_RESET_REQUESTED",
+  /** A user's password was changed via reset. */
+  PASSWORD_CHANGED: "PASSWORD_CHANGED",
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

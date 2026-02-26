@@ -169,3 +169,21 @@ export async function findByHandleWithPassword(
     [handle],
   );
 }
+
+/**
+ * Update a user's password hash.
+ *
+ * Used by the password reset flow after verifying the 6-digit code.
+ *
+ * @param userId       - User ID.
+ * @param passwordHash - New Argon2id hash.
+ */
+export async function updatePassword(
+  userId: string,
+  passwordHash: string,
+): Promise<void> {
+  await query(
+    'UPDATE users SET password_hash = $1 WHERE id = $2',
+    [passwordHash, userId],
+  );
+}

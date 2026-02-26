@@ -236,6 +236,48 @@ export async function resendVerificationCode(userId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Password Reset
+// ---------------------------------------------------------------------------
+
+/** Response from requesting a password reset. */
+export interface PasswordResetInfo {
+  userId: string;
+  maskedEmail: string;
+}
+
+/**
+ * Request a password reset code be sent to the email on file.
+ *
+ * @param handle - The user's display handle.
+ * @returns userId and masked email for the code entry screen.
+ */
+export async function requestPasswordReset(handle: string): Promise<PasswordResetInfo> {
+  return post<PasswordResetInfo>('/v1/auth/password-reset', { handle });
+}
+
+/**
+ * Confirm a password reset with the 6-digit code and a new password.
+ */
+export async function confirmPasswordReset(
+  userId: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  await post<{ message: string }>('/v1/auth/password-reset/confirm', {
+    userId,
+    code,
+    newPassword,
+  });
+}
+
+/**
+ * Resend the password reset code.
+ */
+export async function resendPasswordResetCode(userId: string): Promise<void> {
+  await post<{ message: string }>('/v1/auth/password-reset/resend', { userId });
+}
+
+// ---------------------------------------------------------------------------
 // Logout
 // ---------------------------------------------------------------------------
 

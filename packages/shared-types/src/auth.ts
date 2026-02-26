@@ -147,3 +147,46 @@ export interface PendingVerificationResponse {
   /** Masked email for display, e.g. "j***@gmail.com". */
   maskedEmail: string;
 }
+
+// ---------------------------------------------------------------------------
+// Password Reset Schemas
+// ---------------------------------------------------------------------------
+
+/** Schema for requesting a password reset code. */
+export const ForgotPasswordSchema = z.object({
+  handle: z.string().min(1, "Handle is required"),
+});
+
+/** Inferred input type for {@link ForgotPasswordSchema}. */
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
+
+/** Schema for confirming a password reset with a new password. */
+export const ResetPasswordSchema = z.object({
+  userId: z.string().uuid("Invalid user ID"),
+  code: z
+    .string()
+    .length(6, "Code must be 6 digits")
+    .regex(/^\d{6}$/, "Code must be numeric"),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must be at most 128 characters"),
+});
+
+/** Inferred input type for {@link ResetPasswordSchema}. */
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
+
+/** Schema for requesting a new password reset code. */
+export const ResendResetCodeSchema = z.object({
+  userId: z.string().uuid("Invalid user ID"),
+});
+
+/** Inferred input type for {@link ResendResetCodeSchema}. */
+export type ResendResetCodeInput = z.infer<typeof ResendResetCodeSchema>;
+
+/** Response returned when a password reset code has been sent. */
+export interface ForgotPasswordResponse {
+  userId: string;
+  /** Masked email for display, e.g. "j***@gmail.com". */
+  maskedEmail: string;
+}
