@@ -68,16 +68,24 @@ function removeGainNode(identity: string): void {
 export function useApplyUserVolumes(): void {
   const participants = useParticipants();
   const userVolumes = useSettingsStore((s) => s.userVolumes);
+  const isDeafened = useSettingsStore((s) => s.isDeafened);
   const appliedRef = useRef<Record<string, number>>({});
+  const trackSidsRef = useRef<Record<string, string>>({});
+  const prevDeafenedRef = useRef(isDeafened);
 
   useEffect(() => {
+    // When transitioning out of deafen, clear applied cache so all volumes
+    // (including GainNode boosts >1.0) get reapplied.
+    if (prevDeafenedRef.current && !isDeafened) {
+      appliedRef.current = {};
+    }
+    prevDeafenedRef.current = isDeafened;
+
+    // Don't apply volumes while deafened — the deafen hook handles muting
+    if (isDeafened) return;
+
     for (const p of participants) {
       if (p.isLocal) continue;
-
-      const targetVolume = userVolumes[p.identity] ?? 1.0;
-
-      // Skip if we already applied this exact volume to this participant
-      if (appliedRef.current[p.identity] === targetVolume) continue;
 
       const audioPub = p
         .getTrackPublications()
@@ -86,11 +94,25 @@ export function useApplyUserVolumes(): void {
       const track = audioPub?.track;
       if (!track || !(track instanceof RemoteAudioTrack)) continue;
 
+      // Detect track replacement (reconnect, codec change) and force reapplication
+      const trackSid = track.sid;
+      if (trackSid && trackSidsRef.current[p.identity] !== trackSid) {
+        trackSidsRef.current[p.identity] = trackSid;
+        removeGainNode(p.identity);
+        delete appliedRef.current[p.identity];
+      }
+
+      const targetVolume = userVolumes[p.identity] ?? 1.0;
+
+      // Skip if we already applied this exact volume to this participant
+      if (appliedRef.current[p.identity] === targetVolume) continue;
+
       if (targetVolume <= 1.0) {
         // Native range — use LiveKit's built-in setVolume (sets HTMLMediaElement.volume)
         // First remove any boost GainNode if we previously had one
         removeGainNode(p.identity);
         track.setVolume(targetVolume);
+        appliedRef.current[p.identity] = targetVolume;
       } else {
         // Boost range (>1.0) — need Web Audio GainNode
         // Set the native element volume to 1.0 (max) and use gain for amplification
@@ -103,11 +125,12 @@ export function useApplyUserVolumes(): void {
           const entry = ensureGainNode(p.identity, audioEl);
           if (entry) {
             entry.gainNode.gain.value = targetVolume;
+            appliedRef.current[p.identity] = targetVolume;
           }
+          // Don't set appliedRef if GainNode creation failed — retry next render
         }
+        // Don't set appliedRef if no audioEl yet — retry next render
       }
-
-      appliedRef.current[p.identity] = targetVolume;
     }
   });
 
@@ -115,6 +138,7 @@ export function useApplyUserVolumes(): void {
   useEffect(() => {
     return () => {
       appliedRef.current = {};
+      trackSidsRef.current = {};
       for (const identity of gainNodes.keys()) {
         removeGainNode(identity);
       }

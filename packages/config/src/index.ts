@@ -117,7 +117,7 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
 
   /** Maximum number of requests allowed within the rate-limit window. */
-  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(300),
 
   /* ------------------------------------------------------------------ */
   /*  CORS                                                               */

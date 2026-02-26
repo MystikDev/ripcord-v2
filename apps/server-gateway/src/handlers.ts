@@ -1,5 +1,5 @@
 import { GatewayOpcode } from '@ripcord/types';
-import type { AuthPayload, SubscribePayload, TypingPayload, VoiceStatePayload } from '@ripcord/types';
+import type { AuthPayload, SubscribePayload, TypingPayload, VoiceStatePayload, CallSignalPayload } from '@ripcord/types';
 import { Permission, hasPermission } from '@ripcord/types';
 import { verifyAccessToken } from '@ripcord/crypto';
 import { query, queryOne } from '@ripcord/db';
@@ -176,8 +176,8 @@ export async function handleSubscribe(
 
   for (const channelId of payload.channelIds) {
     try {
-      // Look up channel to get hub_id
-      const channelRow = await queryOne<{ hub_id: string }>(
+      // Look up channel to get hub_id (nullable for DM channels)
+      const channelRow = await queryOne<{ hub_id: string | null }>(
         'SELECT hub_id FROM channels WHERE id = $1',
         [channelId],
       );
@@ -187,24 +187,35 @@ export async function handleSubscribe(
         continue;
       }
 
-      // Check hub membership
-      const memberRow = await queryOne<{ user_id: string }>(
-        'SELECT user_id FROM hub_members WHERE hub_id = $1 AND user_id = $2',
-        [channelRow.hub_id, conn.userId],
-      );
-
-      if (!memberRow) {
-        denied.push(channelId);
-        continue;
-      }
-
-      // Check VIEW_CHANNELS permission via the 5-layer resolution
-      // We do a simplified check: get @everyone + member roles, compute bitset
-      const hasAccess = await checkChannelAccess(channelRow.hub_id, channelId, conn.userId);
-      if (hasAccess) {
-        authorized.push(channelId);
+      if (channelRow.hub_id === null) {
+        // DM channel — check dm_participants instead of hub membership
+        const dmRow = await queryOne<{ user_id: string }>(
+          'SELECT user_id FROM dm_participants WHERE channel_id = $1 AND user_id = $2',
+          [channelId, conn.userId],
+        );
+        if (dmRow) {
+          authorized.push(channelId);
+        } else {
+          denied.push(channelId);
+        }
       } else {
-        denied.push(channelId);
+        // Hub channel — check hub membership + VIEW_CHANNELS permission
+        const memberRow = await queryOne<{ user_id: string }>(
+          'SELECT user_id FROM hub_members WHERE hub_id = $1 AND user_id = $2',
+          [channelRow.hub_id, conn.userId],
+        );
+
+        if (!memberRow) {
+          denied.push(channelId);
+          continue;
+        }
+
+        const hasAccess = await checkChannelAccess(channelRow.hub_id, channelId, conn.userId);
+        if (hasAccess) {
+          authorized.push(channelId);
+        } else {
+          denied.push(channelId);
+        }
       }
     } catch (err) {
       log.error({ channelId, err }, 'Error checking channel access for SUBSCRIBE');
@@ -374,4 +385,57 @@ export async function handleVoiceStateUpdate(
     default:
       conn.send(GatewayOpcode.ERROR, { message: `Unknown voice action: ${String(payload.action)}` });
   }
+}
+
+// ---------------------------------------------------------------------------
+// DM Call Signaling
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle call signaling opcodes (CALL_INVITE, CALL_ACCEPT, CALL_DECLINE, CALL_END).
+ *
+ * These are direct user-to-user signals routed via `sendToUser()`.
+ * The gateway acts as a relay — it validates the sender is authenticated,
+ * then forwards the signal payload to the target user.
+ */
+export function handleCallSignal(
+  conn: ClientConnection,
+  opcode: GatewayOpcode,
+  payload: CallSignalPayload,
+  manager: ConnectionManager,
+): void {
+  if (!conn.authenticated || !conn.userId) {
+    conn.send(GatewayOpcode.ERROR, { message: 'Not authenticated' });
+    return;
+  }
+
+  if (!payload.toUserId || !payload.channelId || !payload.roomId) {
+    conn.send(GatewayOpcode.ERROR, { message: 'toUserId, channelId, and roomId are required' });
+    return;
+  }
+
+  // Ensure the fromUserId matches the authenticated user (prevent spoofing)
+  const signalPayload: CallSignalPayload = {
+    ...payload,
+    fromUserId: conn.userId,
+  };
+
+  // Map opcode to event name for the `t` field
+  const EVENT_NAMES: Record<number, string> = {
+    [GatewayOpcode.CALL_INVITE]: 'CALL_INVITE',
+    [GatewayOpcode.CALL_ACCEPT]: 'CALL_ACCEPT',
+    [GatewayOpcode.CALL_DECLINE]: 'CALL_DECLINE',
+    [GatewayOpcode.CALL_END]: 'CALL_END',
+  };
+
+  const eventName = EVENT_NAMES[opcode];
+  if (!eventName) return;
+
+  // Forward the signal to the target user (all their connections)
+  manager.sendToUser(payload.toUserId, opcode, signalPayload, eventName);
+
+  log.debug(
+    { from: conn.userId, to: payload.toUserId, event: eventName, roomId: payload.roomId },
+    'Call signal forwarded',
+  );
 }

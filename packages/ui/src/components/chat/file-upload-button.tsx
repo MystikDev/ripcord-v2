@@ -114,7 +114,7 @@ export const FileUploadButton = forwardRef<FileUploadHandle, FileUploadButtonPro
     };
 
     return (
-      <div className="relative">
+      <div className="relative self-end">
         <input
           ref={inputRef}
           type="file"

@@ -19,6 +19,10 @@ export interface Message {
   content: string;
   createdAt: string;
   editedAt?: string;
+  /** ISO-8601 timestamp if the message is pinned. */
+  pinnedAt?: string;
+  /** User ID of who pinned the message. */
+  pinnedBy?: string;
   attachments?: Array<{
     id: string;
     fileNameEncrypted: string;
@@ -38,6 +42,8 @@ export interface MessageState {
   addMessage: (channelId: string, message: Message) => void;
   /** Replace the entire message list for a channel. */
   setMessages: (channelId: string, messages: Message[]) => void;
+  /** Update specific fields on a message in a channel. */
+  updateMessage: (channelId: string, messageId: string, updates: Partial<Message>) => void;
   /** Remove all messages for a channel. */
   clearChannel: (channelId: string) => void;
   /** Reset all message data. */
@@ -84,6 +90,24 @@ export const useMessageStore = create<MessageState>()((set) => ({
         [channelId]: messages,
       },
     })),
+
+  updateMessage: (channelId, messageId, updates) =>
+    set((state) => {
+      const list = state.messages[channelId];
+      if (!list) return state;
+
+      const idx = list.findIndex((m) => m.id === messageId);
+      if (idx === -1) return state;
+
+      const updated = [...list];
+      updated[idx] = { ...updated[idx]!, ...updates };
+      return {
+        messages: {
+          ...state.messages,
+          [channelId]: updated,
+        },
+      };
+    }),
 
   clearChannel: (channelId) =>
     set((state) => {

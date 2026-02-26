@@ -8,6 +8,7 @@ import { z } from "zod";
 export const ChannelType = {
   TEXT: "text",
   VOICE: "voice",
+  DM: "dm",
 } as const;
 
 export type ChannelType = (typeof ChannelType)[keyof typeof ChannelType];
@@ -34,13 +35,13 @@ export interface Hub {
 // Channel
 // ---------------------------------------------------------------------------
 
-/** A text or voice channel within a hub. */
+/** A text or voice channel within a hub, or a DM channel (hubId is null). */
 export interface Channel {
   /** Primary key (UUIDv4). */
   id: string;
-  /** Parent hub id. */
-  hubId: string;
-  /** Whether this channel carries text messages or real-time voice. */
+  /** Parent hub id. Null for DM channels. */
+  hubId: string | null;
+  /** Whether this channel carries text messages, real-time voice, or DMs. */
   type: ChannelType;
   /** Display name shown in the channel list. */
   name: string;

@@ -5,12 +5,14 @@
  */
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useMemberStore, type MemberInfo } from '../../stores/member-store';
 import { useRoleStore, type RoleDefinition } from '../../stores/role-store';
 import { usePresenceStore, type PresenceStatus } from '../../stores/presence-store';
+import { useAuthStore } from '../../stores/auth-store';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar } from '../ui/avatar';
+import { UserContextMenu } from '../ui/user-context-menu';
 import clsx from 'clsx';
 
 // ---------------------------------------------------------------------------
@@ -52,36 +54,53 @@ function StatusDot({ status }: { status: PresenceStatus }) {
 
 function MemberRow({ member, offline }: { member: MemberInfo; offline?: boolean }) {
   const status = usePresenceStore((s) => s.getStatus(member.userId));
+  const currentUserId = useAuthStore((s) => s.userId);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   return (
-    <div
-      className={clsx(
-        'flex items-center gap-2 rounded-md px-2 py-1 transition-colors',
-        'hover:bg-surface-2',
-        offline && 'opacity-40',
-      )}
-    >
-      {/* Avatar with status indicator */}
-      <div className="relative shrink-0">
-        <Avatar
-          src={member.avatarUrl}
-          fallback={member.handle}
-          size="sm"
-          className="!h-8 !w-8 !text-xs"
-        />
-        <StatusDot status={status} />
-      </div>
-
-      {/* Handle — bright white for online, dim for offline */}
-      <span
+    <>
+      <div
         className={clsx(
-          'truncate text-sm font-medium',
-          offline ? 'text-text-muted' : 'text-white',
+          'flex items-center gap-2 rounded-md px-2 py-1 transition-colors',
+          'hover:bg-surface-2',
+          offline && 'opacity-40',
         )}
+        onContextMenu={(e) => {
+          if (member.userId === currentUserId) return;
+          e.preventDefault();
+          setContextMenu({ x: e.clientX, y: e.clientY });
+        }}
       >
-        {member.handle}
-      </span>
-    </div>
+        {/* Avatar with status indicator */}
+        <div className="relative shrink-0">
+          <Avatar
+            src={member.avatarUrl}
+            fallback={member.handle}
+            size="sm"
+            className="!h-8 !w-8 !text-xs"
+          />
+          <StatusDot status={status} />
+        </div>
+
+        {/* Handle — bright white for online, dim for offline */}
+        <span
+          className={clsx(
+            'truncate text-sm font-medium',
+            offline ? 'text-text-muted' : 'text-white',
+          )}
+        >
+          {member.handle}
+        </span>
+      </div>
+      {contextMenu && (
+        <UserContextMenu
+          userId={member.userId}
+          displayName={member.handle}
+          position={contextMenu}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+    </>
   );
 }
 

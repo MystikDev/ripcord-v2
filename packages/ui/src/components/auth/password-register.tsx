@@ -43,6 +43,10 @@ export function PasswordRegister() {
       setError('Handle must be at least 3 characters');
       return;
     }
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+      setError('Handle may only contain letters, digits, underscores, and hyphens');
+      return;
+    }
     if (password.length < 8) {
       setError('Password must be at least 8 characters');
       return;

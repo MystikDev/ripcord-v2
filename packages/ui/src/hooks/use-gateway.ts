@@ -15,6 +15,7 @@ import { useVoiceStateStore } from '../stores/voice-state-store';
 import { useMemberStore } from '../stores/member-store';
 import { gateway } from '../lib/gateway-client';
 import { useSettingsStore } from '../stores/settings-store';
+import { useCallStore } from '../stores/call-store';
 import { playJoinSound, playLeaveSound } from '../lib/notification-sounds';
 
 // ---------------------------------------------------------------------------
@@ -29,6 +30,7 @@ export function useGateway() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const addMessage = useMessageStore((s) => s.addMessage);
+  const updateMessage = useMessageStore((s) => s.updateMessage);
   const setPresence = usePresenceStore((s) => s.setPresence);
   const addTyping = useTypingStore((s) => s.addTyping);
   const addVoiceParticipant = useVoiceStateStore((s) => s.addParticipant);
@@ -166,9 +168,77 @@ export function useGateway() {
       }),
     );
 
+    // Message pin events
+    unsubs.push(
+      gateway.on('MESSAGE_PINNED', (data) => {
+        const { channelId, messageId, pinnedAt, pinnedByUserId } = data as {
+          channelId: string;
+          messageId: string;
+          pinnedAt: string;
+          pinnedByUserId: string;
+        };
+        if (channelId && messageId) {
+          updateMessage(channelId, messageId, { pinnedAt, pinnedBy: pinnedByUserId });
+        }
+      }),
+    );
+
+    unsubs.push(
+      gateway.on('MESSAGE_UNPINNED', (data) => {
+        const { channelId, messageId } = data as {
+          channelId: string;
+          messageId: string;
+        };
+        if (channelId && messageId) {
+          updateMessage(channelId, messageId, { pinnedAt: undefined, pinnedBy: undefined });
+        }
+      }),
+    );
+
+    // DM call signaling
+    unsubs.push(
+      gateway.on('CALL_INVITE', (data) => {
+        const { roomId, channelId, fromUserId, fromHandle } = data as {
+          roomId: string;
+          channelId: string;
+          fromUserId: string;
+          fromHandle?: string;
+        };
+        if (roomId && channelId && fromUserId) {
+          useCallStore.getState().receiveCall({
+            roomId,
+            channelId,
+            remoteUserId: fromUserId,
+            remoteHandle: fromHandle,
+          });
+        }
+      }),
+    );
+
+    unsubs.push(
+      gateway.on('CALL_ACCEPT', () => {
+        // Remote user accepted — transition to active
+        useCallStore.getState().acceptCall();
+      }),
+    );
+
+    unsubs.push(
+      gateway.on('CALL_DECLINE', () => {
+        // Remote user declined
+        useCallStore.getState().endCall();
+      }),
+    );
+
+    unsubs.push(
+      gateway.on('CALL_END', () => {
+        // Remote user ended the call
+        useCallStore.getState().endCall();
+      }),
+    );
+
     return () => {
       unsubs.forEach((fn) => fn());
       gateway.disconnect();
     };
-  }, [isAuthenticated, accessToken, addMessage, setPresence, addTyping, addVoiceParticipant, removeVoiceParticipant, updateVoiceParticipant]);
+  }, [isAuthenticated, accessToken, addMessage, updateMessage, setPresence, addTyping, addVoiceParticipant, removeVoiceParticipant, updateVoiceParticipant]);
 }

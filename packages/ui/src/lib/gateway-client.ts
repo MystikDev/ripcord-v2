@@ -34,11 +34,17 @@ export type GatewayEvent =
   | 'MESSAGE_CREATED'
   | 'MESSAGE_UPDATED'
   | 'MESSAGE_DELETED'
+  | 'MESSAGE_PINNED'
+  | 'MESSAGE_UNPINNED'
   | 'PRESENCE_UPDATED'
   | 'TYPING_START'
   | 'VOICE_STATE_UPDATE'
   | 'CHANNEL_UPDATED'
-  | 'SERVER_UPDATED';
+  | 'SERVER_UPDATED'
+  | 'CALL_INVITE'
+  | 'CALL_ACCEPT'
+  | 'CALL_DECLINE'
+  | 'CALL_END';
 
 export interface GatewayPayload {
   op: string;

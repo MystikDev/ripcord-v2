@@ -41,6 +41,10 @@ export function PasskeyRegister() {
       setError('Handle must be at least 3 characters');
       return;
     }
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+      setError('Handle may only contain letters, digits, underscores, and hyphens');
+      return;
+    }
 
     setLoading(true);
     try {

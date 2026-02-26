@@ -99,6 +99,7 @@ attachmentsRouter.post(
       // Verify channel + membership
       const channel = await channelRepo.findById(channelId);
       if (!channel) throw ApiError.notFound('Channel not found');
+      if (!channel.hubId) throw ApiError.badRequest('Channel is not part of a hub');
 
       const membership = await memberRepo.findOne(channel.hubId, auth.sub);
       if (!membership) throw ApiError.forbidden('Not a member of this hub');
@@ -199,6 +200,7 @@ attachmentsRouter.get(
       // Verify channel access
       const channel = await channelRepo.findById(attachment.channelId);
       if (!channel) throw ApiError.notFound('Channel not found');
+      if (!channel.hubId) throw ApiError.badRequest('Channel is not part of a hub');
 
       const membership = await memberRepo.findOne(channel.hubId, auth.sub);
       if (!membership) throw ApiError.forbidden('Not a member of this hub');

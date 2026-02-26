@@ -45,6 +45,18 @@ export const GatewayOpcode = {
   READ_STATE_UPDATE: 22,
   /** A user joined, left, or updated their voice state in a channel. */
   VOICE_STATE_UPDATE: 23,
+  /** A message was pinned in a channel. */
+  MESSAGE_PINNED: 24,
+  /** A message was unpinned in a channel. */
+  MESSAGE_UNPINNED: 25,
+  /** A user is inviting another user to a DM call. */
+  CALL_INVITE: 30,
+  /** A user accepted an incoming DM call. */
+  CALL_ACCEPT: 31,
+  /** A user declined an incoming DM call. */
+  CALL_DECLINE: 32,
+  /** A DM call has ended. */
+  CALL_END: 33,
   /** Generic server-to-client error. */
   ERROR: 99,
 } as const;
@@ -148,6 +160,32 @@ export interface VoiceStatePayload {
   selfMute?: boolean;
   /** Whether the user has self-deafened. */
   selfDeaf?: boolean;
+}
+
+/** Payload for MESSAGE_PINNED / MESSAGE_UNPINNED. */
+export interface MessagePinPayload {
+  /** The channel the message belongs to. */
+  channelId: string;
+  /** The message that was pinned or unpinned. */
+  messageId: string;
+  /** ISO-8601 timestamp of when the message was pinned (absent on unpin). */
+  pinnedAt?: string;
+  /** User who pinned the message (absent on unpin). */
+  pinnedByUserId?: string;
+}
+
+/** Payload for CALL_INVITE / CALL_ACCEPT / CALL_DECLINE / CALL_END. */
+export interface CallSignalPayload {
+  /** Deterministic room name for the call (dm-call:<sorted-user-ids>). */
+  roomId: string;
+  /** The DM channel between the two users. */
+  channelId: string;
+  /** The user who initiated the action. */
+  fromUserId: string;
+  /** Display handle of the initiator. */
+  fromHandle?: string;
+  /** The target user (recipient of the signal). */
+  toUserId: string;
 }
 
 /** A single participant connected to a voice channel. */

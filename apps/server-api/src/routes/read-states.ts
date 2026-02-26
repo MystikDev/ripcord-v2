@@ -36,6 +36,7 @@ readStatesRouter.put(
       // Verify channel exists
       const channel = await channelRepo.findById(channelId);
       if (!channel) throw ApiError.notFound('Channel not found');
+      if (!channel.hubId) throw ApiError.badRequest('Channel is not part of a hub');
 
       // Verify membership
       const membership = await memberRepo.findOne(channel.hubId, auth.sub);

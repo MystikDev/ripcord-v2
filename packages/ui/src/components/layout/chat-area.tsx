@@ -2,20 +2,28 @@
  * @module chat-area
  * Center content column. Renders an empty-channel placeholder or composes the
  * channel header, MessageList, TypingIndicator, AIResponseCard, and
- * MessageComposer for the active text channel.
+ * MessageComposer for the active text channel or DM conversation.
+ * Includes a pinned-messages toggle button in the header.
  */
 'use client';
 
-import { useRef, useState, useCallback, type DragEvent } from 'react';
+import { useRef, useState, useCallback, useMemo, type DragEvent } from 'react';
 import { useHubStore } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useSettingsStore } from '../../stores/settings-store';
+import { useCallStore } from '../../stores/call-store';
 import { MessageList } from '../chat/message-list';
 import { MessageComposer, type MessageComposerHandle } from '../chat/message-composer';
 import { TypingIndicator } from '../chat/typing-indicator';
 import { AIResponseCard } from '../chat/ai-response-card';
+import { PinnedMessagesPanel } from '../chat/pinned-messages-panel';
 import { sendMessage } from '../../lib/hub-api';
+import { getDmVoiceToken } from '../../lib/voice-api';
+import { gateway } from '../../lib/gateway-client';
 import clsx from 'clsx';
+
+// Gateway opcodes for call signaling
+const OP_CALL_INVITE = 30;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -24,11 +32,18 @@ import clsx from 'clsx';
 export function ChatArea() {
   const channels = useHubStore((s) => s.channels);
   const activeChannelId = useHubStore((s) => s.activeChannelId);
+  const isDmView = useHubStore((s) => s.isDmView);
+  const activeDmChannelId = useHubStore((s) => s.activeDmChannelId);
+  const dmChannels = useHubStore((s) => s.dmChannels);
+  const currentUserId = useAuthStore((s) => s.userId);
   const memberListVisible = useSettingsStore((s) => s.memberListVisible);
   const toggleMemberList = useSettingsStore((s) => s.toggleMemberList);
 
+  const callStatus = useCallStore((s) => s.status);
+
   const composerRef = useRef<MessageComposerHandle>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [showPinned, setShowPinned] = useState(false);
   const dragCounter = useRef(0);
 
   const handleDragEnter = useCallback((e: DragEvent) => {
@@ -62,9 +77,51 @@ export function ChatArea() {
     }
   }, []);
 
+  // Resolve what channel to display
   const activeChannel = channels.find((c) => c.id === activeChannelId);
 
-  if (!activeChannel) {
+  // For DM view, resolve the DM channel info
+  const activeDm = useMemo(() => {
+    if (!isDmView || !activeDmChannelId) return null;
+    return dmChannels.find((dm) => dm.channelId === activeDmChannelId) ?? null;
+  }, [isDmView, activeDmChannelId, dmChannels]);
+
+  // Start a DM call: fetch voice token, set store, send invite
+  const handleStartCall = useCallback(async () => {
+    if (!activeDmChannelId || !activeDm) return;
+    const auth = useAuthStore.getState();
+    const other = activeDm.participants.find((p) => p.userId !== auth.userId);
+    if (!other) return;
+
+    try {
+      const { roomId } = await getDmVoiceToken(activeDmChannelId);
+
+      useCallStore.getState().startCall({
+        roomId,
+        channelId: activeDmChannelId,
+        remoteUserId: other.userId,
+        remoteHandle: other.handle,
+      });
+
+      gateway.send(OP_CALL_INVITE, {
+        roomId,
+        channelId: activeDmChannelId,
+        fromUserId: auth.userId,
+        fromHandle: auth.handle,
+        toUserId: other.userId,
+      });
+    } catch (err) {
+      console.error('Failed to start call:', err);
+    }
+  }, [activeDmChannelId, activeDm]);
+
+  // Determine the channel ID and display name to use
+  const effectiveChannelId = isDmView ? activeDmChannelId : activeChannel?.id;
+  const effectiveChannelName = isDmView
+    ? (activeDm?.participants.find((p) => p.userId !== currentUserId)?.handle ?? 'DM')
+    : activeChannel?.name;
+
+  if (!effectiveChannelId) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-bg">
         <div className="text-center">
@@ -80,10 +137,12 @@ export function ChatArea() {
             </svg>
           </div>
           <h3 className="text-lg font-semibold text-text-primary">
-            Select a channel
+            {isDmView ? 'Select a conversation' : 'Select a channel'}
           </h3>
           <p className="mt-1 text-sm text-text-muted">
-            Pick a channel from the sidebar to start chatting
+            {isDmView
+              ? 'Pick a conversation from the sidebar to start chatting'
+              : 'Pick a channel from the sidebar to start chatting'}
           </p>
         </div>
       </div>
@@ -91,69 +150,124 @@ export function ChatArea() {
   }
 
   return (
-    <div
-      className="relative flex flex-1 flex-col bg-bg"
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-    >
-      {/* Drop overlay */}
-      {isDragging && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-accent p-10">
-            <svg width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent">
-              <path d="M14 10v2.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V10M11 5l-3-3-3 3M8 2v8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <p className="text-lg font-medium text-text-primary">Drop to upload</p>
-            <p className="text-sm text-text-muted">File will be encrypted and attached</p>
+    <div className="flex flex-1 overflow-hidden">
+      {/* Main chat column */}
+      <div
+        className="relative flex flex-1 flex-col bg-bg"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {/* Drop overlay */}
+        {isDragging && (
+          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-accent p-10">
+              <svg width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent">
+                <path d="M14 10v2.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V10M11 5l-3-3-3 3M8 2v8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <p className="text-lg font-medium text-text-primary">Drop to upload</p>
+              <p className="text-sm text-text-muted">File will be encrypted and attached</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Channel header */}
-      <div className="flex h-12 items-center border-b border-border px-4">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="mr-2 text-text-muted">
-          <path d="M2.5 3.5A1.5 1.5 0 014 2h8a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0112 12H5.5L2.5 14.5v-11z" />
-        </svg>
-        <h3 className="font-semibold text-text-primary">{activeChannel.name}</h3>
-
-        <div className="flex-1" />
-
-        {/* Member list toggle */}
-        <button
-          onClick={toggleMemberList}
-          className={clsx(
-            'rounded-md p-1.5 transition-colors',
-            memberListVisible
-              ? 'bg-surface-2 text-text-primary'
-              : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
+        {/* Channel header */}
+        <div className="flex h-12 items-center border-b border-border px-4">
+          {isDmView ? (
+            /* DM icon */
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="mr-2 text-text-muted">
+              <path d="M8 14c3.866 0 7-2.686 7-6s-3.134-6-7-6-7 2.686-7 6c0 1.278.44 2.462 1.194 3.434L1.5 14.5l3.21-.92A7.576 7.576 0 008 14z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="mr-2 text-text-muted">
+              <path d="M2.5 3.5A1.5 1.5 0 014 2h8a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0112 12H5.5L2.5 14.5v-11z" />
+            </svg>
           )}
-          title="Toggle member list"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M6 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 1c-2.67 0-5 1.34-5 3v1h10v-1c0-1.66-2.33-3-5-3zm9-3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm0 1c-1.83 0-3.5.84-3.5 2v1H16v-1c0-1.16-1.17-2-2-2z" />
-          </svg>
-        </button>
+          <h3 className="font-semibold text-text-primary">{effectiveChannelName}</h3>
+
+          <div className="flex-1" />
+
+          {/* Call button (DM only) */}
+          {isDmView && activeDm && (
+            <button
+              onClick={() => void handleStartCall()}
+              disabled={callStatus !== 'idle'}
+              className={clsx(
+                'rounded-md p-1.5 transition-colors',
+                callStatus !== 'idle'
+                  ? 'text-text-muted/50 cursor-not-allowed'
+                  : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
+              )}
+              title={callStatus !== 'idle' ? 'Already in a call' : 'Start call'}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1.5 4.5a2 2 0 012-2h1.382a1 1 0 01.894.553l.723 1.447a1 1 0 01-.15 1.084l-.69.767a.5.5 0 00-.05.577 6.517 6.517 0 003.962 3.962.5.5 0 00.577-.05l.768-.69a1 1 0 011.084-.15l1.447.723a1 1 0 01.553.894V12.5a2 2 0 01-2 2A11.5 11.5 0 011.5 4.5z" />
+              </svg>
+            </button>
+          )}
+
+          {/* Pinned messages toggle */}
+          <button
+            onClick={() => setShowPinned((v) => !v)}
+            className={clsx(
+              'rounded-md p-1.5 transition-colors',
+              showPinned
+                ? 'bg-surface-2 text-text-primary'
+                : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
+            )}
+            title="Pinned messages"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9.828 1.172a1 1 0 011.414 0l3.586 3.586a1 1 0 010 1.414L12 9l-1 4-4-4-4.5 4.5M7 9L2.172 4.172l2.828-2.829L9.828 6" />
+            </svg>
+          </button>
+
+          {/* Member list toggle (only for hub channels, not DMs) */}
+          {!isDmView && (
+            <button
+              onClick={toggleMemberList}
+              className={clsx(
+                'ml-1 rounded-md p-1.5 transition-colors',
+                memberListVisible
+                  ? 'bg-surface-2 text-text-primary'
+                  : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
+              )}
+              title="Toggle member list"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M6 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 1c-2.67 0-5 1.34-5 3v1h10v-1c0-1.66-2.33-3-5-3zm9-3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm0 1c-1.83 0-3.5.84-3.5 2v1H16v-1c0-1.16-1.17-2-2-2z" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Messages */}
+        <MessageList channelId={effectiveChannelId} />
+
+        {/* Typing indicator */}
+        <TypingIndicator channelId={effectiveChannelId} />
+
+        {/* AI response card */}
+        <AIResponseCard
+          channelId={effectiveChannelId}
+          onSendAsMessage={(text) => {
+            const userId = useAuthStore.getState().userId ?? '';
+            sendMessage(effectiveChannelId, userId, 'dev-device', text).catch(console.error);
+          }}
+        />
+
+        {/* Composer */}
+        <MessageComposer ref={composerRef} channelId={effectiveChannelId} channelName={effectiveChannelName ?? ''} />
       </div>
 
-      {/* Messages */}
-      <MessageList channelId={activeChannel.id} />
-
-      {/* Typing indicator */}
-      <TypingIndicator channelId={activeChannel.id} />
-
-      {/* AI response card */}
-      <AIResponseCard
-        channelId={activeChannel.id}
-        onSendAsMessage={(text) => {
-          const userId = useAuthStore.getState().userId ?? '';
-          sendMessage(activeChannel.id, userId, 'dev-device', text).catch(console.error);
-        }}
-      />
-
-      {/* Composer */}
-      <MessageComposer ref={composerRef} channelId={activeChannel.id} channelName={activeChannel.name} />
+      {/* Pinned messages panel */}
+      {showPinned && (
+        <PinnedMessagesPanel
+          channelId={effectiveChannelId}
+          onClose={() => setShowPinned(false)}
+        />
+      )}
     </div>
   );
 }

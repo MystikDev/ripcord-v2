@@ -50,6 +50,8 @@ export {
   type ReadStatePayload,
   type VoiceStatePayload,
   type VoiceParticipant,
+  type MessagePinPayload,
+  type CallSignalPayload,
 } from "./gateway.js";
 
 // Authentication request / response types

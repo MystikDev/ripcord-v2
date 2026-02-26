@@ -155,3 +155,128 @@ export async function getMessages(
 
   return enriched;
 }
+
+// ---------------------------------------------------------------------------
+// Pin / Unpin
+// ---------------------------------------------------------------------------
+
+/**
+ * Pin a message in a channel. Publishes a MESSAGE_PINNED event via Redis.
+ *
+ * @param messageId - Message UUID to pin.
+ * @param channelId - Channel UUID the message belongs to.
+ * @param authUserId - User performing the pin action.
+ * @param authDeviceId - Device performing the pin action.
+ */
+export async function pinMessage(
+  messageId: string,
+  channelId: string,
+  authUserId: string,
+  authDeviceId: string,
+): Promise<void> {
+  const message = await messageRepo.findById(messageId);
+  if (!message) throw ApiError.notFound('Message not found');
+  if (message.channelId !== channelId) throw ApiError.badRequest('Message does not belong to this channel');
+  if (message.deletedAt) throw ApiError.badRequest('Cannot pin a deleted message');
+  if (message.pinnedAt) return; // Already pinned, idempotent
+
+  await messageRepo.pin(messageId, authUserId);
+
+  // Publish event for gateway fanout
+  const pinnedAt = new Date().toISOString();
+  try {
+    await redis.publish(`ch:${channelId}`, JSON.stringify({
+      type: 'MESSAGE_PINNED',
+      data: { channelId, messageId, pinnedAt, pinnedByUserId: authUserId },
+    }));
+  } catch (err) {
+    logger.error({ err, channelId, messageId }, 'Failed to publish pin event to Redis');
+  }
+
+  // Audit (fire-and-forget)
+  auditRepo.create(
+    authUserId,
+    authDeviceId,
+    AuditAction.MESSAGE_PINNED,
+    'message',
+    messageId,
+    { channelId },
+  ).catch((err: unknown) => {
+    logger.error({ err }, 'Failed to create pin audit event');
+  });
+}
+
+/**
+ * Unpin a message in a channel. Publishes a MESSAGE_UNPINNED event via Redis.
+ *
+ * @param messageId - Message UUID to unpin.
+ * @param channelId - Channel UUID the message belongs to.
+ * @param authUserId - User performing the unpin action.
+ * @param authDeviceId - Device performing the unpin action.
+ */
+export async function unpinMessage(
+  messageId: string,
+  channelId: string,
+  authUserId: string,
+  authDeviceId: string,
+): Promise<void> {
+  const message = await messageRepo.findById(messageId);
+  if (!message) throw ApiError.notFound('Message not found');
+  if (message.channelId !== channelId) throw ApiError.badRequest('Message does not belong to this channel');
+  if (!message.pinnedAt) return; // Already unpinned, idempotent
+
+  await messageRepo.unpin(messageId);
+
+  // Publish event for gateway fanout
+  try {
+    await redis.publish(`ch:${channelId}`, JSON.stringify({
+      type: 'MESSAGE_UNPINNED',
+      data: { channelId, messageId },
+    }));
+  } catch (err) {
+    logger.error({ err, channelId, messageId }, 'Failed to publish unpin event to Redis');
+  }
+
+  // Audit (fire-and-forget)
+  auditRepo.create(
+    authUserId,
+    authDeviceId,
+    AuditAction.MESSAGE_UNPINNED,
+    'message',
+    messageId,
+    { channelId },
+  ).catch((err: unknown) => {
+    logger.error({ err }, 'Failed to create unpin audit event');
+  });
+}
+
+/**
+ * Fetch all pinned messages in a channel, enriched with attachments.
+ *
+ * @param channelId - Channel UUID.
+ * @returns Array of pinned messages with attachment data.
+ */
+export async function getPinnedMessages(channelId: string) {
+  const messages = await messageRepo.findPinnedByChannel(channelId);
+  if (messages.length === 0) return messages;
+
+  const enriched = await Promise.all(
+    messages.map(async (msg) => {
+      const atts = await attachmentRepo.findByMessageId(msg.id);
+      if (atts.length === 0) return msg;
+      return {
+        ...msg,
+        attachments: atts.map((a) => ({
+          id: a.id,
+          fileNameEncrypted: a.fileNameEncrypted,
+          fileSize: a.fileSize,
+          contentTypeEncrypted: a.contentTypeEncrypted,
+          encryptionKeyId: a.encryptionKeyId,
+          nonce: a.nonce,
+        })),
+      };
+    }),
+  );
+
+  return enriched;
+}

@@ -6,6 +6,7 @@ import { queryOne } from '@ripcord/db';
 import { requireAuth } from '../middleware/require-auth.js';
 import * as channelRepo from '../repositories/channel.repo.js';
 import * as memberRepo from '../repositories/member.repo.js';
+import * as dmRepo from '../repositories/dm.repo.js';
 import * as permissionService from '../services/permission.service.js';
 import * as voiceService from '../services/voice.service.js';
 import { redis } from '../redis.js';
@@ -44,6 +45,10 @@ voiceRouter.post(
         throw ApiError.badRequest('Channel is not a voice channel');
       }
 
+      if (!channel.hubId) {
+        throw ApiError.badRequest('Channel is not part of a hub');
+      }
+
       // Verify membership
       const membership = await memberRepo.findOne(channel.hubId, auth.sub);
       if (!membership) {
@@ -73,6 +78,69 @@ voiceRouter.post(
       const responseBody: ApiResponse<{ token: string; url: string }> = {
         ok: true,
         data: { token, url },
+      };
+      res.json(responseBody);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/**
+ * POST /v1/voice/dm-token
+ *
+ * Generate a LiveKit access token for a DM call.
+ * Uses a deterministic ephemeral room name based on sorted user IDs.
+ * Only requires the caller to be a DM participant (no hub permission check).
+ *
+ * Body: { channelId: string }
+ * Response: { ok: true, data: { token: string; url: string; roomId: string } }
+ */
+voiceRouter.post(
+  '/dm-token',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = req.auth!;
+      const body = req.body as { channelId?: string };
+      const channelId = body.channelId;
+
+      if (!channelId) {
+        throw ApiError.badRequest('channelId is required');
+      }
+
+      // Verify channel exists and is a DM channel
+      const channel = await channelRepo.findById(channelId);
+      if (!channel) {
+        throw ApiError.notFound('Channel not found');
+      }
+
+      if (channel.hubId !== null) {
+        throw ApiError.badRequest('Channel is not a DM channel — use /v1/voice/token instead');
+      }
+
+      // Verify the caller is a DM participant
+      const isParticipant = await dmRepo.isParticipant(channelId, auth.sub);
+      if (!isParticipant) {
+        throw ApiError.forbidden('You are not a participant in this DM');
+      }
+
+      // Deterministic room name: dm-call:<sorted user IDs>
+      // This ensures both users get the same room
+      const roomId = `dm-call:${channelId}`;
+
+      // Resolve handle
+      const userRow = await queryOne<{ handle: string }>(
+        'SELECT handle FROM users WHERE id = $1',
+        [auth.sub],
+      );
+
+      const token = await voiceService.generateVoiceToken(roomId, auth.sub, userRow?.handle);
+      const url = env.LIVEKIT_PUBLIC_URL ?? env.LIVEKIT_URL ?? 'ws://localhost:7880';
+
+      const responseBody: ApiResponse<{ token: string; url: string; roomId: string }> = {
+        ok: true,
+        data: { token, url, roomId },
       };
       res.json(responseBody);
     } catch (err) {

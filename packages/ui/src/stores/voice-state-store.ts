@@ -6,6 +6,7 @@
  */
 
 import { create } from 'zustand';
+import { useAuthStore } from './auth-store.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -139,7 +140,26 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
     }),
 
   setMany: (states) =>
-    set({ voiceStates: states }),
+    set((prev) => {
+      const merged = { ...states };
+      // Preserve the current user's voice entry for their connected channel
+      // to avoid a visual "drop" when REST hydration races with a live join.
+      const { connectedChannelId } = prev;
+      if (connectedChannelId) {
+        const currentUserId = useAuthStore.getState().userId;
+        const existingParticipants = prev.voiceStates[connectedChannelId] ?? [];
+        const currentUserEntry = currentUserId
+          ? existingParticipants.find((p) => p.userId === currentUserId)
+          : null;
+        if (currentUserEntry) {
+          const incoming = merged[connectedChannelId] ?? [];
+          if (!incoming.some((p) => p.userId === currentUserId)) {
+            merged[connectedChannelId] = [...incoming, currentUserEntry];
+          }
+        }
+      }
+      return { voiceStates: merged };
+    }),
 
   setSpeakingUserIds: (ids) => set({ speakingUserIds: ids }),
 

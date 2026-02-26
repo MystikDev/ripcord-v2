@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../stores/auth-store';
 import { useHubStore } from '../stores/server-store';
 import { useMessageStore, type Message } from '../stores/message-store';
-import { fetchMyHubs, fetchChannels, fetchMessages, fetchMembers, fetchReadStates, markChannelRead } from '../lib/hub-api';
+import { fetchMyHubs, fetchChannels, fetchMessages, fetchMembers, fetchReadStates, markChannelRead, fetchDmChannels } from '../lib/hub-api';
 import { useReadStateStore } from '../stores/read-state-store';
 import { useVoiceStateStore, type VoiceParticipant } from '../stores/voice-state-store';
 import { useMemberStore } from '../stores/member-store';
@@ -81,9 +81,11 @@ export function useHubData() {
         setHubs(mapped);
         if (mapped.length > 0) {
           // Preserve current selection if it exists in the fetched list
-          const currentId = useHubStore.getState().activeHubId;
+          const state = useHubStore.getState();
+          const currentId = state.activeHubId;
           const currentExists = currentId && mapped.some((h) => h.id === currentId);
-          if (!currentExists) {
+          // Don't auto-select a hub if the user is in DM view
+          if (!currentExists && !state.isDmView) {
             setActiveHub(mapped[0]!.id);
           }
           setShowOnboarding(false);
@@ -99,6 +101,34 @@ export function useHubData() {
       cancelled = true;
     };
   }, [isAuthenticated, setHubs, setActiveHub]);
+
+  // Load DM channels on auth and subscribe them via gateway
+  const setDmChannels = useHubStore((s) => s.setDmChannels);
+  const dmSubscribedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+
+    fetchDmChannels()
+      .then((dms) => {
+        if (cancelled) return;
+        setDmChannels(dms);
+
+        // Subscribe to all DM channels via gateway for real-time messages
+        for (const dm of dms) {
+          if (!dmSubscribedRef.current.has(dm.channelId)) {
+            gateway.send(OP_SUBSCRIBE, { channelIds: [dm.channelId] });
+            dmSubscribedRef.current.add(dm.channelId);
+          }
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Failed to load DM channels:', err);
+      });
+
+    return () => { cancelled = true; };
+  }, [isAuthenticated, setDmChannels]);
 
   // Load read states on auth
   useEffect(() => {
@@ -226,6 +256,12 @@ export function useHubData() {
         gateway.send(OP_SUBSCRIBE, { channelIds: [channelId] });
       }
 
+      // Re-subscribe DM channels
+      const dmIds = Array.from(dmSubscribedRef.current);
+      for (const dmId of dmIds) {
+        gateway.send(OP_SUBSCRIBE, { channelIds: [dmId] });
+      }
+
       // Re-hydrate voice states from REST to catch any changes during disconnect
       apiFetch<Record<string, VoiceParticipant[]>>(`/v1/voice/states/${activeHubId}`)
         .then((res) => {
@@ -277,6 +313,7 @@ export function useHubData() {
           })(),
           createdAt: m.createdAt,
           ...(m.attachments && m.attachments.length > 0 ? { attachments: m.attachments } : {}),
+          ...(m.pinnedAt ? { pinnedAt: m.pinnedAt, pinnedBy: m.pinnedBy ?? undefined } : {}),
         }));
         setMessages(activeChannelId, mapped);
 

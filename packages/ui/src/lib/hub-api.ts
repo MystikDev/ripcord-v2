@@ -34,6 +34,8 @@ export interface MessageResponse {
   };
   createdAt: string;
   deletedAt: string | null;
+  pinnedAt?: string | null;
+  pinnedBy?: string | null;
   attachments?: Array<{
     id: string;
     fileNameEncrypted: string;
@@ -169,6 +171,64 @@ export async function markChannelRead(channelId: string, lastReadMessageId: stri
     body: JSON.stringify({ lastReadMessageId }),
   });
   if (!res.ok) throw new Error(res.error ?? 'Failed to mark channel as read');
+}
+
+// ---------------------------------------------------------------------------
+// Direct Messages
+// ---------------------------------------------------------------------------
+
+export interface DmChannelResponse {
+  channelId: string;
+  createdAt: string;
+  participants: Array<{
+    userId: string;
+    handle: string;
+    avatarUrl: string | null;
+  }>;
+}
+
+/** Create or get an existing DM channel with another user. */
+export async function createDmChannel(targetUserId: string): Promise<{ channelId: string }> {
+  const res = await apiFetch<{ channelId: string }>('/v1/dm/channels', {
+    method: 'POST',
+    body: JSON.stringify({ targetUserId }),
+  });
+  if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to create DM channel');
+  return res.data;
+}
+
+/** Fetch all DM channels for the current user. */
+export async function fetchDmChannels(): Promise<DmChannelResponse[]> {
+  const res = await apiFetch<DmChannelResponse[]>('/v1/dm/channels');
+  if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to fetch DM channels');
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Message Pinning
+// ---------------------------------------------------------------------------
+
+/** Pin a message in a channel. */
+export async function pinMessage(channelId: string, messageId: string): Promise<void> {
+  const res = await apiFetch(`/v1/channels/${channelId}/messages/${messageId}/pin`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(res.error ?? 'Failed to pin message');
+}
+
+/** Unpin a message in a channel. */
+export async function unpinMessage(channelId: string, messageId: string): Promise<void> {
+  const res = await apiFetch(`/v1/channels/${channelId}/messages/${messageId}/pin`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(res.error ?? 'Failed to unpin message');
+}
+
+/** Fetch all pinned messages in a channel. */
+export async function fetchPinnedMessages(channelId: string): Promise<MessageResponse[]> {
+  const res = await apiFetch<MessageResponse[]>(`/v1/channels/${channelId}/pins`);
+  if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to fetch pinned messages');
+  return res.data;
 }
 
 // ---------------------------------------------------------------------------

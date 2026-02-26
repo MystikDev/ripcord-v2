@@ -24,6 +24,7 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  font-size: var(--font-size-base, 14px);
 }
 
 /* Custom scrollbar */

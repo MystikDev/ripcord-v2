@@ -23,7 +23,9 @@ import { VoicePanel } from '../voice/voice-panel';
 import { ParticipantContextMenu } from '../voice/participant-context-menu';
 import { CreateChannelDialog } from '../hub/create-channel-dialog';
 import { AdminConsole } from '../admin/admin-console';
+import { DmChannelList } from '../dm/dm-channel-list';
 import { IconCropDialog } from '../admin/icon-crop-dialog';
+import { AppearanceSettings } from '../settings/appearance-settings';
 import { Tooltip } from '../ui/tooltip';
 import { uploadUserAvatar, getUserAvatarUrl } from '../../lib/user-api';
 import { gateway } from '../../lib/gateway-client';
@@ -159,7 +161,7 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
             >
               <div
                 className={clsx(
-                  'inline-flex items-center justify-center shrink-0 h-5 w-5 rounded-full',
+                  'flex items-center justify-center shrink-0 h-5 w-5 rounded-full',
                   isSpeaking && 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)]',
                 )}
               >
@@ -242,6 +244,7 @@ function UserPanel() {
   const setAvatarUrl = useAuthStore((s) => s.setAvatarUrl);
   const logout = useAuthStore((s) => s.logout);
   const status = usePresenceStore((s) => userId ? s.presence[userId] ?? 'online' : 'online');
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
 
   // Avatar upload state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -427,6 +430,19 @@ function UserPanel() {
           </>
         )}
 
+        <Tooltip content="Appearance" side="top">
+          <button
+            onClick={() => setAppearanceOpen(true)}
+            className="rounded-md p-1.5 text-text-muted hover:bg-surface-2 hover:text-text-secondary transition-colors"
+            title="Appearance settings"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="8" cy="8" r="3" />
+              <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" />
+            </svg>
+          </button>
+        </Tooltip>
+
         <button
           onClick={logout}
           className="rounded-md p-1.5 text-text-muted hover:bg-surface-2 hover:text-text-secondary transition-colors"
@@ -436,6 +452,9 @@ function UserPanel() {
             <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M11 11l3-3-3-3M14 8H6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
+
+        {/* Appearance settings dialog */}
+        <AppearanceSettings open={appearanceOpen} onClose={() => setAppearanceOpen(false)} />
 
         {/* Crop dialog for avatar */}
         {cropImageSrc && (
@@ -468,6 +487,7 @@ export function ChannelSidebar() {
   const activeHubId = useHubStore((s) => s.activeHubId);
   const channels = useHubStore((s) => s.channels);
   const activeChannelId = useHubStore((s) => s.activeChannelId);
+  const isDmView = useHubStore((s) => s.isDmView);
 
   const activeHub = hubs.find((s) => s.id === activeHubId);
 
@@ -476,12 +496,12 @@ export function ChannelSidebar() {
 
   return (
     <div className="flex h-full w-60 flex-col bg-surface-1">
-      {/* Hub header with settings */}
+      {/* Header */}
       <div className="flex h-12 items-center justify-between border-b border-border px-4">
         <h2 className="truncate text-base font-semibold text-text-primary">
-          {activeHub?.name ?? 'Ripcord'}
+          {isDmView ? 'Direct Messages' : (activeHub?.name ?? 'Ripcord')}
         </h2>
-        {activeHub && (
+        {activeHub && !isDmView && (
           <AdminConsole
             hubId={activeHub.id}
             hubName={activeHub.name}
@@ -497,41 +517,17 @@ export function ChannelSidebar() {
         )}
       </div>
 
-      {/* Channel list */}
+      {/* Channel list or DM list */}
       <ScrollArea className="flex-1">
-        <div className="p-2">
-          {textChannels.length > 0 && (
-            <div className="mb-2">
-              <div className="mb-1 flex items-center justify-between px-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Text Channels
-                </p>
-                {activeHubId && (
-                  <CreateChannelDialog
-                    hubId={activeHubId}
-                    trigger={
-                      <button className="rounded p-0.5 text-text-muted hover:text-text-primary transition-colors">
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M7 2v10M2 7h10" strokeLinecap="round" />
-                        </svg>
-                      </button>
-                    }
-                  />
-                )}
-              </div>
-              {textChannels.map((ch) => (
-                <ChannelItem key={ch.id} channel={ch} isActive={ch.id === activeChannelId} />
-              ))}
-            </div>
-          )}
-
-          {voiceChannels.length > 0 && (
-            <>
-              <Separator className="my-2" />
-              <div>
+        {isDmView ? (
+          <DmChannelList />
+        ) : (
+          <div className="p-2">
+            {textChannels.length > 0 && (
+              <div className="mb-2">
                 <div className="mb-1 flex items-center justify-between px-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                    Voice Channels
+                    Text Channels
                   </p>
                   {activeHubId && (
                     <CreateChannelDialog
@@ -546,19 +542,47 @@ export function ChannelSidebar() {
                     />
                   )}
                 </div>
-                {voiceChannels.map((ch) => (
-                  <VoiceChannelItem key={ch.id} channel={ch} isActive={ch.id === activeChannelId} />
+                {textChannels.map((ch) => (
+                  <ChannelItem key={ch.id} channel={ch} isActive={ch.id === activeChannelId} />
                 ))}
               </div>
-            </>
-          )}
+            )}
 
-          {channels.length === 0 && (
-            <p className="px-2 py-4 text-center text-sm text-text-muted">
-              No channels yet
-            </p>
-          )}
-        </div>
+            {voiceChannels.length > 0 && (
+              <>
+                <Separator className="my-2" />
+                <div>
+                  <div className="mb-1 flex items-center justify-between px-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                      Voice Channels
+                    </p>
+                    {activeHubId && (
+                      <CreateChannelDialog
+                        hubId={activeHubId}
+                        trigger={
+                          <button className="rounded p-0.5 text-text-muted hover:text-text-primary transition-colors">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <path d="M7 2v10M2 7h10" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        }
+                      />
+                    )}
+                  </div>
+                  {voiceChannels.map((ch) => (
+                    <VoiceChannelItem key={ch.id} channel={ch} isActive={ch.id === activeChannelId} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {channels.length === 0 && (
+              <p className="px-2 py-4 text-center text-sm text-text-muted">
+                No channels yet
+              </p>
+            )}
+          </div>
+        )}
       </ScrollArea>
 
       {/* Voice panel */}

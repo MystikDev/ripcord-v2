@@ -4,7 +4,7 @@ import type { Channel, ChannelType } from '@ripcord/types';
 /** Row shape returned from the channels table. */
 interface ChannelRow {
   id: string;
-  hub_id: string;
+  hub_id: string | null;
   type: string;
   name: string;
   is_private: boolean;

@@ -10,6 +10,8 @@ export interface MessageRow {
   envelope_jsonb: unknown;
   created_at: string;
   deleted_at: string | null;
+  pinned_at: string | null;
+  pinned_by: string | null;
 }
 
 /** Domain representation of a persisted message. */
@@ -21,6 +23,8 @@ export interface Message {
   envelope: EncryptedEnvelope;
   createdAt: string;
   deletedAt: string | null;
+  pinnedAt: string | null;
+  pinnedBy: string | null;
 }
 
 /** Map a database row to the camelCase domain type. */
@@ -33,8 +37,13 @@ function toMessage(row: MessageRow): Message {
     envelope: row.envelope_jsonb as EncryptedEnvelope,
     createdAt: row.created_at,
     deletedAt: row.deleted_at,
+    pinnedAt: row.pinned_at,
+    pinnedBy: row.pinned_by,
   };
 }
+
+/** Column list used by all SELECT queries. */
+const COLS = `id, channel_id, sender_user_id, sender_device_id, envelope_jsonb, created_at, deleted_at, pinned_at, pinned_by`;
 
 /**
  * Persist a new message to the database.
@@ -57,7 +66,7 @@ export async function create(
   const rows = await query<MessageRow>(
     `INSERT INTO messages (channel_id, sender_user_id, sender_device_id, envelope_jsonb)
      VALUES ($1, $2, $3, $4)
-     RETURNING id, channel_id, sender_user_id, sender_device_id, envelope_jsonb, created_at, deleted_at`,
+     RETURNING ${COLS}`,
     [channelId, senderUserId, senderDeviceId, JSON.stringify(envelope)],
   );
   return toMessage(rows[0]!);
@@ -71,8 +80,7 @@ export async function create(
  */
 export async function findById(id: string): Promise<Message | null> {
   const row = await queryOne<MessageRow>(
-    `SELECT id, channel_id, sender_user_id, sender_device_id, envelope_jsonb, created_at, deleted_at
-     FROM messages WHERE id = $1`,
+    `SELECT ${COLS} FROM messages WHERE id = $1`,
     [id],
   );
   return row ? toMessage(row) : null;
@@ -97,13 +105,12 @@ export async function findByChannel(
 ): Promise<Message[]> {
   if (cursor) {
     const rows = await query<MessageRow>(
-      `SELECT m.id, m.channel_id, m.sender_user_id, m.sender_device_id,
-              m.envelope_jsonb, m.created_at, m.deleted_at
-       FROM messages m
-       WHERE m.channel_id = $1
-         AND m.deleted_at IS NULL
-         AND m.created_at < (SELECT created_at FROM messages WHERE id = $2)
-       ORDER BY m.created_at DESC
+      `SELECT ${COLS}
+       FROM messages
+       WHERE channel_id = $1
+         AND deleted_at IS NULL
+         AND created_at < (SELECT created_at FROM messages WHERE id = $2)
+       ORDER BY created_at DESC
        LIMIT $3`,
       [channelId, cursor, limit],
     );
@@ -111,11 +118,63 @@ export async function findByChannel(
   }
 
   const rows = await query<MessageRow>(
-    `SELECT id, channel_id, sender_user_id, sender_device_id,
-            envelope_jsonb, created_at, deleted_at
+    `SELECT ${COLS}
      FROM messages
      WHERE channel_id = $1 AND deleted_at IS NULL
      ORDER BY created_at DESC
+     LIMIT $2`,
+    [channelId, limit],
+  );
+  return rows.map(toMessage);
+}
+
+// ---------------------------------------------------------------------------
+// Pin operations
+// ---------------------------------------------------------------------------
+
+/**
+ * Pin a message. Sets pinned_at and pinned_by.
+ *
+ * @param messageId - Message UUID to pin.
+ * @param userId - User UUID who is pinning the message.
+ */
+export async function pin(messageId: string, userId: string): Promise<void> {
+  await query(
+    `UPDATE messages SET pinned_at = now(), pinned_by = $2 WHERE id = $1`,
+    [messageId, userId],
+  );
+}
+
+/**
+ * Unpin a message. Clears pinned_at and pinned_by.
+ *
+ * @param messageId - Message UUID to unpin.
+ */
+export async function unpin(messageId: string): Promise<void> {
+  await query(
+    `UPDATE messages SET pinned_at = NULL, pinned_by = NULL WHERE id = $1`,
+    [messageId],
+  );
+}
+
+/**
+ * Fetch all pinned messages in a channel, newest pin first.
+ *
+ * @param channelId - Channel UUID.
+ * @param limit - Maximum number of pinned messages (default 50).
+ * @returns Array of pinned messages.
+ */
+export async function findPinnedByChannel(
+  channelId: string,
+  limit = 50,
+): Promise<Message[]> {
+  const rows = await query<MessageRow>(
+    `SELECT ${COLS}
+     FROM messages
+     WHERE channel_id = $1
+       AND deleted_at IS NULL
+       AND pinned_at IS NOT NULL
+     ORDER BY pinned_at DESC
      LIMIT $2`,
     [channelId, limit],
   );

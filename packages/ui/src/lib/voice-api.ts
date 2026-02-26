@@ -29,3 +29,30 @@ export async function getVoiceToken(channelId: string): Promise<VoiceTokenRespon
 
   return res.data;
 }
+
+// ---------------------------------------------------------------------------
+// DM Call Token
+// ---------------------------------------------------------------------------
+
+export interface DmVoiceTokenResponse {
+  token: string;
+  url: string;
+  roomId: string;
+}
+
+/**
+ * Requests a LiveKit access token for a DM call.
+ * Returns the token, LiveKit server URL, and the deterministic room ID.
+ */
+export async function getDmVoiceToken(channelId: string): Promise<DmVoiceTokenResponse> {
+  const res = await apiFetch<DmVoiceTokenResponse>('/v1/voice/dm-token', {
+    method: 'POST',
+    body: JSON.stringify({ channelId }),
+  });
+
+  if (!res.ok || !res.data) {
+    throw new Error(res.error ?? 'Failed to get DM voice token');
+  }
+
+  return res.data;
+}

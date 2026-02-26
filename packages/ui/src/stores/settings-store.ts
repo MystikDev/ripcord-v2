@@ -78,6 +78,15 @@ export interface SettingsState {
   setHideWhatsNew: (hide: boolean) => void;
   /** Record that the user has seen the What's New dialog for a given version. */
   setLastSeenVersion: (version: string) => void;
+
+  /** Base font size in pixels (12-20). Default: 14 */
+  fontSize: number;
+  /** Custom text color override (hex string) or null for default. */
+  fontColor: string | null;
+  /** Set the base font size. */
+  setFontSize: (size: number) => void;
+  /** Set a custom font color or null to reset. */
+  setFontColor: (color: string | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +138,11 @@ export const useSettingsStore = create<SettingsState>()(
       lastSeenVersion: null,
       setHideWhatsNew: (hide) => set({ hideWhatsNew: hide }),
       setLastSeenVersion: (version) => set({ lastSeenVersion: version }),
+
+      fontSize: 14,
+      fontColor: null,
+      setFontSize: (size) => set({ fontSize: Math.max(12, Math.min(20, size)) }),
+      setFontColor: (color) => set({ fontColor: color }),
     }),
     {
       name: 'ripcord-settings',
@@ -144,6 +158,8 @@ export const useSettingsStore = create<SettingsState>()(
         isDeafened: state.isDeafened,
         hideWhatsNew: state.hideWhatsNew,
         lastSeenVersion: state.lastSeenVersion,
+        fontSize: state.fontSize,
+        fontColor: state.fontColor,
       }),
     },
   ),

@@ -39,6 +39,10 @@ export const AuditAction = {
   MESSAGE_SENT: "MESSAGE_SENT",
   /** A message was deleted. */
   MESSAGE_DELETED: "MESSAGE_DELETED",
+  /** A message was pinned in a channel. */
+  MESSAGE_PINNED: "MESSAGE_PINNED",
+  /** A message was unpinned from a channel. */
+  MESSAGE_UNPINNED: "MESSAGE_UNPINNED",
   /** A role's permission bitfield was modified. */
   PERMISSION_CHANGED: "PERMISSION_CHANGED",
   /** A file was uploaded to a channel. */

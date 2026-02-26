@@ -181,6 +181,22 @@ export class ConnectionManager {
   }
 
   /**
+   * Send a message directly to a specific user (all their connections).
+   * Used for DM-related events and notifications.
+   */
+  sendToUser<T>(userId: string, op: GatewayOpcode, data: T, eventName?: string): void {
+    const connIds = this.userIndex.get(userId);
+    if (!connIds) return;
+
+    for (const connId of connIds) {
+      const conn = this.connections.get(connId);
+      if (conn?.authenticated) {
+        conn.send(op, data, true, eventName);
+      }
+    }
+  }
+
+  /**
    * Get all connections belonging to a specific user.
    */
   getConnectionsByUser(userId: string): ClientConnection[] {

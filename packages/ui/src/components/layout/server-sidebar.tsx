@@ -60,16 +60,30 @@ function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
 // ---------------------------------------------------------------------------
 
 function HomeButton() {
+  const isDmView = useHubStore((s) => s.isDmView);
+  const enterDmView = useHubStore((s) => s.enterDmView);
+
   return (
     <Tooltip content="Direct Messages" side="right">
       <button
+        onClick={enterDmView}
         className={clsx(
-          'flex h-12 w-12 items-center justify-center rounded-3xl bg-surface-2 text-text-secondary',
-          'transition-all duration-200 hover:rounded-2xl hover:bg-accent hover:text-white',
+          'group relative flex h-12 w-12 items-center justify-center transition-all duration-200',
+          isDmView
+            ? 'rounded-2xl bg-accent text-white'
+            : 'rounded-3xl bg-surface-2 text-text-secondary hover:rounded-2xl hover:bg-accent hover:text-white',
         )}
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.477 2 2 6.477 2 12c0 1.82.487 3.53 1.338 5.002L2.07 21.37a1 1 0 001.176 1.176l4.37-1.268A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" />
+        {/* Active indicator pill */}
+        <span
+          className={clsx(
+            'absolute -left-3 w-1 rounded-r-full bg-text-primary transition-all duration-200',
+            isDmView ? 'h-10' : 'h-0 group-hover:h-5',
+          )}
+        />
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 4h10c4.42 0 8 2.69 8 6s-3.58 6-8 6h-2l8 12h-5.5L11 16H12c3.31 0 6-1.34 6-4s-2.69-4-6-4h-4v18H8V4z" fill="currentColor" />
+          <path d="M6 2l4 2v24l-4 2V2z" fill="currentColor" opacity="0.6" />
         </svg>
       </button>
     </Tooltip>

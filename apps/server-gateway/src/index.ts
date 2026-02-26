@@ -3,13 +3,13 @@ import { WebSocketServer, WebSocket } from 'ws';
 import type { RawData } from 'ws';
 import { env } from '@ripcord/config';
 import { GatewayOpcode } from '@ripcord/types';
-import type { GatewayMessage, AuthPayload, SubscribePayload, TypingPayload, VoiceStatePayload } from '@ripcord/types';
+import type { GatewayMessage, AuthPayload, SubscribePayload, TypingPayload, VoiceStatePayload, CallSignalPayload } from '@ripcord/types';
 
 import { log } from './logger.js';
 import { connectRedis, disconnectRedis, redisSub, redisPub, redis } from './redis.js';
 import { ClientConnection } from './connection.js';
 import { ConnectionManager } from './connection-manager.js';
-import { handleAuth, handleSubscribe, handleUnsubscribe, handleHeartbeat, handleTypingStart, handleVoiceStateUpdate } from './handlers.js';
+import { handleAuth, handleSubscribe, handleUnsubscribe, handleHeartbeat, handleTypingStart, handleVoiceStateUpdate, handleCallSignal } from './handlers.js';
 import { setPresence } from './presence.js';
 import { cleanupUserVoiceStates } from './voice-state.js';
 
@@ -185,6 +185,13 @@ wss.on('connection', (ws: WebSocket) => {
         void handleVoiceStateUpdate(conn, msg.d as VoiceStatePayload, manager);
         break;
 
+      case GatewayOpcode.CALL_INVITE:
+      case GatewayOpcode.CALL_ACCEPT:
+      case GatewayOpcode.CALL_DECLINE:
+      case GatewayOpcode.CALL_END:
+        handleCallSignal(conn, msg.op, msg.d as CallSignalPayload, manager);
+        break;
+
       default:
         // Unknown or server-only opcode received from client
         conn.send(GatewayOpcode.ERROR, {
@@ -237,6 +244,8 @@ const EVENT_TYPE_TO_OPCODE: Record<string, GatewayOpcode> = {
   MEMBER_UPDATE: GatewayOpcode.MEMBER_UPDATED,
   TYPING_START: GatewayOpcode.TYPING_START,
   VOICE_STATE_UPDATE: GatewayOpcode.VOICE_STATE_UPDATE,
+  MESSAGE_PINNED: GatewayOpcode.MESSAGE_PINNED,
+  MESSAGE_UNPINNED: GatewayOpcode.MESSAGE_UNPINNED,
 };
 
 /**
@@ -250,6 +259,8 @@ const EVENT_TYPE_TO_NAME: Record<string, string> = {
   MEMBER_UPDATE: 'MEMBER_UPDATED',
   TYPING_START: 'TYPING_START',
   VOICE_STATE_UPDATE: 'VOICE_STATE_UPDATE',
+  MESSAGE_PINNED: 'MESSAGE_PINNED',
+  MESSAGE_UNPINNED: 'MESSAGE_UNPINNED',
 };
 
 redisSub.on('message', (redisChannel: string, message: string) => {
