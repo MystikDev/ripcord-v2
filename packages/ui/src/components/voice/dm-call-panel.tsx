@@ -66,13 +66,9 @@ function VideoFeeds() {
 
   // Local camera track
   const localCameraTrack = useMemo(() => {
-    const pubs = localParticipant.getTrackPublications();
-    for (const [, pub] of pubs) {
-      if (pub.source === Track.Source.Camera && pub.track) {
-        return pub.track;
-      }
-    }
-    return null;
+    const pubs = Array.from(localParticipant.getTrackPublications().values());
+    const cam = pubs.find((p) => p.source === Track.Source.Camera && p.track);
+    return cam?.track ?? null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localParticipant, cameraTracks]);
 
