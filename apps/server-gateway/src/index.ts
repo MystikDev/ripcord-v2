@@ -12,6 +12,7 @@ import { ConnectionManager } from './connection-manager.js';
 import { handleAuth, handleSubscribe, handleUnsubscribe, handleHeartbeat, handleTypingStart, handleVoiceStateUpdate, handleCallSignal } from './handlers.js';
 import { setPresence } from './presence.js';
 import { cleanupUserVoiceStates } from './voice-state.js';
+import { scheduleOffline } from './presence-grace.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -214,9 +215,17 @@ wss.on('connection', (ws: WebSocket) => {
     }
 
     if (removed?.userId && !manager.hasUserConnections(removed.userId)) {
-      // Last connection for this user — set presence to offline
-      void setPresence(removed.userId, 'offline', manager).catch((err) => {
-        log.error({ userId: removed.userId, err }, 'Failed to set offline presence');
+      // Last connection for this user — schedule offline after a grace period.
+      // If the user reconnects quickly (token refresh, network blip), the
+      // pending offline is cancelled in handleAuth(), preventing presence flap.
+      const userId = removed.userId;
+      scheduleOffline(userId, () => {
+        // Re-check: user may have reconnected during the grace window
+        if (!manager.hasUserConnections(userId)) {
+          void setPresence(userId, 'offline', manager).catch((err) => {
+            log.error({ userId, err }, 'Failed to set offline presence');
+          });
+        }
       });
     }
 

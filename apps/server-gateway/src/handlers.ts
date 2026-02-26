@@ -6,6 +6,7 @@ import { query, queryOne } from '@ripcord/db';
 import { ClientConnection } from './connection.js';
 import { ConnectionManager } from './connection-manager.js';
 import { setPresence, refreshPresenceTTL } from './presence.js';
+import { cancelPendingOffline } from './presence-grace.js';
 import { joinVoiceChannel, leaveVoiceChannel, updateVoiceState, refreshVoiceStateTTL } from './voice-state.js';
 import { log } from './logger.js';
 
@@ -48,6 +49,10 @@ export async function handleAuth(
     }
 
     conn.send(GatewayOpcode.AUTH_OK, { userId: jwt.sub });
+
+    // Cancel any pending offline transition from a previous connection close
+    // (e.g. token refresh caused a brief disconnect/reconnect cycle)
+    cancelPendingOffline(jwt.sub);
 
     // Update presence to online
     await setPresence(jwt.sub, 'online', manager);

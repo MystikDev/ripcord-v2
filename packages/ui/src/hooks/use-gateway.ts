@@ -6,7 +6,7 @@
  * (messages, presence, typing, voice state) to the appropriate Zustand stores.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuthStore } from '../stores/auth-store';
 import { useMessageStore, type Message } from '../stores/message-store';
 import { usePresenceStore, type PresenceStatus } from '../stores/presence-store';
@@ -37,14 +37,26 @@ export function useGateway() {
   const removeVoiceParticipant = useVoiceStateStore((s) => s.removeParticipant);
   const updateVoiceParticipant = useVoiceStateStore((s) => s.updateParticipant);
 
+  // Keep token in a ref so refreshes don't tear down the WebSocket.
+  // The gateway client only needs the token for AUTH on (re)connect.
+  const tokenRef = useRef(accessToken);
+
+  // Sync token ref + gateway's stored token on every refresh
   useEffect(() => {
-    if (!isAuthenticated || !accessToken) {
+    tokenRef.current = accessToken;
+    if (accessToken) {
+      gateway.updateToken(accessToken);
+    }
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !tokenRef.current) {
       gateway.disconnect();
       return;
     }
 
-    // Connect
-    gateway.connect(accessToken);
+    // Connect (only runs when isAuthenticated changes, not on token refresh)
+    gateway.connect(tokenRef.current);
 
     // Subscribe to events
     const unsubs: Array<() => void> = [];
@@ -242,5 +254,6 @@ export function useGateway() {
       unsubs.forEach((fn) => fn());
       gateway.disconnect();
     };
-  }, [isAuthenticated, accessToken, addMessage, updateMessage, setPresence, addTyping, addVoiceParticipant, removeVoiceParticipant, updateVoiceParticipant]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- accessToken intentionally excluded; synced via ref + gateway.updateToken() to avoid reconnects on token refresh
+  }, [isAuthenticated, addMessage, updateMessage, setPresence, addTyping, addVoiceParticipant, removeVoiceParticipant, updateVoiceParticipant]);
 }

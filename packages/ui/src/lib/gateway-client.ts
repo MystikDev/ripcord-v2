@@ -91,6 +91,17 @@ export class GatewayClient {
     this.cleanup();
   }
 
+  /**
+   * Update the stored token without reconnecting.
+   *
+   * Called when the access token is refreshed so that future auto-reconnects
+   * (e.g. after a network blip) use the latest valid token. This avoids
+   * tearing down the existing WebSocket just to swap the token.
+   */
+  updateToken(accessToken: string): void {
+    this.token = accessToken;
+  }
+
   /** Register an event handler. Returns an unsubscribe function. */
   on(event: GatewayEvent | 'open' | 'close' | 'error', handler: EventHandler): () => void {
     if (!this.listeners.has(event)) {
