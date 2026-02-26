@@ -7,6 +7,7 @@ import * as userRepo from '../repositories/user.repo.js';
 import * as deviceRepo from '../repositories/device.repo.js';
 import * as auditRepo from '../repositories/audit.repo.js';
 import * as sessionService from '../services/session.service.js';
+import * as emailService from '../services/email.service.js';
 import { logger } from '../logger.js';
 
 export const passwordLoginRouter: Router = Router();
@@ -53,6 +54,27 @@ passwordLoginRouter.post(
       const valid = await verify(user.password_hash, password);
       if (!valid) {
         throw ApiError.unauthorized('Invalid credentials');
+      }
+
+      // Block unverified users — redirect to verification screen
+      if (user.status === 'pending_verification') {
+        const email = await userRepo.getEmail(user.id);
+        const maskedEmail = email ? emailService.maskEmail(email) : '***@***';
+
+        const body: ApiResponse<never> = {
+          ok: false,
+          error: {
+            code: 'EMAIL_NOT_VERIFIED',
+            message: 'Please verify your email before logging in',
+            details: {
+              userId: user.id,
+              handle: user.handle,
+              maskedEmail,
+            },
+          },
+        };
+        res.status(403).json(body);
+        return;
       }
 
       // Find or create the device (same pattern as passkey login)

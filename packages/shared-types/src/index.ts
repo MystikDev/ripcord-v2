@@ -67,6 +67,11 @@ export {
   type PasswordRegisterInput,
   PasswordLoginSchema,
   type PasswordLoginInput,
+  VerifyEmailSchema,
+  type VerifyEmailInput,
+  ResendCodeSchema,
+  type ResendCodeInput,
+  type PendingVerificationResponse,
 } from "./auth.js";
 
 // E2EE key management

@@ -11,6 +11,7 @@ import { logoutRouter } from './routes/logout.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { passwordRegisterRouter } from './routes/password-register.js';
 import { passwordLoginRouter } from './routes/password-login.js';
+import { verifyEmailRouter } from './routes/verify-email.js';
 import { redis } from './redis.js';
 import { logger } from './logger.js';
 import { requestLogger } from './middleware/request-logger.js';
@@ -109,6 +110,7 @@ app.use('/v1/auth/logout', logoutRouter);
 app.use('/v1/auth/sessions', sessionsRouter);
 app.use('/v1/auth/password/register', passwordRegisterRouter);
 app.use('/v1/auth/password/login', passwordLoginRouter);
+app.use('/v1/auth/verify-email', verifyEmailRouter);
 
 // ---------------------------------------------------------------------------
 // Error handler (must be last)

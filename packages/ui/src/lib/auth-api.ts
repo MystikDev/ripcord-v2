@@ -13,7 +13,7 @@ import { getAuthBaseUrl } from './constants';
 // ---------------------------------------------------------------------------
 
 /** Flat token shape consumed by the auth store */
-interface AuthTokens {
+export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
   userId: string;
@@ -27,6 +27,28 @@ interface ServerAuthResponse {
   tokenPair: { accessToken: string; refreshToken: string; expiresIn: number };
   session: { sessionId: string; userId: string; deviceId: string };
   user: { id: string; handle: string; avatarUrl?: string };
+}
+
+/** Pending verification info returned when registration defers tokens. */
+export interface PendingVerification {
+  userId: string;
+  handle: string;
+  maskedEmail: string;
+}
+
+/** Custom error thrown when login is blocked because the email is not verified. */
+export class EmailNotVerifiedError extends Error {
+  userId: string;
+  handle: string;
+  maskedEmail: string;
+
+  constructor(userId: string, handle: string, maskedEmail: string) {
+    super('Please verify your email before logging in');
+    this.name = 'EmailNotVerifiedError';
+    this.userId = userId;
+    this.handle = handle;
+    this.maskedEmail = maskedEmail;
+  }
 }
 
 /** Generate a placeholder identity key for E2EE device registration */
@@ -47,6 +69,17 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: { message: 'Request failed' } }));
+
+    // Check for EMAIL_NOT_VERIFIED error from login
+    if (err.error?.code === 'EMAIL_NOT_VERIFIED' && err.error?.details) {
+      const { userId, handle, maskedEmail } = err.error.details as {
+        userId: string;
+        handle: string;
+        maskedEmail: string;
+      };
+      throw new EmailNotVerifiedError(userId, handle, maskedEmail);
+    }
+
     // Server returns { ok: false, error: { code, message, details? } }
     const msg = typeof err.error === 'string' ? err.error : err.error?.message ?? err.message ?? `HTTP ${res.status}`;
     throw new Error(msg);
@@ -57,7 +90,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
-// Register
+// Register (Passkey)
 // ---------------------------------------------------------------------------
 
 export async function registerPasskey(handle: string): Promise<AuthTokens> {
@@ -89,7 +122,7 @@ export async function registerPasskey(handle: string): Promise<AuthTokens> {
 }
 
 // ---------------------------------------------------------------------------
-// Login
+// Login (Passkey)
 // ---------------------------------------------------------------------------
 
 export async function loginPasskey(handle: string): Promise<AuthTokens> {
@@ -121,34 +154,32 @@ export async function loginPasskey(handle: string): Promise<AuthTokens> {
 }
 
 // ---------------------------------------------------------------------------
-// Password Register
+// Password Register (returns PendingVerification, not tokens)
 // ---------------------------------------------------------------------------
 
 export async function registerPassword(
   handle: string,
+  email: string,
   password: string,
-): Promise<AuthTokens> {
+): Promise<PendingVerification> {
   const pubIdentityKey = generatePlaceholderIdentityKey();
-  const res = await post<ServerAuthResponse>('/v1/auth/password/register', {
+  return post<PendingVerification>('/v1/auth/password/register', {
     handle,
+    email,
     password,
     pubIdentityKey,
   });
-
-  return {
-    accessToken: res.tokenPair.accessToken,
-    refreshToken: res.tokenPair.refreshToken,
-    userId: res.user.id,
-    handle: res.user.handle,
-    avatarUrl: res.user.avatarUrl,
-    deviceId: res.session.deviceId,
-  };
 }
 
 // ---------------------------------------------------------------------------
 // Password Login
 // ---------------------------------------------------------------------------
 
+/**
+ * Login with handle + password.
+ *
+ * @throws {EmailNotVerifiedError} if the account hasn't been verified yet.
+ */
 export async function loginPassword(
   handle: string,
   password: string,
@@ -168,6 +199,40 @@ export async function loginPassword(
     avatarUrl: res.user.avatarUrl,
     deviceId: res.session.deviceId,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Email Verification
+// ---------------------------------------------------------------------------
+
+/**
+ * Submit a 6-digit verification code.
+ * On success, the user is activated and tokens are returned.
+ */
+export async function verifyEmail(
+  userId: string,
+  code: string,
+): Promise<AuthTokens> {
+  const res = await post<ServerAuthResponse>('/v1/auth/verify-email', {
+    userId,
+    code,
+  });
+
+  return {
+    accessToken: res.tokenPair.accessToken,
+    refreshToken: res.tokenPair.refreshToken,
+    userId: res.user.id,
+    handle: res.user.handle,
+    avatarUrl: res.user.avatarUrl,
+    deviceId: res.session.deviceId,
+  };
+}
+
+/**
+ * Request a new verification code to be sent.
+ */
+export async function resendVerificationCode(userId: string): Promise<void> {
+  await post<{ message: string }>('/v1/auth/verify-email/resend', { userId });
 }
 
 // ---------------------------------------------------------------------------

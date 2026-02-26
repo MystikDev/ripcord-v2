@@ -2,15 +2,27 @@
  * @module password-login
  * Traditional username + password sign-in form. Validates inputs,
  * calls loginPassword(), stores auth tokens, and redirects.
+ * If the user hasn't verified their email, shows the verification screen.
  */
 import { useState, type FormEvent } from 'react';
 import { useAppRouter, useAppSearchParams, useAppLink } from '../../lib/router';
 import { motion } from 'framer-motion';
-import { loginPassword } from '../../lib/auth-api';
+import { loginPassword, EmailNotVerifiedError } from '../../lib/auth-api';
 import { useAuthStore } from '../../stores/auth-store';
 import { getUserAvatarUrl } from '../../lib/user-api';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { VerifyEmail } from './verify-email';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface VerificationInfo {
+  userId: string;
+  handle: string;
+  maskedEmail: string;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -27,6 +39,9 @@ export function PasswordLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // When set, shows the verification screen instead of the login form
+  const [pendingVerification, setPendingVerification] = useState<VerificationInfo | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -51,11 +66,31 @@ export function PasswordLogin() {
       const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/';
       router.push(safeRedirect);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      if (err instanceof EmailNotVerifiedError) {
+        setPendingVerification({
+          userId: err.userId,
+          handle: err.handle,
+          maskedEmail: err.maskedEmail,
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // Show verification screen if email not verified
+  if (pendingVerification) {
+    return (
+      <VerifyEmail
+        userId={pendingVerification.userId}
+        handle={pendingVerification.handle}
+        maskedEmail={pendingVerification.maskedEmail}
+        onBack={() => setPendingVerification(null)}
+      />
+    );
+  }
 
   return (
     <motion.div

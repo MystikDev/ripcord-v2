@@ -125,6 +125,16 @@ const envSchema = z.object({
 
   /** Comma-separated list of allowed CORS origins. */
   CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
+
+  /* ------------------------------------------------------------------ */
+  /*  Email (Resend)                                                     */
+  /* ------------------------------------------------------------------ */
+
+  /** Resend API key for sending transactional emails. Optional in dev. */
+  RESEND_API_KEY: z.string().optional(),
+
+  /** From address for transactional emails. */
+  EMAIL_FROM: z.string().default('Ripcord <noreply@ripcord.gg>'),
 });
 
 /**

@@ -69,6 +69,10 @@ export const AuditAction = {
   HUB_DELETED: "HUB_DELETED",
   /** A role was deleted from a hub. */
   ROLE_DELETED: "ROLE_DELETED",
+  /** A user verified their email address. */
+  EMAIL_VERIFIED: "EMAIL_VERIFIED",
+  /** A verification code was resent to a user. */
+  VERIFICATION_RESENT: "VERIFICATION_RESENT",
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

@@ -1,34 +1,34 @@
 /**
  * @module password-register
- * Password-based account creation form. Collects handle, password (min 8 chars),
- * and confirm password with mismatch validation. Calls registerPassword(),
- * stores tokens, and redirects on success.
+ * Password-based account creation form. Collects handle, email, password
+ * (min 8 chars), and confirm password with mismatch validation.
+ * On success, transitions to the email verification screen.
  */
 import { useState, type FormEvent } from 'react';
-import { useAppRouter, useAppSearchParams, useAppLink } from '../../lib/router';
+import { useAppSearchParams, useAppLink } from '../../lib/router';
 import { motion } from 'framer-motion';
-import { registerPassword } from '../../lib/auth-api';
-import { useAuthStore } from '../../stores/auth-store';
-import { getUserAvatarUrl } from '../../lib/user-api';
+import { registerPassword, type PendingVerification } from '../../lib/auth-api';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { VerifyEmail } from './verify-email';
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function PasswordRegister() {
-  const router = useAppRouter();
   const searchParams = useAppSearchParams();
   const Link = useAppLink();
-  const setTokens = useAuthStore((s) => s.setTokens);
-  const setUser = useAuthStore((s) => s.setUser);
 
   const [handle, setHandle] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // When set, we show the verification screen instead of the registration form
+  const [pendingVerification, setPendingVerification] = useState<PendingVerification | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,6 +47,17 @@ export function PasswordRegister() {
       setError('Handle may only contain letters, digits, underscores, and hyphens');
       return;
     }
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Email is required');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     if (password.length < 8) {
       setError('Password must be at least 8 characters');
       return;
@@ -58,19 +69,26 @@ export function PasswordRegister() {
 
     setLoading(true);
     try {
-      const tokens = await registerPassword(trimmed, password);
-      setTokens(tokens.accessToken, tokens.refreshToken);
-      const avatarUrl = tokens.avatarUrl ? getUserAvatarUrl(tokens.userId) : undefined;
-      setUser(tokens.userId, tokens.handle, tokens.deviceId, avatarUrl);
-      const redirect = searchParams.get('redirect');
-      const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/';
-      router.push(safeRedirect);
+      const result = await registerPassword(trimmed, trimmedEmail, password);
+      setPendingVerification(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setLoading(false);
     }
   };
+
+  // Show verification screen after successful registration
+  if (pendingVerification) {
+    return (
+      <VerifyEmail
+        userId={pendingVerification.userId}
+        handle={pendingVerification.handle}
+        maskedEmail={pendingVerification.maskedEmail}
+        onBack={() => setPendingVerification(null)}
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -93,6 +111,15 @@ export function PasswordRegister() {
           onChange={(e) => setHandle(e.target.value)}
           autoComplete="username"
           autoFocus
+        />
+
+        <Input
+          label="Email"
+          type="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
         />
 
         <Input

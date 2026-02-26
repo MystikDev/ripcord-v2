@@ -93,6 +93,7 @@ export const PasswordRegisterSchema = z.object({
       /^[a-zA-Z0-9_-]+$/,
       "Handle may only contain letters, digits, underscores, and hyphens",
     ),
+  email: z.string().email("Invalid email address"),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -114,3 +115,35 @@ export const PasswordLoginSchema = z.object({
 
 /** Inferred input type for {@link PasswordLoginSchema}. */
 export type PasswordLoginInput = z.infer<typeof PasswordLoginSchema>;
+
+// ---------------------------------------------------------------------------
+// Email Verification Schemas
+// ---------------------------------------------------------------------------
+
+/** Schema for verifying an email with a 6-digit code. */
+export const VerifyEmailSchema = z.object({
+  userId: z.string().uuid("Invalid user ID"),
+  code: z
+    .string()
+    .length(6, "Code must be 6 digits")
+    .regex(/^\d{6}$/, "Code must be numeric"),
+});
+
+/** Inferred input type for {@link VerifyEmailSchema}. */
+export type VerifyEmailInput = z.infer<typeof VerifyEmailSchema>;
+
+/** Schema for requesting a new verification code. */
+export const ResendCodeSchema = z.object({
+  userId: z.string().uuid("Invalid user ID"),
+});
+
+/** Inferred input type for {@link ResendCodeSchema}. */
+export type ResendCodeInput = z.infer<typeof ResendCodeSchema>;
+
+/** Response returned when registration is pending email verification. */
+export interface PendingVerificationResponse {
+  userId: string;
+  handle: string;
+  /** Masked email for display, e.g. "j***@gmail.com". */
+  maskedEmail: string;
+}

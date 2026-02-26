@@ -1,12 +1,20 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
+import { createHash } from 'node:crypto';
 import { hash } from 'argon2';
 import { transaction } from '@ripcord/db';
-import { ApiError, AuditAction, PasswordRegisterSchema, type ApiResponse, type AuthResponse } from '@ripcord/types';
+import {
+  ApiError,
+  AuditAction,
+  PasswordRegisterSchema,
+  type ApiResponse,
+  type PendingVerificationResponse,
+} from '@ripcord/types';
 import { rateLimit } from '../middleware/rate-limit.js';
 import * as userRepo from '../repositories/user.repo.js';
-import * as deviceRepo from '../repositories/device.repo.js';
 import * as auditRepo from '../repositories/audit.repo.js';
-import * as sessionService from '../services/session.service.js';
+import * as verificationService from '../services/verification.service.js';
+import * as emailService from '../services/email.service.js';
+import { redis } from '../redis.js';
 import { logger } from '../logger.js';
 
 export const passwordRegisterRouter: Router = Router();
@@ -18,14 +26,20 @@ const registrationLimiter = rateLimit({
   keyPrefix: 'pw-register',
 });
 
+/** Pending registration data TTL in seconds (matches code TTL). */
+const PENDING_REG_TTL_SEC = 15 * 60;
+
 /**
  * POST /v1/auth/password/register
  *
- * Register a new account with a password. Single-step — no begin/finish
- * ceremony like WebAuthn. Creates user, device, and session in one go.
+ * Register a new account with a password and email.
  *
- * Request body: { handle, password, pubIdentityKey, deviceName? }
- * Response: { ok: true, data: AuthResponse }
+ * Creates the user in `pending_verification` status and sends a 6-digit
+ * verification code to the provided email. No tokens are issued until
+ * the email is verified via POST /v1/auth/verify-email.
+ *
+ * Request body: { handle, email, password, pubIdentityKey, deviceName? }
+ * Response: { ok: true, data: PendingVerificationResponse }
  */
 passwordRegisterRouter.post(
   '/',
@@ -40,55 +54,74 @@ passwordRegisterRouter.post(
         );
       }
 
-      const { handle, password, pubIdentityKey, deviceName } = parsed.data;
+      const { handle, email, password, pubIdentityKey, deviceName } = parsed.data;
 
       // Hash password with argon2id (OWASP defaults)
       const passwordHash = await hash(password);
 
-      // Single transaction: create user + device
-      const { user, device } = await transaction(async (client) => {
-        // Double-check uniqueness inside transaction
-        const existingUser = await client.query(
+      // SHA-256 hash of email for uniqueness constraint
+      const emailHash = createHash('sha256').update(email.toLowerCase()).digest('hex');
+
+      // Transaction: create user as pending_verification
+      const user = await transaction(async (client) => {
+        // Check handle uniqueness
+        const existingHandle = await client.query(
           'SELECT id FROM users WHERE handle = $1 FOR UPDATE',
           [handle],
         );
-        if (existingUser.rows.length > 0) {
+        if (existingHandle.rows.length > 0) {
           throw ApiError.conflict('Handle is already taken');
         }
 
-        const newUser = await userRepo.createWithPassword(client, handle, passwordHash);
-        const newDevice = await deviceRepo.create(
-          client,
-          newUser.id,
-          deviceName ?? 'Default Device',
-          pubIdentityKey,
+        // Check email uniqueness
+        const existingEmail = await client.query(
+          'SELECT id FROM users WHERE email_hash = $1',
+          [emailHash],
         );
+        if (existingEmail.rows.length > 0) {
+          throw ApiError.conflict('Email is already registered');
+        }
 
-        return { user: newUser, device: newDevice };
+        return userRepo.createWithPasswordPending(
+          client,
+          handle,
+          passwordHash,
+          email.toLowerCase(),
+          emailHash,
+        );
       });
 
-      // Create the initial session (reuses existing infrastructure)
-      const result = await sessionService.createSession(user.id, device.id);
+      // Store device info in Redis so verify-email can create the device later
+      await redis.set(
+        `pending-reg:${user.id}`,
+        JSON.stringify({ pubIdentityKey, deviceName: deviceName ?? 'Default Device' }),
+        'EX',
+        PENDING_REG_TTL_SEC,
+      );
 
-      // Audit: user registered via password
+      // Generate verification code and send email
+      const code = await verificationService.createVerificationCode(user.id);
+      await emailService.sendVerificationCode(email.toLowerCase(), code);
+
+      // Audit: user registered (pending verification)
       await auditRepo.create(
         user.id,
-        device.id,
+        null,
         AuditAction.USER_REGISTER,
         'user',
         user.id,
-        { handle, method: 'password' },
+        { handle, method: 'password', pendingVerification: true },
       );
 
-      logger.info({ userId: user.id, handle }, 'New user registered (password)');
+      logger.info({ userId: user.id, handle }, 'New user registered (pending email verification)');
 
-      const authResponse: AuthResponse = {
-        tokenPair: result.tokenPair,
-        session: result.session,
-        user: { id: user.id, handle: user.handle, avatarUrl: user.avatar_url ?? undefined },
+      const response: PendingVerificationResponse = {
+        userId: user.id,
+        handle: user.handle,
+        maskedEmail: emailService.maskEmail(email),
       };
 
-      const body: ApiResponse<AuthResponse> = { ok: true, data: authResponse };
+      const body: ApiResponse<PendingVerificationResponse> = { ok: true, data: response };
       res.status(201).json(body);
     } catch (err) {
       next(err);
