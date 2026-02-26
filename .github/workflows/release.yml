@@ -55,6 +55,9 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # WARNING: Never rotate these keys! The pubkey is baked into every
+          # installed client. Changing the private key breaks auto-update for
+          # ALL existing users — they'd have to manually re-download.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VITE_API_URL: https://api.ripcord.gg
