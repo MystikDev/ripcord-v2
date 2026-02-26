@@ -1,7 +1,7 @@
 /**
  * @module call-store
  * Zustand store for DM call state. Tracks incoming, outgoing, and active calls
- * with call metadata (room ID, channel, participants).
+ * with call metadata (room ID, channel, participants, video).
  */
 
 import { create } from 'zustand';
@@ -21,6 +21,8 @@ export interface CallInfo {
   remoteUserId: string;
   /** The other user's display handle. */
   remoteHandle?: string;
+  /** Whether this call was initiated with video. */
+  withVideo?: boolean;
 }
 
 export interface CallState {
@@ -28,6 +30,8 @@ export interface CallState {
   status: CallStatus;
   /** Info about the current/pending call, null when idle. */
   callInfo: CallInfo | null;
+  /** Whether the local camera is currently enabled. */
+  isVideoEnabled: boolean;
 
   /** Start an outgoing call (ringing the other user). */
   startCall: (info: CallInfo) => void;
@@ -37,6 +41,8 @@ export interface CallState {
   acceptCall: () => void;
   /** End or decline the current call. */
   endCall: () => void;
+  /** Toggle the local camera on/off. */
+  toggleVideo: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -46,23 +52,39 @@ export interface CallState {
 export const useCallStore = create<CallState>()((set) => ({
   status: 'idle',
   callInfo: null,
+  isVideoEnabled: false,
 
   startCall: (info) =>
-    set({ status: 'ringing_outgoing', callInfo: info }),
+    set({
+      status: 'ringing_outgoing',
+      callInfo: info,
+      isVideoEnabled: info.withVideo ?? false,
+    }),
 
   receiveCall: (info) =>
     set((state) => {
       // Don't override an active call with a new invite
       if (state.status === 'active') return state;
-      return { status: 'ringing_incoming', callInfo: info };
+      return {
+        status: 'ringing_incoming',
+        callInfo: info,
+        isVideoEnabled: false, // callee starts with camera off; can enable later
+      };
     }),
 
   acceptCall: () =>
     set((state) => {
       if (!state.callInfo) return state;
-      return { status: 'active' };
+      return {
+        status: 'active',
+        // If it's a video call, enable camera on accept
+        isVideoEnabled: state.callInfo.withVideo ?? false,
+      };
     }),
 
   endCall: () =>
-    set({ status: 'idle', callInfo: null }),
+    set({ status: 'idle', callInfo: null, isVideoEnabled: false }),
+
+  toggleVideo: () =>
+    set((state) => ({ isVideoEnabled: !state.isVideoEnabled })),
 }));

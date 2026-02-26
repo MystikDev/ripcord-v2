@@ -87,7 +87,7 @@ export function ChatArea() {
   }, [isDmView, activeDmChannelId, dmChannels]);
 
   // Start a DM call: fetch voice token, set store, send invite
-  const handleStartCall = useCallback(async () => {
+  const handleStartCall = useCallback(async (withVideo = false) => {
     if (!activeDmChannelId || !activeDm) return;
     const auth = useAuthStore.getState();
     const other = activeDm.participants.find((p) => p.userId !== auth.userId);
@@ -101,6 +101,7 @@ export function ChatArea() {
         channelId: activeDmChannelId,
         remoteUserId: other.userId,
         remoteHandle: other.handle,
+        withVideo,
       });
 
       gateway.send(OP_CALL_INVITE, {
@@ -109,6 +110,7 @@ export function ChatArea() {
         fromUserId: auth.userId,
         fromHandle: auth.handle,
         toUserId: other.userId,
+        withVideo,
       });
     } catch (err) {
       console.error('Failed to start call:', err);
@@ -188,10 +190,10 @@ export function ChatArea() {
 
           <div className="flex-1" />
 
-          {/* Call button (DM only) */}
+          {/* Voice call button (DM only) */}
           {isDmView && activeDm && (
             <button
-              onClick={() => void handleStartCall()}
+              onClick={() => void handleStartCall(false)}
               disabled={callStatus !== 'idle'}
               className={clsx(
                 'rounded-md p-1.5 transition-colors',
@@ -199,10 +201,30 @@ export function ChatArea() {
                   ? 'text-text-muted/50 cursor-not-allowed'
                   : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
               )}
-              title={callStatus !== 'idle' ? 'Already in a call' : 'Start call'}
+              title={callStatus !== 'idle' ? 'Already in a call' : 'Start voice call'}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M1.5 4.5a2 2 0 012-2h1.382a1 1 0 01.894.553l.723 1.447a1 1 0 01-.15 1.084l-.69.767a.5.5 0 00-.05.577 6.517 6.517 0 003.962 3.962.5.5 0 00.577-.05l.768-.69a1 1 0 011.084-.15l1.447.723a1 1 0 01.553.894V12.5a2 2 0 01-2 2A11.5 11.5 0 011.5 4.5z" />
+              </svg>
+            </button>
+          )}
+
+          {/* Video call button (DM only) */}
+          {isDmView && activeDm && (
+            <button
+              onClick={() => void handleStartCall(true)}
+              disabled={callStatus !== 'idle'}
+              className={clsx(
+                'rounded-md p-1.5 transition-colors',
+                callStatus !== 'idle'
+                  ? 'text-text-muted/50 cursor-not-allowed'
+                  : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
+              )}
+              title={callStatus !== 'idle' ? 'Already in a call' : 'Start video call'}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="3.5" width="10" height="9" rx="1.5" />
+                <path d="M11 7l4-2.5v7L11 9" />
               </svg>
             </button>
           )}

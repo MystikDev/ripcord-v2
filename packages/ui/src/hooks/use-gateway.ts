@@ -198,11 +198,12 @@ export function useGateway() {
     // DM call signaling
     unsubs.push(
       gateway.on('CALL_INVITE', (data) => {
-        const { roomId, channelId, fromUserId, fromHandle } = data as {
+        const { roomId, channelId, fromUserId, fromHandle, withVideo } = data as {
           roomId: string;
           channelId: string;
           fromUserId: string;
           fromHandle?: string;
+          withVideo?: boolean;
         };
         if (roomId && channelId && fromUserId) {
           useCallStore.getState().receiveCall({
@@ -210,6 +211,7 @@ export function useGateway() {
             channelId,
             remoteUserId: fromUserId,
             remoteHandle: fromHandle,
+            withVideo,
           });
         }
       }),

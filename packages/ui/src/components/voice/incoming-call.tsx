@@ -1,6 +1,6 @@
 /**
  * @module incoming-call
- * Full-screen overlay notification for incoming DM calls.
+ * Full-screen overlay notification for incoming DM calls (audio or video).
  * Shows the caller's handle with accept/decline buttons.
  * Sends CALL_ACCEPT or CALL_DECLINE via gateway, then transitions to active call.
  */
@@ -55,14 +55,23 @@ export function IncomingCall() {
 
   if (status !== 'ringing_incoming' || !callInfo) return null;
 
+  const isVideoCall = callInfo.withVideo ?? false;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="flex flex-col items-center gap-6 rounded-2xl bg-surface-2 p-8 shadow-2xl">
-        {/* Caller avatar placeholder */}
+        {/* Caller icon — camera for video, phone for audio */}
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-accent/20">
-          <svg width="36" height="36" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
-            <path d="M1.5 4.5a2 2 0 012-2h1.382a1 1 0 01.894.553l.723 1.447a1 1 0 01-.15 1.084l-.69.767a.5.5 0 00-.05.577 6.517 6.517 0 003.962 3.962.5.5 0 00.577-.05l.768-.69a1 1 0 011.084-.15l1.447.723a1 1 0 01.553.894V12.5a2 2 0 01-2 2A11.5 11.5 0 011.5 4.5z" />
-          </svg>
+          {isVideoCall ? (
+            <svg width="36" height="36" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+              <rect x="1" y="3.5" width="10" height="9" rx="1.5" />
+              <path d="M11 7l4-2.5v7L11 9" />
+            </svg>
+          ) : (
+            <svg width="36" height="36" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+              <path d="M1.5 4.5a2 2 0 012-2h1.382a1 1 0 01.894.553l.723 1.447a1 1 0 01-.15 1.084l-.69.767a.5.5 0 00-.05.577 6.517 6.517 0 003.962 3.962.5.5 0 00.577-.05l.768-.69a1 1 0 011.084-.15l1.447.723a1 1 0 01.553.894V12.5a2 2 0 01-2 2A11.5 11.5 0 011.5 4.5z" />
+            </svg>
+          )}
         </div>
 
         {/* Caller info */}
@@ -70,7 +79,9 @@ export function IncomingCall() {
           <p className="text-lg font-semibold text-text-primary">
             {callInfo.remoteHandle ?? 'Unknown'}
           </p>
-          <p className="mt-1 animate-pulse text-sm text-text-muted">Incoming call...</p>
+          <p className="mt-1 animate-pulse text-sm text-text-muted">
+            Incoming {isVideoCall ? 'video ' : ''}call...
+          </p>
         </div>
 
         {/* Action buttons */}

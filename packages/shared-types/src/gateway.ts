@@ -186,6 +186,8 @@ export interface CallSignalPayload {
   fromHandle?: string;
   /** The target user (recipient of the signal). */
   toUserId: string;
+  /** Whether this call includes video. */
+  withVideo?: boolean;
 }
 
 /** A single participant connected to a voice channel. */

@@ -20,6 +20,34 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.8.9',
+    date: '2026-02-26',
+    highlights: [
+      'DM video calls — start a video call from any DM conversation with the camera button',
+      'Camera toggle — turn your camera on/off mid-call with the camera button in the call panel',
+      'Draggable call panel — grab the handle bar and move the call panel anywhere on screen',
+      'Incoming call overlay now distinguishes video vs audio calls',
+      'New Ripcord "R" app icon with red background',
+    ],
+  },
+  {
+    version: '0.8.8',
+    date: '2026-02-26',
+    highlights: [
+      'Direct messages — click the home button or right-click any user to start a DM conversation',
+      'DM voice calls — call friends directly from a DM with one-click audio calls',
+      'Pin messages — right-click any message to pin it, view all pins from the channel header',
+      'Right-click context menu on usernames with quick actions (DM, copy ID)',
+      'Font size and color customization in Appearance settings',
+      'New Ripcord "R" app icon',
+      'Fixed voice speaking indicator alignment',
+      'Fixed upload icon misalignment with text input',
+      'Fixed registration allowing spaces in usernames',
+      'Fixed volume control at 0% and 400% extremes',
+      'Fixed channel creation dropping users from voice visually',
+    ],
+  },
+  {
     version: '0.8.7',
     date: '2026-02-25',
     highlights: [

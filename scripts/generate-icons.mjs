@@ -2,22 +2,38 @@ import sharp from 'sharp';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 
-const SOURCE = join(import.meta.dirname, '..', 'ripcord_desktop_app.png');
 const ICONS_DIR = join(import.meta.dirname, '..', 'apps', 'desktop', 'src-tauri', 'icons');
 
+// ---------------------------------------------------------------------------
+// SVG source — Ripcord "R" logo (matches DM HomeButton) on a red background
+// with rounded corners. White logo on #dc2626 (Tailwind red-600).
+// ---------------------------------------------------------------------------
+
+function createSvg(size) {
+  // Corner radius scales with size (≈18% of width, matching the UI rounded-2xl look)
+  const r = Math.round(size * 0.18);
+  // The viewBox for the R logo is 0 0 32 32, we center it in the icon with padding
+  const padding = size * 0.15;
+  const logoSize = size - padding * 2;
+  const logoX = padding;
+  const logoY = padding;
+
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+  <!-- Red rounded-rect background -->
+  <rect width="${size}" height="${size}" rx="${r}" ry="${r}" fill="#dc2626"/>
+  <!-- Ripcord "R" logo in white, scaled and centered -->
+  <svg x="${logoX}" y="${logoY}" width="${logoSize}" height="${logoSize}" viewBox="0 0 32 32" fill="none">
+    <path d="M8 4h10c4.42 0 8 2.69 8 6s-3.58 6-8 6h-2l8 12h-5.5L11 16H12c3.31 0 6-1.34 6-4s-2.69-4-6-4h-4v18H8V4z" fill="white"/>
+    <path d="M6 2l4 2v24l-4 2V2z" fill="white" opacity="0.6"/>
+  </svg>
+</svg>`;
+}
+
+// ---------------------------------------------------------------------------
+// Generate all icon variants
+// ---------------------------------------------------------------------------
+
 async function generateIcons() {
-  const src = sharp(SOURCE);
-  const meta = await src.metadata();
-  console.log(`Source: ${meta.width}x${meta.height}`);
-
-  // Determine the square crop (center the logo)
-  const size = Math.min(meta.width, meta.height);
-  const left = Math.round((meta.width - size) / 2);
-  const top = Math.round((meta.height - size) / 2);
-
-  // Ensure RGBA output (Tauri requires alpha channel)
-  const squared = sharp(SOURCE).extract({ left, top, width: size, height: size }).ensureAlpha();
-
   // Generate PNG icons at required sizes
   const sizes = [
     { name: '32x32.png', size: 32 },
@@ -26,19 +42,20 @@ async function generateIcons() {
     { name: 'icon.png', size: 256 },  // tray icon + general
   ];
 
-  for (const { name, size: s } of sizes) {
+  for (const { name, size } of sizes) {
+    const svg = createSvg(size);
     const outPath = join(ICONS_DIR, name);
-    await squared.clone().resize(s, s, { kernel: 'lanczos3' }).png().toFile(outPath);
-    console.log(`Generated ${name} (${s}x${s})`);
+    await sharp(Buffer.from(svg)).ensureAlpha().png().toFile(outPath);
+    console.log(`Generated ${name} (${size}x${size})`);
   }
 
   // Generate ICO (Windows) - embed 16, 32, 48, 256 px sizes
-  // ICO format: we'll create a multi-size PNG-based ICO
   const icoSizes = [16, 32, 48, 256];
   const icoBuffers = [];
 
   for (const s of icoSizes) {
-    const buf = await squared.clone().resize(s, s, { kernel: 'lanczos3' }).png().toBuffer();
+    const svg = createSvg(s);
+    const buf = await sharp(Buffer.from(svg)).ensureAlpha().png().toBuffer();
     icoBuffers.push({ size: s, buffer: buf });
   }
 
@@ -46,11 +63,10 @@ async function generateIcons() {
   writeFileSync(join(ICONS_DIR, 'icon.ico'), icoBuffer);
   console.log('Generated icon.ico (16, 32, 48, 256)');
 
-  // Generate ICNS (macOS) - just use a 512px PNG as a placeholder
-  // Real icns requires special tooling, but Tauri accepts PNG in the icns slot on non-macOS builds
-  // For CI (Windows-only builds), this is fine. For macOS builds, you'd need iconutil.
-  await squared.clone().resize(512, 512, { kernel: 'lanczos3' }).png().toFile(join(ICONS_DIR, 'icon.icns'));
-  console.log('Generated icon.icns (512x512 PNG — Windows CI compatible)');
+  // Generate ICNS (macOS) - 512px PNG
+  const icnsSvg = createSvg(512);
+  await sharp(Buffer.from(icnsSvg)).ensureAlpha().png().toFile(join(ICONS_DIR, 'icon.icns'));
+  console.log('Generated icon.icns (512x512 PNG)');
 
   console.log('\nAll icons generated!');
 }
