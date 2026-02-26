@@ -105,12 +105,13 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
       }`}
     >
       {/* Avatar column */}
-      <div className="w-10 shrink-0">
+      <div className="shrink-0" style={{ width: 'var(--icon-size-base, 32px)' }}>
         {!isConsecutive && (
           <Avatar
             src={cachedAvatarUrl}
             fallback={displayHandle}
             size="md"
+            style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }}
           />
         )}
       </div>
@@ -120,7 +121,8 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
         {!isConsecutive && (
           <div className="flex items-baseline gap-2">
             <span
-              className="font-medium text-text-primary cursor-pointer hover:underline"
+              className="font-medium cursor-pointer hover:underline"
+              style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-username, var(--color-text-primary))' }}
               onContextMenu={(e) => {
                 if (message.authorId === currentUserId) return;
                 e.preventDefault();
@@ -129,7 +131,7 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
             >
               {displayHandle}
             </span>
-            <span className="text-xs text-text-muted">
+            <span className="text-text-muted" style={{ fontSize: 'var(--font-size-xs, 10px)' }}>
               {formatTime(message.createdAt)}
             </span>
             {message.editedAt && (

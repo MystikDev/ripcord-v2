@@ -58,15 +58,16 @@ function ParticipantTile({
         {/* Avatar with speaking glow */}
         <div
           className={clsx(
-            'flex items-center justify-center shrink-0 h-8 w-8 rounded-full transition-shadow',
+            'flex items-center justify-center shrink-0 rounded-full transition-shadow',
             isSpeaking ? 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)] duration-75' : 'duration-300',
           )}
+          style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)' }}
         >
-          <Avatar src={cachedAvatarUrl} fallback={name} size="sm" />
+          <Avatar src={cachedAvatarUrl} fallback={name} size="sm" style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }} />
         </div>
 
         {/* Name */}
-        <span className="flex-1 truncate text-sm text-text-secondary">
+        <span className="flex-1 truncate" style={{ fontSize: 'var(--font-size-sm, 12px)', color: 'var(--color-username, var(--color-text-secondary))' }}>
           {name}
         </span>
 

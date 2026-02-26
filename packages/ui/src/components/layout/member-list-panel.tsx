@@ -77,7 +77,7 @@ function MemberRow({ member, offline }: { member: MemberInfo; offline?: boolean 
             src={member.avatarUrl}
             fallback={member.handle}
             size="sm"
-            className="!h-8 !w-8 !text-xs"
+            style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }}
           />
           <StatusDot status={status} />
         </div>
@@ -85,9 +85,13 @@ function MemberRow({ member, offline }: { member: MemberInfo; offline?: boolean 
         {/* Handle — bright white for online, dim for offline */}
         <span
           className={clsx(
-            'truncate text-sm font-medium',
-            offline ? 'text-text-muted' : 'text-white',
+            'truncate font-medium',
+            offline && 'text-text-muted',
           )}
+          style={{
+            fontSize: 'var(--font-size-sm, 12px)',
+            ...(!offline ? { color: 'var(--color-username, white)' } : {}),
+          }}
         >
           {member.handle}
         </span>

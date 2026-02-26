@@ -2,7 +2,7 @@
  * @module Avatar
  * Circular user avatar built on Radix UI Avatar primitives.
  * Displays an image with a fallback showing the first two characters of the provided string.
- * Supports sm, md, and lg sizes.
+ * Supports sm, md, and lg sizes. Pass `style` to override sizes with CSS variables.
  */
 'use client';
 
@@ -19,6 +19,7 @@ export interface AvatarProps {
   fallback: string;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const sizeMap = {
@@ -31,7 +32,7 @@ const sizeMap = {
 // Component
 // ---------------------------------------------------------------------------
 
-export function Avatar({ src, alt, fallback, size = 'md', className }: AvatarProps) {
+export function Avatar({ src, alt, fallback, size = 'md', className, style }: AvatarProps) {
   return (
     <AvatarPrimitive.Root
       className={clsx(
@@ -39,6 +40,7 @@ export function Avatar({ src, alt, fallback, size = 'md', className }: AvatarPro
         sizeMap[size],
         className,
       )}
+      style={style}
     >
       {src && (
         <AvatarPrimitive.Image

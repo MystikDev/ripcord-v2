@@ -37,11 +37,11 @@ export function TypingBubble({ userId, handle }: TypingBubbleProps) {
       className="flex items-end gap-2"
     >
       {/* User avatar */}
-      <Avatar src={avatarUrl ?? undefined} fallback={handle} size="sm" />
+      <Avatar src={avatarUrl ?? undefined} fallback={handle} size="sm" style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }} />
 
       {/* Handle + speech bubble */}
       <div>
-        <span className="mb-0.5 block text-xs text-text-muted">{handle}</span>
+        <span className="mb-0.5 block text-text-muted" style={{ fontSize: 'var(--font-size-xs, 10px)' }}>{handle}</span>
         <div className="inline-flex items-center gap-1.5 rounded-2xl rounded-bl-sm bg-surface-2 px-4 py-3">
           <span
             className="inline-block h-2 w-2 rounded-full bg-text-muted"

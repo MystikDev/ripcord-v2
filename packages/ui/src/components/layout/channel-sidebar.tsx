@@ -161,13 +161,14 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
             >
               <div
                 className={clsx(
-                  'flex items-center justify-center shrink-0 h-[45px] w-[45px] rounded-full',
+                  'flex items-center justify-center shrink-0 rounded-full',
                   isSpeaking && 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)]',
                 )}
+                style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)' }}
               >
-                <Avatar src={members[p.userId]?.avatarUrl} fallback={p.handle ?? p.userId.slice(0, 2)} size="sm" className="!h-[45px] !w-[45px] !text-[20px]" />
+                <Avatar src={members[p.userId]?.avatarUrl} fallback={p.handle ?? p.userId.slice(0, 2)} size="sm" style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.4)' }} />
               </div>
-              <span className="truncate text-text-primary" style={{ fontSize: 'var(--font-size-base, 30px)' }}>{p.handle ?? p.userId.slice(0, 8)}</span>
+              <span className="truncate" style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-username, var(--color-text-primary))' }}>{p.handle ?? p.userId.slice(0, 8)}</span>
               {isScreenSharing && (
                 <button
                   onClick={(e) => {
@@ -364,7 +365,7 @@ function UserPanel() {
           title="Change avatar"
           disabled={uploading}
         >
-          <Avatar src={avatarUrl ?? undefined} fallback={handle ?? '?'} size="sm" />
+          <Avatar src={avatarUrl ?? undefined} fallback={handle ?? '?'} size="sm" style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }} />
           {/* Camera overlay on hover */}
           <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
@@ -381,10 +382,10 @@ function UserPanel() {
         />
 
         <div className="flex-1 min-w-0">
-          <p className="truncate text-sm font-medium text-text-primary">
+          <p className="truncate font-medium text-text-primary" style={{ fontSize: 'var(--font-size-sm, 12px)' }}>
             {handle ?? 'Unknown'}
           </p>
-          <p className="text-xs text-text-muted capitalize">{status}</p>
+          <p className="text-text-muted capitalize" style={{ fontSize: 'var(--font-size-xs, 10px)' }}>{status}</p>
         </div>
 
         {/* Mic / Deafen buttons (visible when in voice) */}

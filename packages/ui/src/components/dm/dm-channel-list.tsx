@@ -65,11 +65,11 @@ function DmRow({ dm }: { dm: DmChannel }) {
           src={other.avatarUrl ? getUserAvatarUrl(other.userId) : undefined}
           fallback={other.handle}
           size="sm"
-          className="!h-8 !w-8 !text-xs"
+          style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }}
         />
         <PresenceDot userId={other.userId} />
       </div>
-      <span className="truncate font-medium">{other.handle}</span>
+      <span className="truncate font-medium" style={{ fontSize: 'var(--font-size-sm, 12px)', color: 'var(--color-username, var(--color-text-primary))' }}>{other.handle}</span>
     </button>
   );
 }

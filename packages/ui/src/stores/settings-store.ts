@@ -83,10 +83,18 @@ export interface SettingsState {
   fontSize: number;
   /** Custom text color override (hex string) or null for default. */
   fontColor: string | null;
+  /** Base icon/avatar size in pixels (24-64). Default: 32 */
+  iconSize: number;
+  /** Custom username color override (hex string) or null for default. */
+  usernameColor: string | null;
   /** Set the base font size. */
   setFontSize: (size: number) => void;
   /** Set a custom font color or null to reset. */
   setFontColor: (color: string | null) => void;
+  /** Set the base icon/avatar size. */
+  setIconSize: (size: number) => void;
+  /** Set a custom username color or null to reset. */
+  setUsernameColor: (color: string | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,8 +149,12 @@ export const useSettingsStore = create<SettingsState>()(
 
       fontSize: 14,
       fontColor: null,
+      iconSize: 32,
+      usernameColor: null,
       setFontSize: (size) => set({ fontSize: Math.max(12, Math.min(20, size)) }),
       setFontColor: (color) => set({ fontColor: color }),
+      setIconSize: (size) => set({ iconSize: Math.max(24, Math.min(64, size)) }),
+      setUsernameColor: (color) => set({ usernameColor: color }),
     }),
     {
       name: 'ripcord-settings',
@@ -160,6 +172,8 @@ export const useSettingsStore = create<SettingsState>()(
         lastSeenVersion: state.lastSeenVersion,
         fontSize: state.fontSize,
         fontColor: state.fontColor,
+        iconSize: state.iconSize,
+        usernameColor: state.usernameColor,
       }),
     },
   ),

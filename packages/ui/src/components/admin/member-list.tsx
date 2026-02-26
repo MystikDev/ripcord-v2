@@ -91,7 +91,7 @@ export function MemberList({ hubId }: { hubId: string }) {
               key={member.userId}
               className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-surface-2/50"
             >
-              <Avatar src={member.avatarUrl ? getUserAvatarUrl(member.userId) : undefined} fallback={member.handle} size="sm" />
+              <Avatar src={member.avatarUrl ? getUserAvatarUrl(member.userId) : undefined} fallback={member.handle} size="sm" style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }} />
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm font-medium text-text-primary">
                   {member.handle}
