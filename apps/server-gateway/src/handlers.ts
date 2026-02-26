@@ -7,7 +7,7 @@ import { ClientConnection } from './connection.js';
 import { ConnectionManager } from './connection-manager.js';
 import { setPresence, refreshPresenceTTL } from './presence.js';
 import { cancelPendingOffline } from './presence-grace.js';
-import { joinVoiceChannel, leaveVoiceChannel, updateVoiceState, refreshVoiceStateTTL } from './voice-state.js';
+import { joinVoiceChannel, leaveVoiceChannel, updateVoiceState, refreshVoiceStateTTL, getVoiceParticipants } from './voice-state.js';
 import { log } from './logger.js';
 
 /**
@@ -372,9 +372,21 @@ export async function handleVoiceStateUpdate(
   }
 
   switch (payload.action) {
-    case 'join':
+    case 'join': {
       await joinVoiceChannel(payload.channelId, conn.userId, payload.handle, manager);
+
+      // Send the full participant list back to the joining connection so they
+      // immediately see everyone already in the channel (the broadcast only
+      // carries the single 'join' event, not the full roster).
+      const participants = await getVoiceParticipants(payload.channelId);
+      conn.send(
+        GatewayOpcode.VOICE_STATE_UPDATE,
+        { channelId: payload.channelId, action: 'sync', participants },
+        true,
+        'VOICE_STATE_UPDATE',
+      );
       break;
+    }
     case 'leave':
       await leaveVoiceChannel(payload.channelId, conn.userId, manager);
       break;

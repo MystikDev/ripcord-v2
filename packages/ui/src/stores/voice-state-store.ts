@@ -58,6 +58,9 @@ export interface VoiceStateStore {
   /** Update a participant's mute/deaf state. */
   updateParticipant: (channelId: string, userId: string, update: Partial<VoiceParticipant>) => void;
 
+  /** Replace all participants for a single channel (used for gateway sync). */
+  setChannelParticipants: (channelId: string, participants: VoiceParticipant[]) => void;
+
   /** Bulk set voice states (used for REST hydration). */
   setMany: (states: Record<string, VoiceParticipant[]>) => void;
 
@@ -139,9 +142,41 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
       };
     }),
 
+  setChannelParticipants: (channelId, participants) =>
+    set((state) => {
+      const next = { ...state.voiceStates };
+      if (participants.length === 0) {
+        delete next[channelId];
+      } else {
+        next[channelId] = participants;
+      }
+      return { voiceStates: next };
+    }),
+
   setMany: (states) =>
     set((prev) => {
       const merged = { ...states };
+
+      // Preserve participants from the existing store that are NOT covered by
+      // the incoming REST data. This prevents a race condition where real-time
+      // VOICE_STATE_UPDATE events arrive between the SUBSCRIBE and the REST
+      // response — without this merge, setMany would overwrite those updates.
+      for (const [channelId, existingParticipants] of Object.entries(prev.voiceStates)) {
+        if (channelId in merged) {
+          // Channel exists in both — merge any existing participants that the
+          // REST response missed (e.g. they joined after the REST query ran)
+          const incomingUserIds = new Set(merged[channelId]!.map((p) => p.userId));
+          const missing = existingParticipants.filter((p) => !incomingUserIds.has(p.userId));
+          if (missing.length > 0) {
+            merged[channelId] = [...merged[channelId]!, ...missing];
+          }
+        } else {
+          // Channel not in REST response but has existing participants —
+          // keep them (could be from a real-time event or a different hub)
+          merged[channelId] = existingParticipants;
+        }
+      }
+
       // Preserve the current user's voice entry for their connected channel
       // to avoid a visual "drop" when REST hydration races with a live join.
       const { connectedChannelId } = prev;
@@ -158,6 +193,7 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
           }
         }
       }
+
       return { voiceStates: merged };
     }),
 

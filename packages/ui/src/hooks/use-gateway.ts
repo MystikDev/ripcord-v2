@@ -36,6 +36,7 @@ export function useGateway() {
   const addVoiceParticipant = useVoiceStateStore((s) => s.addParticipant);
   const removeVoiceParticipant = useVoiceStateStore((s) => s.removeParticipant);
   const updateVoiceParticipant = useVoiceStateStore((s) => s.updateParticipant);
+  const setChannelParticipants = useVoiceStateStore((s) => s.setChannelParticipants);
 
   // Keep token in a ref so refreshes don't tear down the WebSocket.
   // The gateway client only needs the token for AUTH on (re)connect.
@@ -141,40 +142,56 @@ export function useGateway() {
     // Voice state updates
     unsubs.push(
       gateway.on('VOICE_STATE_UPDATE', (data) => {
-        const { channelId, userId, handle, action, selfMute, selfDeaf } = data as {
+        const raw = data as {
           channelId: string;
-          userId: string;
+          userId?: string;
           handle?: string;
-          action: 'join' | 'leave' | 'update';
+          action: 'join' | 'leave' | 'update' | 'sync';
           selfMute?: boolean;
           selfDeaf?: boolean;
+          participants?: Array<{
+            userId: string;
+            handle?: string;
+            selfMute: boolean;
+            selfDeaf: boolean;
+            joinedAt: string;
+          }>;
         };
-        if (!channelId || !userId) return;
+        if (!raw.channelId) return;
+
+        // Full participant sync — sent by the gateway after a voice join so the
+        // joining user immediately sees everyone already in the channel.
+        if (raw.action === 'sync' && raw.participants) {
+          setChannelParticipants(raw.channelId, raw.participants);
+          return;
+        }
+
+        if (!raw.userId) return;
 
         // Play notification sounds for other users' join/leave
         const currentUserId = useAuthStore.getState().userId;
         const soundsEnabled = useSettingsStore.getState().voiceNotificationSounds;
 
-        if (action === 'join') {
-          addVoiceParticipant(channelId, {
-            userId,
-            handle,
-            selfMute: selfMute ?? false,
-            selfDeaf: selfDeaf ?? false,
+        if (raw.action === 'join') {
+          addVoiceParticipant(raw.channelId, {
+            userId: raw.userId,
+            handle: raw.handle,
+            selfMute: raw.selfMute ?? false,
+            selfDeaf: raw.selfDeaf ?? false,
             joinedAt: new Date().toISOString(),
           });
-          if (soundsEnabled && userId !== currentUserId) {
+          if (soundsEnabled && raw.userId !== currentUserId) {
             playJoinSound();
           }
-        } else if (action === 'leave') {
-          removeVoiceParticipant(channelId, userId);
-          if (soundsEnabled && userId !== currentUserId) {
+        } else if (raw.action === 'leave') {
+          removeVoiceParticipant(raw.channelId, raw.userId);
+          if (soundsEnabled && raw.userId !== currentUserId) {
             playLeaveSound();
           }
-        } else if (action === 'update') {
-          updateVoiceParticipant(channelId, userId, {
-            selfMute: selfMute ?? false,
-            selfDeaf: selfDeaf ?? false,
+        } else if (raw.action === 'update') {
+          updateVoiceParticipant(raw.channelId, raw.userId, {
+            selfMute: raw.selfMute ?? false,
+            selfDeaf: raw.selfDeaf ?? false,
           });
         }
       }),
@@ -255,5 +272,5 @@ export function useGateway() {
       gateway.disconnect();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- accessToken intentionally excluded; synced via ref + gateway.updateToken() to avoid reconnects on token refresh
-  }, [isAuthenticated, addMessage, updateMessage, setPresence, addTyping, addVoiceParticipant, removeVoiceParticipant, updateVoiceParticipant]);
+  }, [isAuthenticated, addMessage, updateMessage, setPresence, addTyping, addVoiceParticipant, removeVoiceParticipant, updateVoiceParticipant, setChannelParticipants]);
 }

@@ -115,11 +115,14 @@ export function useHubData() {
         if (cancelled) return;
         setDmChannels(dms);
 
-        // Subscribe to all DM channels via gateway for real-time messages
-        for (const dm of dms) {
-          if (!dmSubscribedRef.current.has(dm.channelId)) {
-            gateway.send(OP_SUBSCRIBE, { channelIds: [dm.channelId] });
-            dmSubscribedRef.current.add(dm.channelId);
+        // Subscribe to all DM channels via gateway for real-time messages (batched)
+        const newDmIds = dms
+          .map((dm) => dm.channelId)
+          .filter((id) => !dmSubscribedRef.current.has(id));
+        if (newDmIds.length > 0) {
+          gateway.send(OP_SUBSCRIBE, { channelIds: newDmIds });
+          for (const id of newDmIds) {
+            dmSubscribedRef.current.add(id);
           }
         }
       })
@@ -219,10 +222,13 @@ export function useHubData() {
           setActiveChannel(firstText.id);
         }
 
-        // Subscribe to all channels via gateway
-        for (const ch of mapped) {
-          gateway.send(OP_SUBSCRIBE, { channelIds: [ch.id] });
-          subscribedRef.current.add(ch.id);
+        // Subscribe to all channels via gateway (batched into a single message)
+        const allChannelIds = mapped.map((ch) => ch.id);
+        if (allChannelIds.length > 0) {
+          gateway.send(OP_SUBSCRIBE, { channelIds: allChannelIds });
+          for (const id of allChannelIds) {
+            subscribedRef.current.add(id);
+          }
         }
 
         // Hydrate voice states for this hub (full replace, not merge)
@@ -250,16 +256,16 @@ export function useHubData() {
     if (!activeHubId) return;
 
     const unsub = gateway.on('open', () => {
-      // Server-side subscriptions are lost on reconnect — re-subscribe all channels
+      // Server-side subscriptions are lost on reconnect — re-subscribe all channels (batched)
       const channelIds = Array.from(subscribedRef.current);
-      for (const channelId of channelIds) {
-        gateway.send(OP_SUBSCRIBE, { channelIds: [channelId] });
+      if (channelIds.length > 0) {
+        gateway.send(OP_SUBSCRIBE, { channelIds });
       }
 
-      // Re-subscribe DM channels
+      // Re-subscribe DM channels (batched)
       const dmIds = Array.from(dmSubscribedRef.current);
-      for (const dmId of dmIds) {
-        gateway.send(OP_SUBSCRIBE, { channelIds: [dmId] });
+      if (dmIds.length > 0) {
+        gateway.send(OP_SUBSCRIBE, { channelIds: dmIds });
       }
 
       // Re-hydrate voice states from REST to catch any changes during disconnect
