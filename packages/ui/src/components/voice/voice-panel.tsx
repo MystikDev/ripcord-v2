@@ -8,7 +8,7 @@
  */
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LiveKitRoom, RoomAudioRenderer } from '@livekit/components-react';
 import { Room, RoomOptions, setLogLevel, LogLevel } from 'livekit-client';
 import { useHubStore } from '../../stores/server-store';
@@ -161,6 +161,11 @@ export function VoicePanel() {
   // Create a stable Room instance so LiveKit reuses connections cleanly
   const room = useMemo(() => new Room(ROOM_OPTIONS), []);
 
+  // Ref to suppress the onDisconnected callback during channel switches.
+  // When true, the room is being intentionally disconnected so we can
+  // reconnect to a different channel — don't clean up state.
+  const isSwitchingRef = useRef(false);
+
   const activeChannel = channels.find((c) => c.id === activeChannelId);
   const voiceChannel = channels.find((c) => c.id === voiceChannelId);
   const isVoiceChannel = activeChannel?.type === 'voice';
@@ -235,6 +240,9 @@ export function VoicePanel() {
   // ----- Room callbacks -----
 
   const handleRoomDisconnected = useCallback(() => {
+    // During a channel switch we intentionally disconnect — ignore this
+    // callback so it doesn't nuke the state we're about to replace.
+    if (isSwitchingRef.current) return;
     handleDisconnect();
   }, [handleDisconnect]);
 
@@ -272,40 +280,45 @@ export function VoicePanel() {
     // Already in this channel — nothing to do
     if (voiceChannelId === pendingVoiceJoin && connectionState === 'connected') return;
 
-    // If connected to a different channel, disconnect first
-    if (voiceChannelId && connectionState === 'connected') {
-      const auth = useAuthStore.getState();
+    const isSwitching = !!(voiceChannelId && connectionState === 'connected');
+    const oldChannelId = voiceChannelId;
 
-      // Optimistic local removal from old channel
-      useVoiceStateStore.getState().removeParticipant(voiceChannelId, auth.userId!);
-
-      gateway.send(23, {
-        channelId: voiceChannelId,
-        userId: auth.userId,
-        action: 'leave',
-      });
-      setToken(null);
-      setLivekitUrl(null);
-      setVoiceChannelId(null);
-      setPttEnabled(false);
-      useVoiceStateStore.getState().setConnectedChannelId(null);
-    }
-
-    // Join the new channel
     setConnectionState('connecting');
     setError(null);
 
+    // Fetch the new token FIRST, before disconnecting from the old channel.
+    // This keeps <LiveKitRoom> mounted the entire time and avoids the
+    // "client initiated disconnect" race condition during channel switches.
     getVoiceToken(pendingVoiceJoin)
-      .then(({ token: t, url }) => {
+      .then(async ({ token: t, url }) => {
+        const auth = useAuthStore.getState();
+
+        // --- Leave old channel (if switching) ---
+        if (isSwitching && oldChannelId) {
+          // Tell the gateway we're leaving
+          useVoiceStateStore.getState().removeParticipant(oldChannelId, auth.userId!);
+          gateway.send(23, {
+            channelId: oldChannelId,
+            userId: auth.userId,
+            action: 'leave',
+          });
+
+          // Explicitly disconnect the LiveKit room. The isSwitchingRef
+          // prevents handleRoomDisconnected from nuking our state.
+          isSwitchingRef.current = true;
+          await room.disconnect();
+          isSwitchingRef.current = false;
+        }
+
+        // --- Join new channel ---
         setToken(t);
         setLivekitUrl(url);
         setVoiceChannelId(pendingVoiceJoin);
         setConnectionState('connected');
+        setPttEnabled(false);
         useVoiceStateStore.getState().setConnectedChannelId(pendingVoiceJoin);
 
-        const auth = useAuthStore.getState();
-
-        // Optimistic local addition to new channel — appear in sidebar immediately
+        // Optimistic local addition — appear in sidebar immediately
         useVoiceStateStore.getState().addParticipant(pendingVoiceJoin, {
           userId: auth.userId!,
           handle: auth.handle ?? undefined,
@@ -325,10 +338,11 @@ export function VoicePanel() {
         });
       })
       .catch((err: unknown) => {
+        isSwitchingRef.current = false;
         setConnectionState('error');
         setError(err instanceof Error ? err.message : 'Failed to connect');
       });
-  }, [pendingVoiceJoin, setPendingVoiceJoin, connectionState, channels, voiceChannelId]);
+  }, [pendingVoiceJoin, setPendingVoiceJoin, connectionState, channels, voiceChannelId, room]);
 
   // ----- Not connected: show Join button if on a voice channel -----
 
