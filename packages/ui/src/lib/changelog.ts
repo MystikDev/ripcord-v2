@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.18',
+    date: '2026-02-27',
+    highlights: [
+      '"Remember me" checkbox on login — stay signed in across app restarts',
+    ],
+  },
+  {
     version: '0.9.17',
     date: '2026-02-27',
     highlights: [
