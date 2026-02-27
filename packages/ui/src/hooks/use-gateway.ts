@@ -14,6 +14,7 @@ import { useTypingStore } from '../stores/typing-store';
 import { useVoiceStateStore } from '../stores/voice-state-store';
 import { useMemberStore } from '../stores/member-store';
 import { useHubStore } from '../stores/server-store';
+import { useRoleStore } from '../stores/role-store';
 import { gateway } from '../lib/gateway-client';
 import { useSettingsStore } from '../stores/settings-store';
 import { useCallStore } from '../stores/call-store';
@@ -286,6 +287,28 @@ export function useGateway() {
       gateway.on('CALL_END', () => {
         // Remote user ended the call
         useCallStore.getState().endCall();
+      }),
+    );
+
+    // Role definition changes (color, name, priority, create, delete)
+    unsubs.push(
+      gateway.on('ROLE_UPDATED', (data) => {
+        const { role, action } = data as {
+          hubId: string;
+          role: { id: string; name: string; priority: number; color?: string | null };
+          action: 'created' | 'updated' | 'deleted';
+        };
+        if (!role?.id) return;
+        if (action === 'deleted') {
+          useRoleStore.getState().removeRole(role.id);
+        } else {
+          useRoleStore.getState().updateRole({
+            id: role.id,
+            name: role.name,
+            priority: role.priority,
+            ...(role.color ? { color: role.color } : {}),
+          });
+        }
       }),
     );
 

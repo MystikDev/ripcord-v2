@@ -201,12 +201,10 @@ export function UpdateChecker() {
           <span>Ripcord v{state.version} is ready to install!</span>
           <button
             onClick={() => {
-              // Set a flag that clear-session.ts will pick up on the next
-              // launch. This avoids a race condition where localStorage.removeItem
-              // may not flush before the process restarts via relaunch().
-              if (localStorage.getItem('ripcord-remember-me') !== 'true') {
-                localStorage.setItem('ripcord-force-logout', 'true');
-              }
+              // Always force logout after update so stale auth tokens are cleared.
+              // Remember-me credentials (saved handle/password) are preserved —
+              // only auth tokens are wiped by clear-session.ts on next launch.
+              localStorage.setItem('ripcord-force-logout', 'true');
               relaunch();
             }}
             className="rounded bg-white/20 px-2 py-0.5 font-medium transition-colors hover:bg-white/30"

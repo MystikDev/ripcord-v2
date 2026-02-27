@@ -37,6 +37,8 @@ export const GatewayOpcode = {
   PRESENCE_UPDATED: 13,
   /** A hub member's roles or nickname changed. */
   MEMBER_UPDATED: 14,
+  /** A role was created, updated, or deleted in a hub. */
+  ROLE_UPDATED: 15,
   /** A user started typing in a channel. */
   TYPING_START: 20,
   /** A user stopped typing in a channel. */
@@ -194,6 +196,16 @@ export interface CallSignalPayload {
   toUserId: string;
   /** Whether this call includes video. */
   withVideo?: boolean;
+}
+
+/** Payload for {@link GatewayOpcode.ROLE_UPDATED}. */
+export interface RoleUpdatedPayload {
+  /** The hub the role belongs to. */
+  hubId: string;
+  /** The role that was changed. */
+  role: { id: string; name: string; priority: number; color?: string | null };
+  /** What happened to the role. */
+  action: 'created' | 'updated' | 'deleted';
 }
 
 /** Payload for {@link GatewayOpcode.RELATIONSHIP_UPDATE}. */

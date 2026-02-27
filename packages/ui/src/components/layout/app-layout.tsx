@@ -2,22 +2,20 @@
  * @module app-layout
  * Root authenticated layout. Guards auth (redirects to /login), connects the
  * WebSocket gateway, loads hub data, provides Toast/Tooltip context, renders
- * AppShell, overlays OnboardingFlow for first-time users, and shows the
- * What's New dialog after version updates.
+ * AppShell, and overlays OnboardingFlow for first-time users.
+ *
+ * Note: What's New dialog is rendered at the App root level (apps/desktop/src/App.tsx)
+ * so it shows over the login page after updates.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppRouter } from '../../lib/router';
 import { useAuthStore } from '../../stores/auth-store';
-import { useSettingsStore } from '../../stores/settings-store';
 import { useGateway } from '../../hooks/use-gateway';
 import { useHubData } from '../../hooks/use-hub-data';
-import { getAppVersion } from '../../lib/constants';
-import { getChangelogForVersion } from '../../lib/changelog';
 import { TooltipProvider } from '../ui/tooltip';
 import { ToastProvider } from '../ui/toast';
 import { AppShell } from './app-shell';
 import { OnboardingFlow } from '../onboarding/onboarding-flow';
-import { WhatsNewDialog } from '../ui/whats-new-dialog';
 import { QuickSwitcher } from '../ui/quick-switcher';
 
 /**
@@ -39,12 +37,6 @@ export function AppLayout() {
     }
   }, [isAuthenticated, router]);
 
-  // ---- What's New dialog ----
-  const hideWhatsNew = useSettingsStore((s) => s.hideWhatsNew);
-  const lastSeenVersion = useSettingsStore((s) => s.lastSeenVersion);
-  const setHideWhatsNew = useSettingsStore((s) => s.setHideWhatsNew);
-  const setLastSeenVersion = useSettingsStore((s) => s.setLastSeenVersion);
-
   // ---- Quick Switcher (Ctrl+K / Cmd+K) ----
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
 
@@ -58,35 +50,6 @@ export function AppLayout() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
-  const currentVersion = getAppVersion();
-  const changelogEntry = getChangelogForVersion(currentVersion);
-
-  useEffect(() => {
-    if (
-      isAuthenticated &&
-      !hideWhatsNew &&
-      lastSeenVersion !== currentVersion &&
-      currentVersion !== 'dev' &&
-      changelogEntry
-    ) {
-      setWhatsNewOpen(true);
-    }
-    // Intentionally narrow deps — decide once at mount / login time
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
-
-  const handleWhatsNewClose = useCallback(
-    (dontShowAgain: boolean) => {
-      setWhatsNewOpen(false);
-      setLastSeenVersion(currentVersion);
-      if (dontShowAgain) {
-        setHideWhatsNew(true);
-      }
-    },
-    [currentVersion, setLastSeenVersion, setHideWhatsNew],
-  );
 
   if (!isAuthenticated) {
     return (
@@ -105,13 +68,6 @@ export function AppLayout() {
           open={showOnboarding}
           onComplete={() => setShowOnboarding(false)}
         />
-        {changelogEntry && (
-          <WhatsNewDialog
-            open={whatsNewOpen}
-            onClose={handleWhatsNewClose}
-            entry={changelogEntry}
-          />
-        )}
       </TooltipProvider>
     </ToastProvider>
   );

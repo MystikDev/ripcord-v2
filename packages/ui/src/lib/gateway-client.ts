@@ -45,7 +45,8 @@ export type GatewayEvent =
   | 'CALL_ACCEPT'
   | 'CALL_DECLINE'
   | 'CALL_END'
-  | 'RELATIONSHIP_UPDATE';
+  | 'RELATIONSHIP_UPDATE'
+  | 'ROLE_UPDATED';
 
 export interface GatewayPayload {
   op: number;

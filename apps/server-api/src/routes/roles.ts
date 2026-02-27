@@ -12,6 +12,7 @@ import * as roleRepo from '../repositories/role.repo.js';
 import * as channelRepo from '../repositories/channel.repo.js';
 import * as auditRepo from '../repositories/audit.repo.js';
 import * as permissionService from '../services/permission.service.js';
+import { redis } from '../redis.js';
 import { logger } from '../logger.js';
 import { z } from 'zod';
 
@@ -38,6 +39,21 @@ const UpdateRoleSchema = z.object({
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Broadcast a ROLE_UPDATE event to all channels in a hub so every connected member receives it. */
+async function broadcastRoleUpdate(
+  hubId: string,
+  role: { id: string; name: string; priority: number; color?: string | null },
+  action: 'created' | 'updated' | 'deleted',
+): Promise<void> {
+  try {
+    const channels = await channelRepo.findByHubId(hubId);
+    const payload = JSON.stringify({ type: 'ROLE_UPDATE', data: { hubId, role, action } });
+    await Promise.all(channels.map((ch) => redis.publish(`ch:${ch.id}`, payload)));
+  } catch (err) {
+    logger.error({ hubId, err }, 'Failed to broadcast role update');
+  }
+}
 
 async function getRefChannelId(hubId: string): Promise<string> {
   const channels = await channelRepo.findByHubId(hubId);
@@ -107,6 +123,9 @@ rolesRouter.post(
       });
 
       logger.info({ hubId, roleId: role.id, actorId: auth.sub }, 'Role created');
+
+      // Broadcast to all hub members in real-time
+      await broadcastRoleUpdate(hubId, role, 'created');
 
       const body: ApiResponse = { ok: true, data: role };
       res.status(201).json(body);
@@ -206,6 +225,9 @@ rolesRouter.patch(
 
       logger.info({ hubId, roleId, actorId: auth.sub }, 'Role updated');
 
+      // Broadcast to all hub members in real-time
+      await broadcastRoleUpdate(hubId, updated, 'updated');
+
       const body: ApiResponse = { ok: true, data: updated };
       res.json(body);
     } catch (err) {
@@ -296,6 +318,9 @@ rolesRouter.delete(
       });
 
       logger.info({ hubId, roleId, actorId: auth.sub }, 'Role deleted');
+
+      // Broadcast to all hub members in real-time
+      await broadcastRoleUpdate(hubId, existingRole, 'deleted');
 
       const body: ApiResponse = { ok: true, data: { message: 'Role deleted' } };
       res.json(body);

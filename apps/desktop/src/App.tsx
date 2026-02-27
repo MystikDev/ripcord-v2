@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
 import { TauriRouterProvider } from './router-adapter';
 import { UpdateChecker } from './update-checker';
@@ -6,6 +7,10 @@ import {
   PasswordLogin,
   PasswordRegister,
   InvitePage,
+  WhatsNewDialog,
+  getChangelogForVersion,
+  getAppVersion,
+  useSettingsStore,
 } from '@ripcord/ui';
 
 // ---------------------------------------------------------------------------
@@ -62,9 +67,49 @@ function InviteRoute() {
 // ---------------------------------------------------------------------------
 
 export function App() {
+  // ---- What's New dialog (global — shows over login page after updates) ----
+  const hideWhatsNew = useSettingsStore((s) => s.hideWhatsNew);
+  const lastSeenVersion = useSettingsStore((s) => s.lastSeenVersion);
+  const setHideWhatsNew = useSettingsStore((s) => s.setHideWhatsNew);
+  const setLastSeenVersion = useSettingsStore((s) => s.setLastSeenVersion);
+
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const currentVersion = getAppVersion();
+  const changelogEntry = getChangelogForVersion(currentVersion);
+
+  useEffect(() => {
+    if (
+      !hideWhatsNew &&
+      lastSeenVersion !== currentVersion &&
+      currentVersion !== 'dev' &&
+      changelogEntry
+    ) {
+      setWhatsNewOpen(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleWhatsNewClose = useCallback(
+    (dontShowAgain: boolean) => {
+      setWhatsNewOpen(false);
+      setLastSeenVersion(currentVersion);
+      if (dontShowAgain) {
+        setHideWhatsNew(true);
+      }
+    },
+    [currentVersion, setLastSeenVersion, setHideWhatsNew],
+  );
+
   return (
     <TauriRouterProvider>
       <UpdateChecker />
+      {changelogEntry && (
+        <WhatsNewDialog
+          open={whatsNewOpen}
+          onClose={handleWhatsNewClose}
+          entry={changelogEntry}
+        />
+      )}
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

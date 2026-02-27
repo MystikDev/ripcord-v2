@@ -28,6 +28,12 @@ export interface RoleStore {
   /** Look up a single role by ID. */
   getRoleById: (id: string) => RoleDefinition | undefined;
 
+  /** Update a single role in place, or append if new. */
+  updateRole: (role: RoleDefinition) => void;
+
+  /** Remove a role by ID. */
+  removeRole: (roleId: string) => void;
+
   /** Reset all role data. */
   reset: () => void;
 }
@@ -42,6 +48,20 @@ export const useRoleStore = create<RoleStore>()((set, get) => ({
   setRoles: (roles) => set({ roles }),
 
   getRoleById: (id) => get().roles.find((r) => r.id === id),
+
+  updateRole: (role) => set((state) => {
+    const idx = state.roles.findIndex((r) => r.id === role.id);
+    if (idx >= 0) {
+      const next = [...state.roles];
+      next[idx] = role;
+      return { roles: next };
+    }
+    return { roles: [...state.roles, role] };
+  }),
+
+  removeRole: (roleId) => set((state) => ({
+    roles: state.roles.filter((r) => r.id !== roleId),
+  })),
 
   reset: () => set({ roles: [] }),
 }));
