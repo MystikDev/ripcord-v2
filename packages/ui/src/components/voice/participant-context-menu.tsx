@@ -91,7 +91,7 @@ export function ParticipantContextMenu({
         <input
           type="range"
           min={0}
-          max={400}
+          max={100}
           step={5}
           value={percentage}
           onChange={(e) => setUserVolume(userId, Number(e.target.value) / 100)}
@@ -100,9 +100,8 @@ export function ParticipantContextMenu({
         <div className="flex items-center justify-between">
           <div className="flex justify-between w-full text-[10px] text-text-muted">
             <span>0%</span>
+            <span>50%</span>
             <span>100%</span>
-            <span>200%</span>
-            <span>400%</span>
           </div>
         </div>
       </div>

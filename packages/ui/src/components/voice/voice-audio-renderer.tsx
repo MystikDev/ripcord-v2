@@ -2,62 +2,40 @@
 
 /**
  * @module voice-audio-renderer
- * Custom audio renderer replacing LiveKit's <RoomAudioRenderer> for reliable
- * per-user volume control including boost >100%.
+ * Custom audio renderer for hub voice channels with per-user volume control.
  *
- * ## Why not RoomAudioRenderer?
+ * Uses plain <audio> elements (the same approach as LiveKit's RoomAudioRenderer
+ * and Discord) for maximum compatibility with Tauri WebView2 and all browsers.
+ * Volume is applied via HTMLAudioElement.volume (0–1 range).
  *
- * LiveKit's <RoomAudioRenderer> renders internal <AudioTrack volume={1}>
- * components that call track.setVolume(1) on mount/re-render, resetting any
- * external volume changes in a race condition. Additionally, the standard
- * HTMLMediaElement.volume is spec-clamped to 0–1, making volume boost
- * impossible through that API.
- *
- * The previous approach used createMediaElementSource to intercept LiveKit's
- * <audio> elements, but that API is one-shot — once an element is captured by
- * an AudioContext, it cannot be recaptured by a new one even after close().
- * React remounts (strict mode, dependency changes) would permanently break
- * the audio chain.
- *
- * ## Architecture
- *
- * A single shared AudioContext feeds all remote audio tracks:
- *
- *   MediaStreamTrack → createMediaStreamSource → GainNode → destination
- *
- * Key advantages:
- *   - Single AudioContext avoids browser limits and autoplay-policy issues
- *   - createMediaStreamSource can be called multiple times (no one-shot issue)
- *   - No HTMLMediaElement involved (no 0-1 volume clamping)
- *   - No conflict with LiveKit's internal volume management
- *   - GainNode.gain.value supports any non-negative value (0=mute, 4=400%)
- *   - Works across React remounts cleanly
+ * We don't use <RoomAudioRenderer> directly because its internal <AudioTrack>
+ * components call track.setVolume(1) on every re-render, resetting any
+ * external volume changes.
  *
  * Must be rendered inside a <LiveKitRoom> provider.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTracks } from '@livekit/components-react';
 import { Track, RemoteAudioTrack } from 'livekit-client';
 import { useSettingsStore } from '../../stores/settings-store';
 
 // ---------------------------------------------------------------------------
-// Audio chain management
+// Audio element management
 // ---------------------------------------------------------------------------
 
-interface AudioChain {
-  source: MediaStreamAudioSourceNode;
-  gain: GainNode;
-  /** ID of the MediaStreamTrack this chain is connected to. */
+interface AudioEntry {
+  audioEl: HTMLAudioElement;
+  /** ID of the MediaStreamTrack this entry is playing. */
   trackId: string;
 }
 
-function cleanupChain(chain: AudioChain): void {
+function cleanupEntry(entry: AudioEntry): void {
   try {
-    chain.source.disconnect();
-    chain.gain.disconnect();
+    entry.audioEl.pause();
+    entry.audioEl.srcObject = null;
   } catch {
-    // Ignore cleanup errors (nodes may already be disconnected)
+    // Ignore cleanup errors
   }
 }
 
@@ -73,29 +51,10 @@ export function VoiceAudioRenderer() {
   const userVolumes = useSettingsStore((s) => s.userVolumes);
   const isDeafened = useSettingsStore((s) => s.isDeafened);
 
-  /** Single shared AudioContext for all audio chains. */
-  const contextRef = useRef<AudioContext | null>(null);
-  /** Map of composite key (identity:source) → active AudioChain. */
-  const chainsRef = useRef(new Map<string, AudioChain>());
+  /** Map of composite key (identity:source) → active AudioEntry. */
+  const entriesRef = useRef(new Map<string, AudioEntry>());
 
-  /** Lazily create or retrieve the shared AudioContext. */
-  const getContext = useCallback((): AudioContext => {
-    let ctx = contextRef.current;
-    if (!ctx || ctx.state === 'closed') {
-      ctx = new AudioContext();
-      contextRef.current = ctx;
-    }
-    // Always attempt to resume — browsers may suspend the context if the tab
-    // loses focus or if it was created outside a direct user-gesture call stack.
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {
-        // Silently ignore — will retry on next render cycle
-      });
-    }
-    return ctx;
-  }, []);
-
-  // ---- Apply volumes and manage audio chains every render ----
+  // ---- Manage audio elements and apply volumes every render ----
   useEffect(() => {
     const activeKeys = new Set<string>();
 
@@ -109,69 +68,59 @@ export function VoiceAudioRenderer() {
       const mst = track.mediaStreamTrack;
       if (!mst || mst.readyState === 'ended') continue;
 
-      const chainKey = `${participant.identity}:${trackRef.source}`;
-      activeKeys.add(chainKey);
+      const entryKey = `${participant.identity}:${trackRef.source}`;
+      activeKeys.add(entryKey);
 
-      const targetVolume = isDeafened ? 0 : (userVolumes[participant.identity] ?? 1.0);
+      // Volume: 0–1 range (HTMLAudioElement.volume is clamped to 0–1 by spec)
+      const rawVolume = isDeafened ? 0 : (userVolumes[participant.identity] ?? 1.0);
+      const targetVolume = Math.max(0, Math.min(1, rawVolume));
 
-      let chain = chainsRef.current.get(chainKey);
+      let entry = entriesRef.current.get(entryKey);
 
-      // Recreate chain if the underlying MediaStreamTrack changed
+      // Recreate entry if the underlying MediaStreamTrack changed
       // (track renegotiated, participant reconnected, etc.)
-      if (chain && chain.trackId !== mst.id) {
-        cleanupChain(chain);
-        chainsRef.current.delete(chainKey);
-        chain = undefined;
+      if (entry && entry.trackId !== mst.id) {
+        cleanupEntry(entry);
+        entriesRef.current.delete(entryKey);
+        entry = undefined;
       }
 
-      if (!chain) {
+      if (!entry) {
         try {
-          const context = getContext();
-          const stream = new MediaStream([mst]);
-          const source = context.createMediaStreamSource(stream);
-          const gain = context.createGain();
-          source.connect(gain);
-          gain.connect(context.destination);
+          const audioEl = new Audio();
+          audioEl.srcObject = new MediaStream([mst]);
+          audioEl.play().catch((err) => {
+            console.warn('[VoiceAudioRenderer] audio.play() failed for', entryKey, err);
+          });
 
-          chain = { source, gain, trackId: mst.id };
-          chainsRef.current.set(chainKey, chain);
+          entry = { audioEl, trackId: mst.id };
+          entriesRef.current.set(entryKey, entry);
         } catch (err) {
-          console.warn('[VoiceAudioRenderer] Failed to create audio chain for', chainKey, err);
+          console.warn('[VoiceAudioRenderer] Failed to create audio element for', entryKey, err);
           continue;
         }
       }
 
-      // Apply volume — works for any value: 0, 0.5, 1, 2, 4, etc.
-      chain.gain.gain.value = targetVolume;
+      // Apply volume
+      entry.audioEl.volume = targetVolume;
     }
 
-    // Remove chains for tracks that no longer exist (participant left, track unsubscribed)
-    for (const [key, chain] of chainsRef.current) {
+    // Remove entries for tracks that no longer exist (participant left, track unsubscribed)
+    for (const [key, entry] of entriesRef.current) {
       if (!activeKeys.has(key)) {
-        cleanupChain(chain);
-        chainsRef.current.delete(key);
+        cleanupEntry(entry);
+        entriesRef.current.delete(key);
       }
-    }
-
-    // Ensure the shared context is running — covers the case where the context
-    // was suspended when chains were first created and audio was silent.
-    const ctx = contextRef.current;
-    if (ctx && ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
     }
   });
 
-  // Cleanup all chains and close the AudioContext on unmount
+  // Cleanup all entries on unmount (disconnect from voice)
   useEffect(() => {
     return () => {
-      for (const chain of chainsRef.current.values()) {
-        cleanupChain(chain);
+      for (const entry of entriesRef.current.values()) {
+        cleanupEntry(entry);
       }
-      chainsRef.current.clear();
-      if (contextRef.current) {
-        void contextRef.current.close();
-        contextRef.current = null;
-      }
+      entriesRef.current.clear();
     };
   }, []);
 
