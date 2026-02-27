@@ -34,7 +34,7 @@ export function TabsTrigger({ children, ...props }: TabsPrimitive.TabsTriggerPro
 
 export function TabsContent({ children, ...props }: TabsPrimitive.TabsContentProps) {
   return (
-    <TabsPrimitive.Content className="flex-1 overflow-auto p-4" {...props}>
+    <TabsPrimitive.Content className="min-h-0 flex-1 overflow-auto p-4" {...props}>
       {children}
     </TabsPrimitive.Content>
   );

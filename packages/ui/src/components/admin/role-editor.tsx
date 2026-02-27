@@ -145,9 +145,9 @@ export function RoleEditor({ hubId }: { hubId: string }) {
   const isEveryone = selectedRole?.name === '@everyone';
 
   return (
-    <div className="flex gap-4" style={{ minHeight: '400px' }}>
+    <div className="flex h-full min-h-0 gap-4">
       {/* Role list sidebar */}
-      <div className="w-48 shrink-0 border-r border-border pr-4">
+      <div className="flex w-48 shrink-0 flex-col border-r border-border pr-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary">Roles</h3>
           <button
@@ -188,7 +188,7 @@ export function RoleEditor({ hubId }: { hubId: string }) {
           </div>
         )}
 
-        <ScrollArea className="max-h-[350px]">
+        <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-0.5">
             {roles.map((role) => (
               <button
@@ -215,10 +215,10 @@ export function RoleEditor({ hubId }: { hubId: string }) {
       </div>
 
       {/* Role editor panel */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex min-h-0 flex-1 flex-col">
         {selectedRole ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <div className="flex shrink-0 items-center justify-between">
               <h3 className="text-base font-semibold text-text-primary">
                 {isEveryone ? '@everyone Role' : `Edit: ${selectedRole.name}`}
               </h3>
@@ -253,7 +253,7 @@ export function RoleEditor({ hubId }: { hubId: string }) {
             </div>
 
             {/* Name & priority */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid shrink-0 grid-cols-2 gap-3">
               <Input
                 label="Name"
                 value={editName}
@@ -271,7 +271,7 @@ export function RoleEditor({ hubId }: { hubId: string }) {
             </div>
 
             {/* Permission grid */}
-            <ScrollArea className="max-h-[300px]">
+            <ScrollArea className="min-h-0 flex-1">
               <PermissionGrid
                 bitset={editBitset}
                 onChange={setEditBitset}
@@ -279,7 +279,7 @@ export function RoleEditor({ hubId }: { hubId: string }) {
             </ScrollArea>
 
             {/* Save button */}
-            <div className="flex justify-end border-t border-border pt-3">
+            <div className="flex shrink-0 justify-end border-t border-border pt-3">
               <Button loading={saving} onClick={handleSave}>
                 Save Changes
               </Button>
