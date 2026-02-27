@@ -3,7 +3,23 @@
 /**
  * @module use-apply-user-volumes
  * Bridges per-user volume settings from the settings store to LiveKit audio
- * tracks, including volume boost beyond 100 % via Web Audio GainNodes.
+ * tracks using Web Audio GainNodes. Also handles self-deafen (gain → 0).
+ *
+ * ## Why GainNodes instead of el.volume?
+ *
+ * `HTMLMediaElement.volume` is clamped to 0–1 by the spec, so it can't boost
+ * beyond 100 %. Once `createMediaElementSource(el)` reroutes audio through
+ * Web Audio, `el.volume` becomes an *input* gain to the source node — mixing
+ * it with a separate GainNode causes confusing volume math. Instead, we
+ * always drive volume through a single GainNode and leave `el.volume` at 1.
+ *
+ * ## Why no cache?
+ *
+ * LiveKit's `<RoomAudioRenderer>` renders internal `<AudioTrack>` components
+ * that call `track.setVolume(1)` on mount/re-render, overriding external
+ * volume changes. A stale cache (`appliedRef`) would skip reapplication,
+ * leaving volume stuck at 100 %. Instead, we simply re-set `gain.value`
+ * every render — setting a number on an AudioParam is O(1) and free.
  */
 
 import { useEffect, useRef } from 'react';
@@ -11,22 +27,33 @@ import { useParticipants } from '@livekit/components-react';
 import { Track, RemoteAudioTrack } from 'livekit-client';
 import { useSettingsStore } from '../stores/settings-store';
 
+// ---------------------------------------------------------------------------
+// GainNode management
+// ---------------------------------------------------------------------------
+
 interface GainEntry {
   gainNode: GainNode;
   sourceNode: MediaElementAudioSourceNode;
   context: AudioContext;
+  /** The HTMLMediaElement this chain is attached to. */
+  element: HTMLMediaElement;
 }
 
-/** Map of participant identity → active GainNode chain (for boost > 1.0). */
+/** Map of participant identity → active GainNode chain. */
 const gainNodes = new Map<string, GainEntry>();
 
 /**
  * Ensure a GainNode chain exists for a given audio element and return it.
- * If one already exists for this participant, reuse it.
+ * If one already exists AND is connected to the same element, reuse it.
+ * If the element changed (track re-attached), the old chain must be removed
+ * first via `removeGainNode`.
  */
 function ensureGainNode(identity: string, audioElement: HTMLMediaElement): GainEntry | null {
   const existing = gainNodes.get(identity);
-  if (existing) return existing;
+  if (existing && existing.element === audioElement) return existing;
+
+  // Different element or no entry — clean up old one first
+  if (existing) removeGainNode(identity);
 
   try {
     const context = new AudioContext();
@@ -35,7 +62,7 @@ function ensureGainNode(identity: string, audioElement: HTMLMediaElement): GainE
     sourceNode.connect(gainNode);
     gainNode.connect(context.destination);
 
-    const entry: GainEntry = { gainNode, sourceNode, context };
+    const entry: GainEntry = { gainNode, sourceNode, context, element: audioElement };
     gainNodes.set(identity, entry);
     return entry;
   } catch {
@@ -58,32 +85,26 @@ function removeGainNode(identity: string): void {
   gainNodes.delete(identity);
 }
 
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
 /**
- * Applies per-user volume overrides to every remote participant's audio track.
- *
- * Must be called inside a `<LiveKitRoom>` provider. For volumes in the 0 -- 1
- * range, the native `HTMLMediaElement.volume` is used. For boost values above 1
- * a Web Audio `GainNode` chain is inserted to amplify beyond the browser cap.
+ * Applies per-user volume overrides (including boost > 100 %) and handles
+ * self-deafen for all remote participants. Must be called inside a
+ * `<LiveKitRoom>` provider.
  */
 export function useApplyUserVolumes(): void {
   const participants = useParticipants();
   const userVolumes = useSettingsStore((s) => s.userVolumes);
   const isDeafened = useSettingsStore((s) => s.isDeafened);
-  const appliedRef = useRef<Record<string, number>>({});
-  const trackSidsRef = useRef<Record<string, string>>({});
-  const prevDeafenedRef = useRef(isDeafened);
 
+  // Track which audio elements each participant is currently using so we can
+  // detect when LiveKit re-attaches a track to a different element.
+  const elementMapRef = useRef<Map<string, HTMLMediaElement>>(new Map());
+
+  // ---- Apply volumes every render (no cache — see module doc) ----
   useEffect(() => {
-    // When transitioning out of deafen, clear applied cache so all volumes
-    // (including GainNode boosts >1.0) get reapplied.
-    if (prevDeafenedRef.current && !isDeafened) {
-      appliedRef.current = {};
-    }
-    prevDeafenedRef.current = isDeafened;
-
-    // Don't apply volumes while deafened — the deafen hook handles muting
-    if (isDeafened) return;
-
     for (const p of participants) {
       if (p.isLocal) continue;
 
@@ -94,42 +115,67 @@ export function useApplyUserVolumes(): void {
       const track = audioPub?.track;
       if (!track || !(track instanceof RemoteAudioTrack)) continue;
 
-      // Detect track replacement (reconnect, codec change) and force reapplication
-      const trackSid = track.sid;
-      if (trackSid && trackSidsRef.current[p.identity] !== trackSid) {
-        trackSidsRef.current[p.identity] = trackSid;
-        removeGainNode(p.identity);
-        delete appliedRef.current[p.identity];
+      // Effective volume: 0 when deafened, else per-user override (default 1.0)
+      const targetVolume = isDeafened ? 0 : (userVolumes[p.identity] ?? 1.0);
+
+      // Get the underlying <audio> element RoomAudioRenderer created
+      const audioEl = track.attachedElements?.[0] as HTMLMediaElement | undefined;
+
+      if (!audioEl) {
+        // No element yet (track still negotiating). Use LiveKit's internal
+        // setVolume so it stores the value and applies on next attach.
+        track.setVolume(Math.min(targetVolume, 1.0));
+        continue;
       }
 
-      const targetVolume = userVolumes[p.identity] ?? 1.0;
+      // ---- GainNode path ----
+      // If we already have a GainNode for this participant, use it for ALL
+      // volume values. Once createMediaElementSource has been called, we must
+      // control volume exclusively through the GainNode.
 
-      // Skip if we already applied this exact volume to this participant
-      if (appliedRef.current[p.identity] === targetVolume) continue;
+      const existing = gainNodes.get(p.identity);
 
-      if (targetVolume <= 1.0) {
-        // Native range — use LiveKit's built-in setVolume (sets HTMLMediaElement.volume)
-        // First remove any boost GainNode if we previously had one
-        removeGainNode(p.identity);
-        track.setVolume(targetVolume);
-        appliedRef.current[p.identity] = targetVolume;
-      } else {
-        // Boost range (>1.0) — need Web Audio GainNode
-        // Set the native element volume to 1.0 (max) and use gain for amplification
+      if (existing) {
+        // Check if the audio element changed (track re-attached to new el)
+        if (existing.element !== audioEl) {
+          removeGainNode(p.identity);
+          elementMapRef.current.set(p.identity, audioEl);
+          // Fall through to re-evaluate below
+        } else {
+          existing.gainNode.gain.value = targetVolume;
+          continue;
+        }
+      }
+
+      // ---- No GainNode yet ----
+      // For volumes in the normal range (0–1), use el.volume directly.
+      // For boost (> 1), create a GainNode.
+      if (targetVolume > 1.0) {
+        // Boost: need GainNode
+        // Set el.volume to 1.0 first — it becomes the input level to the
+        // GainNode after createMediaElementSource reroutes audio.
         track.setVolume(1.0);
 
-        // Get the underlying <audio> element from the track's attachedElements
-        const audioElements = track.attachedElements;
-        const audioEl = audioElements?.[0];
-        if (audioEl) {
-          const entry = ensureGainNode(p.identity, audioEl);
-          if (entry) {
-            entry.gainNode.gain.value = targetVolume;
-            appliedRef.current[p.identity] = targetVolume;
-          }
-          // Don't set appliedRef if GainNode creation failed — retry next render
+        const entry = ensureGainNode(p.identity, audioEl);
+        if (entry) {
+          entry.gainNode.gain.value = targetVolume;
+          elementMapRef.current.set(p.identity, audioEl);
         }
-        // Don't set appliedRef if no audioEl yet — retry next render
+        // If ensureGainNode failed, retry next render (no cache prevents it)
+      } else {
+        // Normal range — el.volume is sufficient
+        track.setVolume(targetVolume);
+      }
+    }
+
+    // Clean up GainNodes for participants who have left the call
+    const activeIdentities = new Set(
+      participants.filter((p) => !p.isLocal).map((p) => p.identity),
+    );
+    for (const identity of gainNodes.keys()) {
+      if (!activeIdentities.has(identity)) {
+        removeGainNode(identity);
+        elementMapRef.current.delete(identity);
       }
     }
   });
@@ -137,8 +183,7 @@ export function useApplyUserVolumes(): void {
   // Clean up all GainNodes on unmount (voice disconnect)
   useEffect(() => {
     return () => {
-      appliedRef.current = {};
-      trackSidsRef.current = {};
+      elementMapRef.current.clear();
       for (const identity of gainNodes.keys()) {
         removeGainNode(identity);
       }

@@ -22,7 +22,6 @@ import { useRestoreSpeaker } from '../../hooks/use-restore-speaker';
 import { useSyncSpeaking } from '../../hooks/use-sync-speaking';
 import { useSyncScreenSharing } from '../../hooks/use-sync-screen-sharing';
 import { useApplyUserVolumes } from '../../hooks/use-apply-user-volumes';
-import { useDeafenRemoteAudio } from '../../hooks/use-deafen-remote-audio';
 import { VoiceControls } from './voice-controls';
 import { ScreenShareView } from './screen-share-view';
 import { StreamPreview } from './stream-preview';
@@ -91,10 +90,8 @@ function VoicePanelContent({
   useSyncSpeaking();
   // Bridge LiveKit screen-share state to Zustand store for sidebar icons
   useSyncScreenSharing();
-  // Apply per-user volume overrides from settings store to LiveKit tracks
+  // Apply per-user volume overrides (including deafen) to LiveKit tracks
   useApplyUserVolumes();
-  // Mute/unmute all remote audio when self-deafened
-  useDeafenRemoteAudio();
   // Poll WebRTC stats for voice latency
   const { latencyMs, quality } = useVoiceLatency();
 
