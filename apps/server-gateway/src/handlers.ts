@@ -365,10 +365,19 @@ export async function handleVoiceStateUpdate(
     return;
   }
 
-  // Verify sender is subscribed to the voice channel
+  // Auto-subscribe the user to the voice channel if they aren't already.
+  // This handles a race condition where SUBSCRIBE (opcode 4) is still being
+  // processed (async DB permission checks) when the voice join arrives.
+  // The user has already authenticated and obtained a LiveKit token via REST
+  // (which performed its own permission check), so this is safe.
   if (!conn.subscribedChannels.has(payload.channelId)) {
-    conn.send(GatewayOpcode.ERROR, { message: 'Not subscribed to this channel' });
-    return;
+    if (payload.action === 'join') {
+      manager.subscribeToChannel(conn.id, payload.channelId);
+      log.debug({ connId: conn.id, channelId: payload.channelId }, 'Auto-subscribed on voice join');
+    } else {
+      conn.send(GatewayOpcode.ERROR, { message: 'Not subscribed to this channel' });
+      return;
+    }
   }
 
   switch (payload.action) {

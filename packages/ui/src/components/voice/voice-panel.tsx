@@ -14,9 +14,10 @@ import { Room, RoomOptions, setLogLevel, LogLevel } from 'livekit-client';
 import { useHubStore } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useSettingsStore } from '../../stores/settings-store';
-import { useVoiceStateStore } from '../../stores/voice-state-store';
+import { useVoiceStateStore, type VoiceParticipant } from '../../stores/voice-state-store';
 import { getVoiceToken } from '../../lib/voice-api';
 import { gateway } from '../../lib/gateway-client';
+import { apiFetch } from '../../lib/api';
 import { useNoiseGate } from '../../hooks/use-noise-gate';
 import { useRestoreSpeaker } from '../../hooks/use-restore-speaker';
 import { useSyncSpeaking } from '../../hooks/use-sync-speaking';
@@ -201,6 +202,23 @@ export function VoicePanel() {
         selfMute: false,
         selfDeaf: false,
       });
+
+      // Failsafe: hydrate voice states from REST to catch participants that
+      // were missed if the gateway SUBSCRIBE was still being processed when
+      // the voice join arrived. This ensures we see everyone in the channel
+      // even if the gateway 'sync' response was dropped.
+      const hubId = useHubStore.getState().activeHubId;
+      if (hubId) {
+        apiFetch<Record<string, VoiceParticipant[]>>(`/v1/voice/states/${hubId}`)
+          .then((res) => {
+            if (res.ok && res.data) {
+              useVoiceStateStore.getState().setMany(res.data);
+            }
+          })
+          .catch(() => {
+            // Non-critical — gateway sync should handle it
+          });
+      }
     } catch (err) {
       setConnectionState('error');
       setError(err instanceof Error ? err.message : 'Failed to connect');
@@ -332,6 +350,18 @@ export function VoicePanel() {
           selfMute: false,
           selfDeaf: false,
         });
+
+        // Failsafe: hydrate voice states from REST (see handleJoin comment)
+        const hubId = useHubStore.getState().activeHubId;
+        if (hubId) {
+          apiFetch<Record<string, VoiceParticipant[]>>(`/v1/voice/states/${hubId}`)
+            .then((res) => {
+              if (res.ok && res.data) {
+                useVoiceStateStore.getState().setMany(res.data);
+              }
+            })
+            .catch(() => { /* Non-critical */ });
+        }
       })
       .catch((err: unknown) => {
         isSwitchingRef.current = false;
