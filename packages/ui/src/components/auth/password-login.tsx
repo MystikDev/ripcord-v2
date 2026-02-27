@@ -36,8 +36,19 @@ export function PasswordLogin() {
   const setTokens = useAuthStore((s) => s.setTokens);
   const setUser = useAuthStore((s) => s.setUser);
 
-  const [handle, setHandle] = useState('');
-  const [password, setPassword] = useState('');
+  const [handle, setHandle] = useState(
+    () => localStorage.getItem('ripcord-remember-me') === 'true'
+      ? (localStorage.getItem('ripcord-saved-handle') ?? '')
+      : '',
+  );
+  const [password, setPassword] = useState(
+    () => {
+      if (localStorage.getItem('ripcord-remember-me') !== 'true') return '';
+      const encoded = localStorage.getItem('ripcord-saved-pw');
+      if (!encoded) return '';
+      try { return decodeURIComponent(escape(atob(encoded))); } catch { return ''; }
+    },
+  );
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(
@@ -69,11 +80,15 @@ export function PasswordLogin() {
       const avatarUrl = tokens.avatarUrl ? getUserAvatarUrl(tokens.userId) : undefined;
       setUser(tokens.userId, tokens.handle, tokens.deviceId, avatarUrl);
 
-      // Persist "Remember me" preference so clear-session.ts can check it
+      // Persist "Remember me" preference + credentials
       if (rememberMe) {
         localStorage.setItem('ripcord-remember-me', 'true');
+        localStorage.setItem('ripcord-saved-handle', handle.trim());
+        localStorage.setItem('ripcord-saved-pw', btoa(unescape(encodeURIComponent(password))));
       } else {
         localStorage.removeItem('ripcord-remember-me');
+        localStorage.removeItem('ripcord-saved-handle');
+        localStorage.removeItem('ripcord-saved-pw');
       }
 
       const redirect = searchParams.get('redirect');
@@ -164,7 +179,14 @@ export function PasswordLogin() {
           <input
             type="checkbox"
             checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
+            onChange={(e) => {
+              setRememberMe(e.target.checked);
+              if (!e.target.checked) {
+                localStorage.removeItem('ripcord-remember-me');
+                localStorage.removeItem('ripcord-saved-handle');
+                localStorage.removeItem('ripcord-saved-pw');
+              }
+            }}
             className="h-4 w-4 rounded border-border bg-surface-2 accent-accent"
           />
           <span className="text-sm text-text-secondary">Remember me</span>

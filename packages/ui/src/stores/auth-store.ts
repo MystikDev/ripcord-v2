@@ -63,8 +63,8 @@ export const useAuthStore = create<AuthState>()(
       setAvatarUrl: (url) => set({ avatarUrl: url }),
 
       logout: () => {
-        // Clear "Remember me" so the next launch shows the login screen
-        localStorage.removeItem('ripcord-remember-me');
+        // Keep "ripcord-remember-me" and saved credentials so the login
+        // form pre-fills on next visit. Only clear auth session tokens.
         set({
           accessToken: null,
           refreshToken: null,
