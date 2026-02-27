@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.19',
+    date: '2026-02-27',
+    highlights: [
+      'Admin voice actions — move users between voice channels (drag-and-drop or right-click menu)',
+      'Server mute — admins can mute participants in voice channels',
+      'New permission toggles: Move Members and Mute Members in role settings',
+    ],
+  },
+  {
     version: '0.9.18',
     date: '2026-02-27',
     highlights: [
