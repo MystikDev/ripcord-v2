@@ -17,6 +17,7 @@ import { rolesRouter } from './routes/roles.js';
 import { invitesRouter } from './routes/invites.js';
 import { usersRouter } from './routes/users.js';
 import { dmRouter } from './routes/dm.js';
+import { relationshipRouter } from './routes/relationships.js';
 import { redis } from './redis.js';
 import { logger } from './logger.js';
 import { rateLimit } from './middleware/rate-limit.js';
@@ -121,6 +122,7 @@ app.use('/v1', rolesRouter);
 app.use('/v1', invitesRouter);
 app.use('/v1/users', usersRouter);
 app.use('/v1/dm', dmRouter);
+app.use('/v1/relationships', relationshipRouter);
 
 // ---------------------------------------------------------------------------
 // Error handler (must be last)

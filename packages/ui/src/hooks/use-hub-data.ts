@@ -23,6 +23,8 @@ import { apiFetch } from '../lib/api';
 import { getApiBaseUrl } from '../lib/constants';
 import { getUserAvatarUrl } from '../lib/user-api';
 import { fetchRoles } from '../lib/roles-api';
+import { useFriendStore } from '../stores/friend-store';
+import { fetchFriends, fetchPendingRequests } from '../lib/relationship-api';
 
 // ---------------------------------------------------------------------------
 // Gateway opcode constants (must match server GatewayOpcode enum)
@@ -156,6 +158,71 @@ export function useHubData() {
 
     return () => { cancelled = true; };
   }, [isAuthenticated, setMany]);
+
+  // Load friends and pending requests on auth
+  const setFriends = useFriendStore((s) => s.setFriends);
+  const setPending = useFriendStore((s) => s.setPending);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+
+    fetchFriends()
+      .then((friends) => {
+        if (cancelled) return;
+        setFriends(friends.map((f) => ({
+          userId: f.userId,
+          handle: f.handle,
+          avatarUrl: f.avatarUrl ?? undefined,
+        })));
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Failed to load friends:', err);
+      });
+
+    fetchPendingRequests()
+      .then(({ incoming, outgoing }) => {
+        if (cancelled) return;
+        setPending(
+          incoming.map((r) => ({ userId: r.userId, handle: r.handle, avatarUrl: r.avatarUrl ?? undefined, createdAt: r.createdAt })),
+          outgoing.map((r) => ({ userId: r.userId, handle: r.handle, avatarUrl: r.avatarUrl ?? undefined, createdAt: r.createdAt })),
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Failed to load pending requests:', err);
+      });
+
+    return () => { cancelled = true; };
+  }, [isAuthenticated, setFriends, setPending]);
+
+  // Listen for real-time relationship updates via gateway
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unsub = gateway.on('RELATIONSHIP_UPDATE', () => {
+      // Re-fetch all relationship data on any change (simple and correct)
+      fetchFriends()
+        .then((friends) => {
+          setFriends(friends.map((f) => ({
+            userId: f.userId,
+            handle: f.handle,
+            avatarUrl: f.avatarUrl ?? undefined,
+          })));
+        })
+        .catch((err) => console.error('Failed to refresh friends:', err));
+
+      fetchPendingRequests()
+        .then(({ incoming, outgoing }) => {
+          setPending(
+            incoming.map((r) => ({ userId: r.userId, handle: r.handle, avatarUrl: r.avatarUrl ?? undefined, createdAt: r.createdAt })),
+            outgoing.map((r) => ({ userId: r.userId, handle: r.handle, avatarUrl: r.avatarUrl ?? undefined, createdAt: r.createdAt })),
+          );
+        })
+        .catch((err) => console.error('Failed to refresh pending requests:', err));
+    });
+
+    return unsub;
+  }, [isAuthenticated, setFriends, setPending]);
 
   // Load channels and members when hub changes
   useEffect(() => {

@@ -5,6 +5,7 @@ import { verifyAccessToken } from '@ripcord/crypto';
 import { query, queryOne } from '@ripcord/db';
 import { ClientConnection } from './connection.js';
 import { ConnectionManager } from './connection-manager.js';
+import { redisSub } from './redis.js';
 import { setPresence, refreshPresenceTTL } from './presence.js';
 import { cancelPendingOffline } from './presence-grace.js';
 import { joinVoiceChannel, leaveVoiceChannel, updateVoiceState, refreshVoiceStateTTL, getVoiceParticipants } from './voice-state.js';
@@ -49,6 +50,16 @@ export async function handleAuth(
     }
 
     conn.send(GatewayOpcode.AUTH_OK, { userId: jwt.sub });
+
+    // Subscribe to user-scoped Redis channel for direct notifications
+    // (friend requests, relationship updates, etc.)
+    const isFirstConnection = !manager.hasUserConnections(jwt.sub) ||
+      (manager.getConnectionsByUser(jwt.sub).length === 0);
+    // Subscribe after auth registration — if this is the only connection
+    // we need the Redis subscription. For additional connections, it already exists.
+    redisSub.subscribe(`user:${jwt.sub}`).catch((err: unknown) => {
+      log.error({ userId: jwt.sub, err }, 'Failed to subscribe to user Redis channel');
+    });
 
     // Cancel any pending offline transition from a previous connection close
     // (e.g. token refresh caused a brief disconnect/reconnect cycle)

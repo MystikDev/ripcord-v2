@@ -9,7 +9,9 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useHubStore } from '../../stores/server-store';
+import { useFriendStore } from '../../stores/friend-store';
 import { createDmChannel, fetchDmChannels } from '../../lib/hub-api';
+import { sendFriendRequest, removeFriend, blockUser, fetchFriends, fetchPendingRequests } from '../../lib/relationship-api';
 import { gateway } from '../../lib/gateway-client';
 
 // ---------------------------------------------------------------------------
@@ -23,6 +25,8 @@ export interface ContextMenuItem {
   disabled?: boolean;
   /** Visual separator above this item */
   separator?: boolean;
+  /** Extra Tailwind classes appended to the button */
+  className?: string;
 }
 
 export interface UserContextMenuProps {
@@ -55,6 +59,9 @@ export function UserContextMenu({
   extraItems,
 }: UserContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const isFriend = useFriendStore((s) => s.isFriend(userId));
+  const isPendingIn = useFriendStore((s) => s.isPendingIncoming(userId));
+  const isPendingOut = useFriendStore((s) => s.isPendingOutgoing(userId));
 
   const handleDirectMessage = useCallback(async () => {
     onClose();
@@ -75,6 +82,43 @@ export function UserContextMenu({
     }
   }, [userId, onClose]);
 
+  const handleAddFriend = async () => {
+    const res = await sendFriendRequest(userId);
+    if (res.ok) {
+      // Refresh pending requests
+      const { incoming, outgoing } = await fetchPendingRequests();
+      useFriendStore.getState().setPending(
+        incoming.map((r) => ({ userId: r.userId, handle: r.handle, avatarUrl: r.avatarUrl ?? undefined, createdAt: r.createdAt })),
+        outgoing.map((r) => ({ userId: r.userId, handle: r.handle, avatarUrl: r.avatarUrl ?? undefined, createdAt: r.createdAt })),
+      );
+      // Also refresh friends in case it was auto-accepted (mutual request)
+      const friends = await fetchFriends();
+      useFriendStore.getState().setFriends(
+        friends.map((f) => ({ userId: f.userId, handle: f.handle, avatarUrl: f.avatarUrl ?? undefined })),
+      );
+    }
+    onClose();
+  };
+
+  const handleRemoveFriend = async () => {
+    await removeFriend(userId);
+    const friends = await fetchFriends();
+    useFriendStore.getState().setFriends(
+      friends.map((f) => ({ userId: f.userId, handle: f.handle, avatarUrl: f.avatarUrl ?? undefined })),
+    );
+    onClose();
+  };
+
+  const handleBlock = async () => {
+    await blockUser(userId);
+    // Refresh all relationship data
+    const friends = await fetchFriends();
+    useFriendStore.getState().setFriends(
+      friends.map((f) => ({ userId: f.userId, handle: f.handle, avatarUrl: f.avatarUrl ?? undefined })),
+    );
+    onClose();
+  };
+
   // Default menu items
   const defaultItems: ContextMenuItem[] = [
     {
@@ -85,6 +129,55 @@ export function UserContextMenu({
         </svg>
       ),
       onClick: () => { void handleDirectMessage(); },
+    },
+    // Friend action (conditional)
+    ...(isFriend
+      ? [{
+          label: 'Remove Friend',
+          className: 'hover:!text-red-400',
+          icon: (
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 4a3 3 0 11-6 0 3 3 0 016 0zM1 13c0-2.21 2.239-4 5-4s5 1.79 5 4" />
+              <path d="M12 7h4" />
+            </svg>
+          ),
+          onClick: () => { void handleRemoveFriend(); },
+        }]
+      : isPendingIn || isPendingOut
+        ? [{
+            label: 'Pending...',
+            icon: (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 4a3 3 0 11-6 0 3 3 0 016 0zM1 13c0-2.21 2.239-4 5-4s5 1.79 5 4" />
+                <circle cx="13" cy="8" r="3" />
+                <path d="M13 6.5v1.5h1.5" />
+              </svg>
+            ),
+            onClick: () => {},
+            disabled: true,
+          }]
+        : [{
+            label: 'Add Friend',
+            icon: (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 4a3 3 0 11-6 0 3 3 0 016 0zM1 13c0-2.21 2.239-4 5-4s5 1.79 5 4" />
+                <path d="M13 6v4M11 8h4" />
+              </svg>
+            ),
+            onClick: () => { void handleAddFriend(); },
+          }]
+    ) as ContextMenuItem[],
+    // Block user
+    {
+      label: 'Block User',
+      className: 'hover:!text-red-400',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="8" cy="8" r="6" />
+          <path d="M3.75 3.75l8.5 8.5" />
+        </svg>
+      ),
+      onClick: () => { void handleBlock(); },
     },
     {
       label: 'Copy User ID',
@@ -153,7 +246,7 @@ export function UserContextMenu({
           <button
             onClick={item.disabled ? undefined : item.onClick}
             disabled={item.disabled}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-3 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-3 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40${item.className ? ` ${item.className}` : ''}`}
           >
             {item.icon && (
               <span className="shrink-0 text-text-muted">{item.icon}</span>

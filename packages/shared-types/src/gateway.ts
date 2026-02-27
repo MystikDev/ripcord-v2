@@ -57,6 +57,8 @@ export const GatewayOpcode = {
   CALL_DECLINE: 32,
   /** A DM call has ended. */
   CALL_END: 33,
+  /** A relationship change (friend request, accept, remove, block). */
+  RELATIONSHIP_UPDATE: 40,
   /** Generic server-to-client error. */
   ERROR: 99,
 } as const;
@@ -192,6 +194,14 @@ export interface CallSignalPayload {
   toUserId: string;
   /** Whether this call includes video. */
   withVideo?: boolean;
+}
+
+/** Payload for {@link GatewayOpcode.RELATIONSHIP_UPDATE}. */
+export interface RelationshipPayload {
+  /** The user who triggered the relationship change. */
+  fromUserId: string;
+  /** The action that was performed. */
+  action: 'request_received' | 'accepted' | 'removed' | 'blocked';
 }
 
 /** A single participant connected to a voice channel. */

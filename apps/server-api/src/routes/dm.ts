@@ -3,6 +3,7 @@ import { ApiError, type ApiResponse } from '@ripcord/types';
 import { requireAuth } from '../middleware/require-auth.js';
 import * as dmRepo from '../repositories/dm.repo.js';
 import type { DmChannel } from '../repositories/dm.repo.js';
+import { isBlocked } from '../repositories/relationship.repo.js';
 
 export const dmRouter: Router = Router();
 
@@ -28,6 +29,12 @@ dmRouter.post(
 
       if (targetUserId === auth.sub) {
         throw ApiError.badRequest('Cannot create a DM with yourself');
+      }
+
+      // Prevent DMs between blocked users
+      const blocked = await isBlocked(auth.sub, targetUserId);
+      if (blocked) {
+        throw ApiError.forbidden('Cannot create a DM with this user');
       }
 
       const channelId = await dmRepo.findOrCreate(auth.sub, targetUserId);

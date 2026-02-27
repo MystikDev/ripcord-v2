@@ -11,6 +11,7 @@ import { useTracks, useLocalParticipant } from '@livekit/components-react';
 import { Track, VideoQuality, RemoteTrackPublication } from 'livekit-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoiceStateStore } from '../../stores/voice-state-store';
+import { useSettingsStore } from '../../stores/settings-store';
 import { useMemberStore } from '../../stores/member-store';
 import clsx from 'clsx';
 
@@ -53,8 +54,9 @@ export function ScreenShareView() {
   const activeScreenShareId = useVoiceStateStore((s) => s.activeScreenShareId);
   const setActiveScreenShareId = useVoiceStateStore((s) => s.setActiveScreenShareId);
 
-  // Quality selector state
-  const [quality, setQuality] = useState<QualityOption>('Source');
+  // Quality selector state (persisted in settings store)
+  const quality = useSettingsStore((s) => s.screenShareViewerQuality);
+  const setViewerQuality = useSettingsStore((s) => s.setScreenShareViewerQuality);
 
   // FPS overlay state
   const [fps, setFps] = useState<number | null>(null);
@@ -215,7 +217,7 @@ export function ScreenShareView() {
           {!isLocalSharing && (
             <select
               value={quality}
-              onChange={(e) => setQuality(e.target.value as QualityOption)}
+              onChange={(e) => setViewerQuality(e.target.value as QualityOption)}
               className="rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3"
             >
               <option value="720p">720p</option>

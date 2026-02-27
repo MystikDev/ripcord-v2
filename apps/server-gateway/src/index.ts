@@ -215,6 +215,11 @@ wss.on('connection', (ws: WebSocket) => {
     }
 
     if (removed?.userId && !manager.hasUserConnections(removed.userId)) {
+      // Last connection for this user — unsubscribe from user-scoped Redis channel
+      redisSub.unsubscribe(`user:${removed.userId}`).catch((err: unknown) => {
+        log.error({ userId: removed.userId, err }, 'Failed to unsubscribe from user Redis channel');
+      });
+
       // Last connection for this user — schedule offline after a grace period.
       // If the user reconnects quickly (token refresh, network blip), the
       // pending offline is cancelled in handleAuth(), preventing presence flap.
@@ -255,6 +260,7 @@ const EVENT_TYPE_TO_OPCODE: Record<string, GatewayOpcode> = {
   VOICE_STATE_UPDATE: GatewayOpcode.VOICE_STATE_UPDATE,
   MESSAGE_PINNED: GatewayOpcode.MESSAGE_PINNED,
   MESSAGE_UNPINNED: GatewayOpcode.MESSAGE_UNPINNED,
+  RELATIONSHIP_UPDATE: GatewayOpcode.RELATIONSHIP_UPDATE,
 };
 
 /**
@@ -270,21 +276,31 @@ const EVENT_TYPE_TO_NAME: Record<string, string> = {
   VOICE_STATE_UPDATE: 'VOICE_STATE_UPDATE',
   MESSAGE_PINNED: 'MESSAGE_PINNED',
   MESSAGE_UNPINNED: 'MESSAGE_UNPINNED',
+  RELATIONSHIP_UPDATE: 'RELATIONSHIP_UPDATE',
 };
 
 redisSub.on('message', (redisChannel: string, message: string) => {
-  if (!redisChannel.startsWith('ch:')) return;
-  const channelId = redisChannel.slice(3);
-
   try {
     const parsed = JSON.parse(message) as { type: string; data: unknown };
     const opcode = EVENT_TYPE_TO_OPCODE[parsed.type];
     const eventName = EVENT_TYPE_TO_NAME[parsed.type];
 
-    if (opcode !== undefined) {
-      manager.broadcastToChannel(channelId, opcode, parsed.data, eventName);
-    } else {
-      log.warn({ redisChannel, type: parsed.type }, 'Unknown event type from Redis');
+    if (redisChannel.startsWith('ch:')) {
+      // Channel-scoped event (messages, voice, typing, etc.)
+      const channelId = redisChannel.slice(3);
+      if (opcode !== undefined) {
+        manager.broadcastToChannel(channelId, opcode, parsed.data, eventName);
+      } else {
+        log.warn({ redisChannel, type: parsed.type }, 'Unknown event type from Redis');
+      }
+    } else if (redisChannel.startsWith('user:')) {
+      // User-scoped event (friend requests, relationship changes, etc.)
+      const userId = redisChannel.slice(5);
+      if (opcode !== undefined) {
+        manager.sendToUser(userId, opcode, parsed.data, eventName);
+      } else {
+        log.warn({ redisChannel, type: parsed.type }, 'Unknown user event type from Redis');
+      }
     }
   } catch (err) {
     log.error({ redisChannel, err }, 'Failed to parse Redis pub/sub message');

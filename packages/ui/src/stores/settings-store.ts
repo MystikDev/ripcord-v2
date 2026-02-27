@@ -91,6 +91,18 @@ export interface SettingsState {
   chatTextColor: string | null;
   /** Whether compact mode is enabled (no avatars, single-line layout). Default: false */
   compactMode: boolean;
+
+  /** Screen share resolution preset. Default: '1080p' */
+  screenShareResolution: '720p' | '1080p' | '1440p' | 'source';
+  /** Screen share frame rate. Default: 30 */
+  screenShareFrameRate: 15 | 30 | 60;
+  /** Whether to capture system audio when screen sharing. Default: true */
+  screenShareAudio: boolean;
+  /** Screen share content hint for encoding optimisation. Default: 'detail' */
+  screenShareContentHint: 'detail' | 'motion';
+  /** Preferred quality when viewing someone else's screen share. Default: 'Source' */
+  screenShareViewerQuality: 'Source' | '1080p' | '720p';
+
   /** Set the base font size. */
   setFontSize: (size: number) => void;
   /** Set a custom font color or null to reset. */
@@ -103,6 +115,17 @@ export interface SettingsState {
   setChatTextColor: (color: string | null) => void;
   /** Toggle compact mode on/off. */
   setCompactMode: (enabled: boolean) => void;
+
+  /** Set the screen share resolution preset. */
+  setScreenShareResolution: (v: '720p' | '1080p' | '1440p' | 'source') => void;
+  /** Set the screen share frame rate. */
+  setScreenShareFrameRate: (v: 15 | 30 | 60) => void;
+  /** Enable or disable audio capture during screen share. */
+  setScreenShareAudio: (v: boolean) => void;
+  /** Set the screen share content hint. */
+  setScreenShareContentHint: (v: 'detail' | 'motion') => void;
+  /** Set the preferred viewer quality for incoming screen shares. */
+  setScreenShareViewerQuality: (v: 'Source' | '1080p' | '720p') => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,12 +184,25 @@ export const useSettingsStore = create<SettingsState>()(
       usernameColor: null,
       chatTextColor: null,
       compactMode: false,
+
+      screenShareResolution: '1080p',
+      screenShareFrameRate: 30,
+      screenShareAudio: true,
+      screenShareContentHint: 'detail',
+      screenShareViewerQuality: 'Source',
+
       setFontSize: (size) => set({ fontSize: Math.max(12, Math.min(20, size)) }),
       setFontColor: (color) => set({ fontColor: color }),
       setIconSize: (size) => set({ iconSize: Math.max(24, Math.min(64, size)) }),
       setUsernameColor: (color) => set({ usernameColor: color }),
       setChatTextColor: (color) => set({ chatTextColor: color }),
       setCompactMode: (enabled) => set({ compactMode: enabled }),
+
+      setScreenShareResolution: (v) => set({ screenShareResolution: v }),
+      setScreenShareFrameRate: (v) => set({ screenShareFrameRate: v }),
+      setScreenShareAudio: (v) => set({ screenShareAudio: v }),
+      setScreenShareContentHint: (v) => set({ screenShareContentHint: v }),
+      setScreenShareViewerQuality: (v) => set({ screenShareViewerQuality: v }),
     }),
     {
       name: 'ripcord-settings',
@@ -188,6 +224,11 @@ export const useSettingsStore = create<SettingsState>()(
         usernameColor: state.usernameColor,
         chatTextColor: state.chatTextColor,
         compactMode: state.compactMode,
+        screenShareResolution: state.screenShareResolution,
+        screenShareFrameRate: state.screenShareFrameRate,
+        screenShareAudio: state.screenShareAudio,
+        screenShareContentHint: state.screenShareContentHint,
+        screenShareViewerQuality: state.screenShareViewerQuality,
       }),
     },
   ),

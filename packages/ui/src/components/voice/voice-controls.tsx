@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalParticipant } from '@livekit/components-react';
 import { usePushToTalk } from '../../hooks/use-push-to-talk';
 import { useSettingsStore } from '../../stores/settings-store';
@@ -16,6 +16,7 @@ import { gateway } from '../../lib/gateway-client';
 import { getKeyDisplayLabel } from '../../lib/key-display';
 import { PttKeybindDialog } from './ptt-keybind-dialog';
 import { AudioSettings } from './audio-settings';
+import { ScreenShareSettings, type ScreenShareOptions } from './screen-share-settings';
 import { Tooltip } from '../ui/tooltip';
 import clsx from 'clsx';
 
@@ -79,6 +80,7 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
 
   const isMicMuted = !localParticipant.isMicrophoneEnabled;
   const isScreenSharing = localParticipant.isScreenShareEnabled;
+  const [showShareSettings, setShowShareSettings] = useState(false);
 
   // ----- Bridge mic state to Zustand store + optimistic sidebar update -----
 
@@ -136,17 +138,24 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
 
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {
-      // Stop sharing — no options needed
-      await localParticipant.setScreenShareEnabled(false);
+      await localParticipantRef.current.setScreenShareEnabled(false);
     } else {
-      // Start sharing — capture system audio alongside video
-      await localParticipant.setScreenShareEnabled(true, {
-        audio: true,
-        resolution: { width: 1920, height: 1080, frameRate: 30 },
-        contentHint: 'detail',
-      });
+      setShowShareSettings(true);
     }
-  }, [localParticipant, isScreenSharing]);
+  }, [isScreenSharing]);
+
+  const handleStartShare = useCallback(async (options: ScreenShareOptions) => {
+    setShowShareSettings(false);
+    try {
+      await localParticipantRef.current.setScreenShareEnabled(true, {
+        audio: options.audio,
+        resolution: options.resolution ? { ...options.resolution, frameRate: options.frameRate } : undefined,
+        contentHint: options.contentHint,
+      });
+    } catch (err) {
+      console.error('Failed to start screen share:', err);
+    }
+  }, []);
 
   // ----- Render -----
 
@@ -201,6 +210,12 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
           <DisconnectIcon />
         </button>
       </Tooltip>
+
+      <ScreenShareSettings
+        open={showShareSettings}
+        onClose={() => setShowShareSettings(false)}
+        onStart={handleStartShare}
+      />
     </div>
   );
 }

@@ -24,6 +24,7 @@ import { ParticipantContextMenu } from '../voice/participant-context-menu';
 import { CreateChannelDialog } from '../hub/create-channel-dialog';
 import { AdminConsole } from '../admin/admin-console';
 import { DmChannelList } from '../dm/dm-channel-list';
+import { FriendsPanel } from '../friends/friends-panel';
 import { IconCropDialog } from '../admin/icon-crop-dialog';
 import { AppearanceSettings } from '../settings/appearance-settings';
 import { Tooltip } from '../ui/tooltip';
@@ -548,6 +549,8 @@ export function ChannelSidebar() {
   const activeChannelId = useHubStore((s) => s.activeChannelId);
   const isDmView = useHubStore((s) => s.isDmView);
 
+  const [dmTab, setDmTab] = useState<'friends' | 'messages'>('friends');
+
   const activeHub = hubs.find((s) => s.id === activeHubId);
 
   const textChannels = channels.filter((c) => c.type === 'text');
@@ -591,7 +594,33 @@ export function ChannelSidebar() {
       {/* Channel list or DM list */}
       <ScrollArea className="flex-1">
         {isDmView ? (
-          <DmChannelList />
+          <div className="flex h-full flex-col">
+            {/* Tab bar */}
+            <div className="flex border-b border-border px-2">
+              <button
+                className={clsx(
+                  'px-3 py-2 text-xs font-medium transition-colors',
+                  dmTab === 'friends' ? 'text-text-primary border-b-2 border-accent' : 'text-text-muted hover:text-text-secondary',
+                )}
+                onClick={() => setDmTab('friends')}
+              >
+                Friends
+              </button>
+              <button
+                className={clsx(
+                  'px-3 py-2 text-xs font-medium transition-colors',
+                  dmTab === 'messages' ? 'text-text-primary border-b-2 border-accent' : 'text-text-muted hover:text-text-secondary',
+                )}
+                onClick={() => setDmTab('messages')}
+              >
+                Messages
+              </button>
+            </div>
+            {/* Tab content */}
+            <div className="flex-1 overflow-hidden">
+              {dmTab === 'friends' ? <FriendsPanel /> : <DmChannelList />}
+            </div>
+          </div>
         ) : (
           <div className="p-2">
             {textChannels.length > 0 && (
