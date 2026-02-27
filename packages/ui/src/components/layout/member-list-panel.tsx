@@ -1,7 +1,8 @@
 /**
  * @module member-list-panel
- * Right sidebar showing hub members grouped by highest-priority role, sorted
- * by presence then alphabetically, with status dot overlays.
+ * ORBIT-styled right sidebar. Shows a spatial map visualization, active
+ * entities (members) grouped by role with presence indicators, and a
+ * system status bar at the bottom.
  */
 'use client';
 
@@ -27,24 +28,52 @@ const PRESENCE_WEIGHT: Record<PresenceStatus, number> = {
 };
 
 // ---------------------------------------------------------------------------
-// Status dot overlay
+// Status dot overlay — ORBIT accent colors
 // ---------------------------------------------------------------------------
 
 const STATUS_COLOR: Record<PresenceStatus, string> = {
-  online: 'bg-emerald-400',
-  idle: 'bg-amber-400',
-  dnd: 'bg-red-400',
-  offline: 'bg-gray-500',
+  online: 'bg-accent',
+  idle: 'bg-accent-yellow',
+  dnd: 'bg-accent-magenta',
+  offline: 'bg-white/20',
 };
 
 function StatusDot({ status }: { status: PresenceStatus }) {
   return (
     <span
       className={clsx(
-        'absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-surface-1',
+        'absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-panel',
         STATUS_COLOR[status],
       )}
     />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Spatial Map — orbiting visualization
+// ---------------------------------------------------------------------------
+
+function SpatialMap({ onlineCount, totalCount }: { onlineCount: number; totalCount: number }) {
+  return (
+    <div className="h-40 relative overflow-hidden border-b border-white/5">
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative w-28 h-28">
+          {/* Orbit rings */}
+          <div className="absolute inset-0 border border-white/10 rounded-full animate-orbit-spin" style={{ animationDuration: '30s' }} />
+          <div className="absolute inset-3 border border-accent/20 rounded-full animate-orbit-spin" style={{ animationDuration: '20s', animationDirection: 'reverse' }} />
+          <div className="absolute inset-6 border border-accent-magenta/20 rounded-full animate-orbit-spin" style={{ animationDuration: '15s' }} />
+
+          {/* Center pulse */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-3 h-3 bg-accent rounded-full shadow-lg shadow-accent/50 animate-pulse" />
+          </div>
+        </div>
+      </div>
+      <div className="absolute bottom-3 left-3">
+        <div className="text-[10px] text-white/40 font-mono uppercase tracking-wider">Spatial View</div>
+        <div className="text-sm text-white/80">{onlineCount} / {totalCount} entities</div>
+      </div>
+    </div>
   );
 }
 
@@ -61,8 +90,9 @@ function MemberRow({ member, offline, roleColor }: { member: MemberInfo; offline
     <>
       <div
         className={clsx(
-          'flex items-center gap-2 rounded-md px-2 py-1 transition-colors',
-          'hover:bg-surface-2',
+          'group flex items-center gap-3 rounded-xl px-3 py-2 transition-all duration-200',
+          'hover:bg-white/5 border border-transparent',
+          !offline && 'hover:border-accent/20',
           offline && 'opacity-40',
         )}
         onContextMenu={(e) => {
@@ -82,19 +112,29 @@ function MemberRow({ member, offline, roleColor }: { member: MemberInfo; offline
           <StatusDot status={status} />
         </div>
 
-        {/* Handle — bright white for online, dim for offline */}
-        <span
-          className={clsx(
-            'truncate font-medium',
-            offline && 'text-text-muted',
-          )}
-          style={{
-            fontSize: 'var(--font-size-sm, 12px)',
-            ...(!offline ? { color: roleColor ?? 'var(--color-username, white)' } : {}),
-          }}
-        >
-          {member.handle}
-        </span>
+        {/* Handle */}
+        <div className="flex-1 min-w-0">
+          <span
+            className={clsx(
+              'truncate font-medium block',
+              offline && 'text-text-muted',
+            )}
+            style={{
+              fontSize: 'var(--font-size-sm, 12px)',
+              ...(!offline ? { color: roleColor ?? 'var(--color-username, white)' } : {}),
+            }}
+          >
+            {member.handle}
+          </span>
+        </div>
+
+        {/* Activity indicator */}
+        {!offline && (
+          <div className={clsx(
+            'w-2 h-2 rounded-full animate-pulse',
+            STATUS_COLOR[status],
+          )} />
+        )}
       </div>
       {contextMenu && (
         <UserContextMenu
@@ -114,9 +154,9 @@ function MemberRow({ member, offline, roleColor }: { member: MemberInfo; offline
 
 function RoleGroupHeader({ name, count, color }: { name: string; count: number; color?: string }) {
   return (
-    <div className="px-2 pt-4 pb-1">
+    <div className="px-3 pt-4 pb-1">
       <p
-        className={clsx('text-[11px] font-semibold uppercase tracking-wide', !color && 'text-text-secondary')}
+        className={clsx('text-[11px] font-bold uppercase tracking-wider', !color && 'text-white/30')}
         style={color ? { color } : undefined}
       >
         {name} — {count}
@@ -130,7 +170,7 @@ function RoleGroupHeader({ name, count, color }: { name: string; count: number; 
 // ---------------------------------------------------------------------------
 
 interface RoleGroup {
-  roleId: string | null; // null = catch-all "Members" group
+  roleId: string | null;
   name: string;
   priority: number;
   color?: string;
@@ -138,9 +178,7 @@ interface RoleGroup {
 }
 
 interface GroupedMembers {
-  /** Role groups containing only online/idle/dnd members */
   onlineGroups: RoleGroup[];
-  /** All offline members regardless of role */
   offlineMembers: MemberInfo[];
 }
 
@@ -149,13 +187,11 @@ function buildRoleGroups(
   roles: RoleDefinition[],
   presenceMap: Record<string, PresenceStatus>,
 ): GroupedMembers {
-  // Build lookup: roleId -> RoleDefinition
   const roleById = new Map<string, RoleDefinition>();
   for (const r of roles) {
     roleById.set(r.id, r);
   }
 
-  // Separate online and offline, group online by role
   const groupMap = new Map<string | null, MemberInfo[]>();
   const offlineMembers: MemberInfo[] = [];
 
@@ -169,7 +205,6 @@ function buildRoleGroups(
 
     const memberRoles = member.roles ?? [];
 
-    // Find highest-priority (lowest number) non-@everyone role
     let bestRole: RoleDefinition | null = null;
     for (const mr of memberRoles) {
       const def = roleById.get(mr.id);
@@ -186,7 +221,6 @@ function buildRoleGroups(
     groupMap.set(groupKey, existing);
   }
 
-  // Build group array (online only)
   const onlineGroups: RoleGroup[] = [];
   for (const [roleId, groupMembers] of groupMap) {
     const def = roleId ? roleById.get(roleId) : null;
@@ -199,10 +233,8 @@ function buildRoleGroups(
     });
   }
 
-  // Sort groups by priority (ascending = highest rank first), catch-all last
   onlineGroups.sort((a, b) => a.priority - b.priority);
 
-  // Within each group, sort by presence weight then alphabetical
   for (const group of onlineGroups) {
     group.members.sort((a, b) => {
       const pa = PRESENCE_WEIGHT[presenceMap[a.userId] ?? 'offline'];
@@ -212,7 +244,6 @@ function buildRoleGroups(
     });
   }
 
-  // Sort offline members alphabetically
   offlineMembers.sort((a, b) => a.handle.localeCompare(b.handle));
 
   return { onlineGroups, offlineMembers };
@@ -236,20 +267,17 @@ export function MemberListPanel() {
   const onlineCount = totalCount - offlineMembers.length;
 
   return (
-    <div className="flex h-full w-60 flex-col border-l border-border bg-surface-1">
-      {/* Header */}
-      <div className="flex h-12 items-center border-b border-border px-4">
-        <h3 className="text-sm font-semibold text-text-primary">
-          Members
-        </h3>
-        <span className="ml-1.5 text-xs text-text-muted">
-          {onlineCount}/{totalCount}
-        </span>
-      </div>
+    <div className="flex h-full w-72 flex-col glass-panel border-l border-white/5">
+      {/* Spatial map visualization */}
+      <SpatialMap onlineCount={onlineCount} totalCount={totalCount} />
 
-      {/* Scrollable member list */}
+      {/* Active entities */}
       <ScrollArea className="flex-1">
         <div className="p-2">
+          <div className="px-3 pt-2 pb-1">
+            <p className="text-[11px] font-bold text-white/30 uppercase tracking-wider">Active Now</p>
+          </div>
+
           {/* Online members grouped by role */}
           {onlineGroups.map((group) => (
             <div key={group.roleId ?? '__members'}>
@@ -260,7 +288,7 @@ export function MemberListPanel() {
             </div>
           ))}
 
-          {/* Offline section — visually separated */}
+          {/* Offline section */}
           {offlineMembers.length > 0 && (
             <div>
               <RoleGroupHeader name="Offline" count={offlineMembers.length} />
@@ -277,6 +305,17 @@ export function MemberListPanel() {
           )}
         </div>
       </ScrollArea>
+
+      {/* System status bar */}
+      <div className="p-4 border-t border-white/5">
+        <div className="flex items-center justify-between text-xs text-white/40 mb-2">
+          <span className="font-mono">System Status</span>
+          <span className="text-accent font-medium">OPTIMAL</span>
+        </div>
+        <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-full w-3/4 bg-gradient-to-r from-accent to-accent-violet animate-pulse rounded-full" />
+        </div>
+      </div>
     </div>
   );
 }

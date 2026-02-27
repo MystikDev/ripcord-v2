@@ -1,7 +1,7 @@
 /**
  * @module server-sidebar
- * Far-left narrow sidebar (72 px) with hub icons, a HomeButton placeholder,
- * and an AddHubDialog button. Exported as HubSidebar.
+ * ORBIT-styled far-left icon rail (80px). Hub icons, Home button (DM toggle),
+ * and AddHubDialog button. Glass morphism over the ambient background.
  */
 'use client';
 
@@ -11,7 +11,6 @@ import { useAuthStore } from '../../stores/auth-store';
 import { useReadStateStore } from '../../stores/read-state-store';
 import { useMessageStore } from '../../stores/message-store';
 import { Tooltip } from '../ui/tooltip';
-import { Separator } from '../ui/separator';
 import { ScrollArea } from '../ui/scroll-area';
 import { AddHubDialog } from '../hub/create-hub-dialog';
 import { HubContextMenu } from '../hub/hub-context-menu';
@@ -39,15 +38,15 @@ function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
           className={clsx(
             'group relative flex h-12 w-12 items-center justify-center transition-all duration-200',
             isActive
-              ? 'rounded-2xl bg-accent text-white'
-              : 'rounded-3xl bg-surface-2 text-text-secondary hover:rounded-2xl hover:bg-accent hover:text-white',
+              ? 'rounded-2xl bg-accent text-black shadow-lg shadow-accent/20'
+              : 'rounded-xl bg-white/5 text-text-secondary border border-white/10 hover:rounded-2xl hover:bg-white/10 hover:border-accent/50 hover:text-accent',
           )}
         >
-          {/* Active indicator pill */}
+          {/* Active indicator pill — cyan glow */}
           <span
             className={clsx(
-              'absolute -left-3 w-1 rounded-r-full bg-text-primary transition-all duration-200',
-              isActive ? 'h-10' : 'h-0 group-hover:h-5',
+              'absolute -left-3 w-1 rounded-r-full transition-all duration-200',
+              isActive ? 'h-10 bg-accent shadow-[0_0_8px_rgba(0,240,255,0.5)]' : 'h-0 group-hover:h-5 bg-accent',
             )}
           />
 
@@ -118,15 +117,15 @@ function HomeButton() {
         className={clsx(
           'group relative flex h-12 w-12 items-center justify-center transition-all duration-200',
           isDmView
-            ? 'rounded-2xl bg-accent text-white'
-            : 'rounded-3xl bg-surface-2 text-text-secondary hover:rounded-2xl hover:bg-accent hover:text-white',
+            ? 'rounded-2xl bg-gradient-to-br from-accent to-accent-violet text-black shadow-lg shadow-accent/20 animate-pulse-glow'
+            : 'rounded-xl bg-white/5 text-text-secondary border border-white/10 hover:rounded-2xl hover:bg-white/10 hover:border-accent/50 hover:text-accent',
         )}
       >
         {/* Active indicator pill */}
         <span
           className={clsx(
-            'absolute -left-3 w-1 rounded-r-full bg-text-primary transition-all duration-200',
-            isDmView ? 'h-10' : 'h-0 group-hover:h-5',
+            'absolute -left-3 w-1 rounded-r-full transition-all duration-200',
+            isDmView ? 'h-10 bg-accent shadow-[0_0_8px_rgba(0,240,255,0.5)]' : 'h-0 group-hover:h-5 bg-accent',
           )}
         />
         <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -136,7 +135,7 @@ function HomeButton() {
 
         {/* Unread DM badge */}
         {totalUnread > 0 && !isDmView && (
-          <span className="absolute -bottom-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white shadow-sm">
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-magenta px-1 text-[10px] font-bold text-white shadow-lg shadow-accent-magenta/30">
             {totalUnread > 99 ? '99+' : totalUnread}
           </span>
         )}
@@ -154,13 +153,14 @@ export function HubSidebar() {
   const activeHubId = useHubStore((s) => s.activeHubId);
 
   return (
-    <div className="flex h-full w-[72px] flex-col items-center bg-bg py-3">
+    <div className="flex h-full w-20 flex-col items-center border-r border-white/5 bg-surface-1/50 backdrop-blur-xl py-6 gap-6">
       <HomeButton />
 
-      <Separator className="my-2 w-8" />
+      {/* Gradient divider */}
+      <div className="w-8 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
 
       <ScrollArea className="flex-1 w-full">
-        <div className="flex flex-col items-center gap-2 px-3">
+        <div className="flex flex-col items-center gap-3 px-4">
           {hubs.map((hub) => (
             <HubIcon
               key={hub.id}
@@ -174,8 +174,9 @@ export function HubSidebar() {
             trigger={
               <button
                 className={clsx(
-                  'flex h-12 w-12 items-center justify-center rounded-3xl bg-surface-2 text-success',
-                  'transition-all duration-200 hover:rounded-2xl hover:bg-success hover:text-white',
+                  'flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-success',
+                  'border border-white/10 transition-all duration-200',
+                  'hover:rounded-2xl hover:bg-success/20 hover:border-success/50 hover:text-success hover:shadow-lg hover:shadow-success/10',
                 )}
                 title="Add a Hub"
               >
@@ -187,6 +188,11 @@ export function HubSidebar() {
           />
         </div>
       </ScrollArea>
+
+      {/* User Orb — bottom of rail */}
+      <div className="mt-auto">
+        <div className="w-3 h-3 rounded-full bg-accent shadow-lg shadow-accent/50 animate-pulse mx-auto" />
+      </div>
     </div>
   );
 }

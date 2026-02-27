@@ -1,9 +1,7 @@
 /**
  * @module channel-sidebar
- * Second-column sidebar for the active hub. Displays the hub name header with
- * admin gear, text/voice channel lists with create buttons, VoiceChannelItem
- * tiles with participant status, VoicePanel for connected sessions, and
- * UserPanel at the bottom.
+ * ORBIT-styled second-column sidebar. Glass-panel aesthetic with channel lists,
+ * DM tabs, voice panel, user panel. Semi-transparent over ambient background.
  */
 'use client';
 
@@ -12,7 +10,6 @@ import { useAuthStore } from '../../stores/auth-store';
 import { useReadStateStore } from '../../stores/read-state-store';
 import { useMessageStore } from '../../stores/message-store';
 import { ScrollArea } from '../ui/scroll-area';
-import { Separator } from '../ui/separator';
 import { Avatar } from '../ui/avatar';
 import clsx from 'clsx';
 import { usePresenceStore } from '../../stores/presence-store';
@@ -55,7 +52,6 @@ function ChannelItem({ channel, isActive }: { channel: Channel; isActive: boolea
     if (lastReadIdx >= 0) {
       unreadCount = messages.length - lastReadIdx - 1;
     } else {
-      // If we haven't found the read marker, all messages are unread
       unreadCount = messages.length;
     }
   } else if (!lastReadId && messages.length > 0) {
@@ -79,16 +75,16 @@ function ChannelItem({ channel, isActive }: { channel: Channel; isActive: boolea
     <button
       onClick={() => setActiveChannel(channel.id)}
       className={clsx(
-        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
+        'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all duration-200',
         isActive
-          ? 'bg-surface-3 text-text-primary'
-          : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
+          ? 'bg-white/10 text-text-primary border border-accent/30 shadow-sm shadow-accent/10'
+          : 'text-text-muted hover:bg-white/5 hover:text-text-secondary border border-transparent',
       )}
     >
       {icon}
       <span className="truncate">{channel.name}</span>
       {unreadCount > 0 && !isActive && (
-        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-white">
+        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-magenta px-1.5 text-[10px] font-bold text-white shadow-sm shadow-accent-magenta/20">
           {unreadCount > 99 ? '99+' : unreadCount}
         </span>
       )}
@@ -156,11 +152,11 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         className={clsx(
-          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
+          'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all duration-200',
           dragOver && 'ring-2 ring-accent ring-inset',
           isActive
-            ? 'bg-surface-3 text-text-primary'
-            : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
+            ? 'bg-white/10 text-text-primary border border-accent/30 shadow-sm shadow-accent/10'
+            : 'text-text-muted hover:bg-white/5 hover:text-text-secondary border border-transparent',
         )}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -171,7 +167,7 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
         </svg>
         <span className="truncate">{channel.name}</span>
         {participants.length > 0 && (
-          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-surface-3 px-1.5 text-[10px] font-medium text-text-muted">
+          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/20 px-1.5 text-[10px] font-medium text-accent">
             {participants.length}
           </span>
         )}
@@ -179,7 +175,7 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
 
       {/* Participant list */}
       {participants.length > 0 && (
-        <div className="ml-4 border-l border-border/50 pl-3 py-0.5">
+        <div className="ml-4 border-l border-accent/20 pl-3 py-0.5">
           {participants.map((p) => {
             const isSpeaking = speakingUserIds.includes(p.userId);
             const isScreenSharing = screenSharingUserIds.includes(p.userId);
@@ -211,7 +207,7 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
               <div
                 className={clsx(
                   'flex items-center justify-center shrink-0 rounded-full',
-                  isSpeaking && 'shadow-[0_0_8px_2px_rgba(46,230,255,0.5)]',
+                  isSpeaking && 'shadow-[0_0_8px_2px_rgba(0,240,255,0.5)]',
                 )}
                 style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)' }}
               >
@@ -416,7 +412,7 @@ function UserPanel() {
 
   return (
     <div>
-      <div className="flex items-center gap-2 border-t border-border bg-surface-1/50 px-3 py-2">
+      <div className="flex items-center gap-2 border-t border-white/5 bg-surface-1/30 backdrop-blur-sm px-3 py-2">
         {/* Clickable avatar — opens file picker for upload */}
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -424,7 +420,9 @@ function UserPanel() {
           title="Change avatar"
           disabled={uploading}
         >
-          <Avatar src={avatarUrl ?? undefined} fallback={handle ?? '?'} size="sm" style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }} />
+          <div className="rounded-full bg-gradient-to-r from-accent/50 to-accent-violet/50 p-[1px]">
+            <Avatar src={avatarUrl ?? undefined} fallback={handle ?? '?'} size="sm" style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }} />
+          </div>
           {/* Camera overlay on hover */}
           <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
@@ -444,7 +442,7 @@ function UserPanel() {
           <p className="truncate font-medium text-text-primary" style={{ fontSize: 'var(--font-size-sm, 12px)' }}>
             {handle ?? 'Unknown'}
           </p>
-          <p className="text-text-muted capitalize" style={{ fontSize: 'var(--font-size-xs, 10px)' }}>{status}</p>
+          <p className="text-accent/80 capitalize" style={{ fontSize: 'var(--font-size-xs, 10px)' }}>{status}</p>
         </div>
 
         {/* Mic / Deafen buttons (visible when in voice) */}
@@ -457,7 +455,7 @@ function UserPanel() {
                   'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors',
                   localMicMuted
                     ? 'bg-danger/20 text-danger hover:bg-danger/30'
-                    : 'bg-surface-3 text-text-secondary hover:bg-surface-2 hover:text-text-primary',
+                    : 'bg-white/5 text-text-secondary hover:bg-white/10 hover:text-text-primary',
                 )}
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -476,7 +474,7 @@ function UserPanel() {
                   'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors',
                   isDeafened
                     ? 'bg-danger/20 text-danger hover:bg-danger/30'
-                    : 'bg-surface-3 text-text-secondary hover:bg-surface-2 hover:text-text-primary',
+                    : 'bg-white/5 text-text-secondary hover:bg-white/10 hover:text-text-primary',
                 )}
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -493,7 +491,7 @@ function UserPanel() {
         <Tooltip content="Appearance" side="top">
           <button
             onClick={() => setAppearanceOpen(true)}
-            className="rounded-md p-1.5 text-text-muted hover:bg-surface-2 hover:text-text-secondary transition-colors"
+            className="rounded-md p-1.5 text-text-muted hover:bg-white/5 hover:text-accent transition-colors"
             title="Appearance settings"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -505,7 +503,7 @@ function UserPanel() {
 
         <button
           onClick={logout}
-          className="rounded-md p-1.5 text-text-muted hover:bg-surface-2 hover:text-text-secondary transition-colors"
+          className="rounded-md p-1.5 text-text-muted hover:bg-white/5 hover:text-danger transition-colors"
           title="Log out"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -529,8 +527,8 @@ function UserPanel() {
       </div>
 
       {/* Version footer */}
-      <div className="flex items-center justify-center border-t border-border/50 bg-surface-1/30 py-1">
-        <span className="text-[10px] text-text-muted/50 select-none">
+      <div className="flex items-center justify-center border-t border-white/5 bg-surface-1/20 py-1">
+        <span className="text-[10px] text-text-muted/50 select-none font-mono">
           Ripcord v{version}
         </span>
       </div>
@@ -587,10 +585,10 @@ export function ChannelSidebar() {
   const voiceChannels = channels.filter((c) => c.type === 'voice');
 
   return (
-    <div className="relative flex h-full flex-col bg-surface-1" style={{ width: sidebarWidth }}>
+    <div className="relative flex h-full flex-col glass-panel border-r border-white/5" style={{ width: sidebarWidth }}>
       {/* Header */}
-      <div className="flex h-12 items-center justify-between border-b border-border px-4">
-        <h2 className="truncate text-base font-semibold text-text-primary">
+      <div className="flex h-12 items-center justify-between border-b border-white/5 px-4">
+        <h2 className="truncate text-base font-semibold display-text text-text-primary">
           {isDmView ? 'Direct Messages' : (activeHub?.name ?? 'Ripcord')}
         </h2>
         {activeHub && !isDmView && (
@@ -598,7 +596,7 @@ export function ChannelSidebar() {
             hubId={activeHub.id}
             hubName={activeHub.name}
             trigger={
-              <button className="rounded-md p-1 text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors" title="Hub Settings">
+              <button className="rounded-lg p-1.5 text-text-muted hover:text-accent hover:bg-white/5 transition-colors" title="Hub Settings">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M8 10a2 2 0 100-4 2 2 0 000 4z" />
                   <path d="M13.5 8a5.5 5.5 0 01-.15 1.28l1.26.73a.5.5 0 01.12.64l-1.2 2.08a.5.5 0 01-.61.22l-1.49-.6a5.5 5.5 0 01-1.1.64l-.23 1.58a.5.5 0 01-.49.43H6.4a.5.5 0 01-.49-.42l-.23-1.59a5.5 5.5 0 01-1.1-.64l-1.49.6a.5.5 0 01-.61-.22l-1.2-2.08a.5.5 0 01.12-.64l1.26-.73A5.5 5.5 0 012.5 8c0-.44.05-.87.15-1.28l-1.26-.73a.5.5 0 01-.12-.64l1.2-2.08a.5.5 0 01.61-.22l1.49.6a5.5 5.5 0 011.1-.64l.23-1.58A.5.5 0 016.4 1h2.2a.5.5 0 01.49.42l.23 1.59a5.5 5.5 0 011.1.64l1.49-.6a.5.5 0 01.61.22l1.2 2.08a.5.5 0 01-.12.64l-1.26.73c.1.41.16.84.16 1.28z" />
@@ -611,7 +609,7 @@ export function ChannelSidebar() {
 
       {/* Hub banner */}
       {activeHub?.bannerUrl && !isDmView && (
-        <div className="h-24 w-full shrink-0 overflow-hidden border-b border-border">
+        <div className="h-24 w-full shrink-0 overflow-hidden border-b border-white/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={activeHub.bannerUrl}
@@ -626,11 +624,11 @@ export function ChannelSidebar() {
         {isDmView ? (
           <div className="flex h-full flex-col">
             {/* Tab bar */}
-            <div className="flex border-b border-border px-2">
+            <div className="flex border-b border-white/5 px-2">
               <button
                 className={clsx(
                   'px-3 py-2 text-xs font-medium transition-colors',
-                  dmTab === 'friends' ? 'text-text-primary border-b-2 border-accent' : 'text-text-muted hover:text-text-secondary',
+                  dmTab === 'friends' ? 'text-accent border-b-2 border-accent' : 'text-text-muted hover:text-text-secondary',
                 )}
                 onClick={() => setDmTab('friends')}
               >
@@ -639,7 +637,7 @@ export function ChannelSidebar() {
               <button
                 className={clsx(
                   'px-3 py-2 text-xs font-medium transition-colors',
-                  dmTab === 'messages' ? 'text-text-primary border-b-2 border-accent' : 'text-text-muted hover:text-text-secondary',
+                  dmTab === 'messages' ? 'text-accent border-b-2 border-accent' : 'text-text-muted hover:text-text-secondary',
                 )}
                 onClick={() => setDmTab('messages')}
               >
@@ -656,14 +654,14 @@ export function ChannelSidebar() {
             {textChannels.length > 0 && (
               <div className="mb-2">
                 <div className="mb-1 flex items-center justify-between px-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
                     Text Channels
                   </p>
                   {activeHubId && (
                     <CreateChannelDialog
                       hubId={activeHubId}
                       trigger={
-                        <button className="rounded p-0.5 text-text-muted hover:text-text-primary transition-colors">
+                        <button className="rounded p-0.5 text-text-muted hover:text-accent transition-colors">
                           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
                             <path d="M7 2v10M2 7h10" strokeLinecap="round" />
                           </svg>
@@ -680,17 +678,17 @@ export function ChannelSidebar() {
 
             {voiceChannels.length > 0 && (
               <>
-                <Separator className="my-2" />
+                <div className="my-2 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 <div>
                   <div className="mb-1 flex items-center justify-between px-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
                       Voice Channels
                     </p>
                     {activeHubId && (
                       <CreateChannelDialog
                         hubId={activeHubId}
                         trigger={
-                          <button className="rounded p-0.5 text-text-muted hover:text-text-primary transition-colors">
+                          <button className="rounded p-0.5 text-text-muted hover:text-accent transition-colors">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
                               <path d="M7 2v10M2 7h10" strokeLinecap="round" />
                             </svg>
@@ -721,10 +719,10 @@ export function ChannelSidebar() {
       {/* User panel */}
       <UserPanel />
 
-      {/* Resize handle */}
+      {/* Resize handle — cyan glow on hover */}
       <div
         onMouseDown={handleResizeStart}
-        className="absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize hover:bg-accent/40 active:bg-accent/60 transition-colors"
+        className="absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize hover:bg-accent/30 active:bg-accent/50 transition-colors"
       />
     </div>
   );

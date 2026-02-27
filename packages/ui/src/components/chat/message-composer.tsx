@@ -1,8 +1,8 @@
 /**
  * @module message-composer
- * Primary text input for sending messages. Features a growing textarea, pending
- * attachments strip, slash-command palette, paste-to-upload, typing-event
- * debouncing via the gateway, and AI slash-command dispatch with streaming.
+ * ORBIT Command Interface. Glass-panel composer with attach button, growing
+ * textarea, send button, and context chips. Supports slash-commands, paste-to-
+ * upload, file attachments, and AI dispatch with streaming.
  */
 'use client';
 
@@ -232,7 +232,6 @@ function MessageComposer({ channelId, channelName }, ref) {
       );
     } catch (err) {
       console.error('Failed to send message:', err);
-      // TODO: Show error toast and remove optimistic message
     }
 
     setSending(false);
@@ -275,7 +274,7 @@ function MessageComposer({ channelId, channelName }, ref) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative border-t border-border p-4">
+    <form onSubmit={handleSubmit} className="relative px-6 pb-4 pt-2 bg-gradient-to-t from-void via-void/90 to-transparent">
       {/* Command palette */}
       <CommandPalette
         input={content}
@@ -284,70 +283,93 @@ function MessageComposer({ channelId, channelName }, ref) {
         visible={showPalette}
       />
 
-      {/* Pending attachments strip */}
-      {hasPendingAttachments && (
-        <div className="mb-2 flex flex-wrap gap-2">
-          {pendingAttachments.map((att) => (
-            <div
-              key={att.attachmentId}
-              className="flex items-center gap-2 rounded-md bg-surface-2 px-2 py-1 text-xs text-text-secondary"
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M14 10v2.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V10M11 5l-3-3-3 3M8 2v8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span className="max-w-[150px] truncate">{att.fileName}</span>
-              <span className="text-text-muted">{formatFileSize(att.fileSize)}</span>
-              <button
-                type="button"
-                onClick={() => removePendingAttachment(att.attachmentId)}
-                className="ml-1 text-text-muted hover:text-text-primary"
-                title="Remove attachment"
+      <div className="max-w-3xl mx-auto">
+        {/* Pending attachments strip */}
+        {hasPendingAttachments && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {pendingAttachments.map((att) => (
+              <div
+                key={att.attachmentId}
+                className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-xs text-text-secondary"
               >
-                &times;
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M14 10v2.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V10M11 5l-3-3-3 3M8 2v8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="max-w-[150px] truncate">{att.fileName}</span>
+                <span className="text-text-muted">{formatFileSize(att.fileSize)}</span>
+                <button
+                  type="button"
+                  onClick={() => removePendingAttachment(att.attachmentId)}
+                  className="ml-1 text-text-muted hover:text-danger transition-colors"
+                  title="Remove attachment"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
-      <div className="flex items-end gap-2 rounded-lg bg-surface-1 px-4 py-2">
-        <FileUploadButton
-          ref={fileUploadRef}
-          channelId={channelId}
-          onUploaded={(att) => {
-            setPendingAttachments((prev) => [
-              ...prev,
-              {
-                attachmentId: att.attachmentId,
-                fileName: decryptFileName(att.fileNameEncrypted),
-                fileSize: att.fileSize,
-                fileNameEncrypted: att.fileNameEncrypted,
-                encryptionKeyId: att.encryptionKeyId,
-                nonce: att.nonce,
-              },
-            ]);
-          }}
-          disabled={sending || aiProcessing}
-        />
-        <textarea
-          value={content}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={`Message #${channelName}`}
-          rows={1}
-          className="max-h-40 flex-1 resize-none bg-transparent text-text-primary placeholder:text-text-muted focus:outline-none"
-          style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-chat-text, var(--color-text-primary))' }}
-        />
-        <button
-          type="submit"
-          disabled={(!content.trim() && !hasPendingAttachments) || sending || aiProcessing}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent text-white transition-colors hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M1.5 1.1L14.9 7.6c.4.2.4.7 0 .9L1.5 15c-.4.2-.9-.1-.8-.5L2.2 9H7a.5.5 0 000-1H2.2L.7 1.5c-.1-.4.4-.7.8-.5z" />
-          </svg>
-        </button>
+        {/* Command interface — glass panel */}
+        <div className="glass-panel rounded-2xl p-2 flex items-end gap-3">
+          <FileUploadButton
+            ref={fileUploadRef}
+            channelId={channelId}
+            onUploaded={(att) => {
+              setPendingAttachments((prev) => [
+                ...prev,
+                {
+                  attachmentId: att.attachmentId,
+                  fileName: decryptFileName(att.fileNameEncrypted),
+                  fileSize: att.fileSize,
+                  fileNameEncrypted: att.fileNameEncrypted,
+                  encryptionKeyId: att.encryptionKeyId,
+                  nonce: att.nonce,
+                },
+              ]);
+            }}
+            disabled={sending || aiProcessing}
+          />
+          <textarea
+            value={content}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder={`Transmit to #${channelName}...`}
+            rows={1}
+            className="max-h-32 flex-1 resize-none bg-transparent text-white placeholder-white/30 focus:outline-none py-2.5 text-[15px]"
+            style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-chat-text, var(--color-text-primary))' }}
+          />
+          <button
+            type="submit"
+            disabled={(!content.trim() && !hasPendingAttachments) || sending || aiProcessing}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-black font-bold transition-all hover:bg-accent-hover hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 2l-4 4h3v6h2V6h3L8 2z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Context chips */}
+        <div className="flex items-center gap-2 mt-2 overflow-x-auto">
+          <button type="button" className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent hover:border-accent/30 transition-colors whitespace-nowrap">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="inline mr-1 -mt-0.5 opacity-60"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 2.5a2 2 0 110 4 2 2 0 010-4zM4 11c0-1.5 2.69-2.5 4-2.5s4 1 4 2.5v.5H4V11z"/></svg>
+            Mention
+          </button>
+          <button type="button" className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent-magenta hover:border-accent-magenta/30 transition-colors whitespace-nowrap">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M14 10v2.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V10M11 5l-3-3-3 3M8 2v8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Attach
+          </button>
+          <button type="button" className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent-yellow hover:border-accent-yellow/30 transition-colors whitespace-nowrap">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M4 4l4 4-4 4M8 12h4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Snippet
+          </button>
+          <button type="button" className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent-violet hover:border-accent-violet/30 transition-colors whitespace-nowrap">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M2 8h12M8 2v12" strokeLinecap="round" /></svg>
+            Poll
+          </button>
+        </div>
       </div>
     </form>
   );

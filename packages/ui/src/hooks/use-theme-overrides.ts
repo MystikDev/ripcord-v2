@@ -33,7 +33,7 @@ export function useThemeOverrides(): void {
       root.style.setProperty('--color-text-primary', fontColor);
     } else {
       // Restore the theme default
-      root.style.setProperty('--color-text-primary', '#E8ECF4');
+      root.style.setProperty('--color-text-primary', '#e8ecf4');
     }
   }, [fontColor]);
 

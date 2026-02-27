@@ -1,7 +1,8 @@
 /**
  * @module app-shell
- * Three-column app chrome. Composes HubSidebar, ChannelSidebar, ChatArea,
- * and optionally MemberListPanel into the main application layout.
+ * Three-column app chrome with ORBIT spatial design. Composes HubSidebar,
+ * ChannelSidebar, ChatArea, and optionally MemberListPanel into the main
+ * application layout with ambient background layers.
  */
 'use client';
 
@@ -25,22 +26,30 @@ export function AppShell() {
   useThemeOverrides();
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
-      {/* Left: hub icons */}
-      <HubSidebar />
+    <div className="relative h-screen w-screen overflow-hidden bg-void">
+      {/* ORBIT ambient background layers */}
+      <div className="orbit-ambient" />
+      <div className="orbit-grid" />
+      <div className="orbit-scanline" />
 
-      {/* Middle: channel list */}
-      <ChannelSidebar />
+      {/* Main 3-column layout — sits above ambient */}
+      <div className="relative z-10 flex h-full w-full">
+        {/* Left: hub icons */}
+        <HubSidebar />
 
-      {/* Center: chat area */}
-      <ChatArea />
+        {/* Middle: channel list */}
+        <ChannelSidebar />
 
-      {/* Right: member list panel (not shown in DM view) */}
-      {memberListVisible && !isDmView && <MemberListPanel />}
+        {/* Center: chat area */}
+        <ChatArea />
 
-      {/* Global overlays for DM calls */}
-      <IncomingCall />
-      <DmCallPanel />
+        {/* Right: member list panel (not shown in DM view) */}
+        {memberListVisible && !isDmView && <MemberListPanel />}
+
+        {/* Global overlays for DM calls */}
+        <IncomingCall />
+        <DmCallPanel />
+      </div>
     </div>
   );
 }

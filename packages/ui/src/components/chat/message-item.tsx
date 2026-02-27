@@ -1,8 +1,7 @@
 /**
  * @module message-item
- * Individual message row. Renders avatar (collapsed for consecutive same-author
- * messages), display name, timestamp, text body, file attachments, and pin
- * indicator / action buttons.
+ * ORBIT-styled message node. Glass-card with gradient border hover effect,
+ * avatar with accent ring, display-text author name, and spatial layout.
  * Uses Framer Motion for slide-in animation.
  */
 'use client';
@@ -137,15 +136,15 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.15 }}
-        className="group relative flex items-start gap-2 px-4 py-px hover:bg-surface-1/50"
+        className="group relative flex items-start gap-2 px-4 py-px hover:bg-white/[0.03] rounded-lg"
       >
-        <span className="shrink-0 text-text-muted" style={{ fontSize: 'var(--font-size-xs, 10px)', minWidth: '3.5em', textAlign: 'right' }}>
+        <span className="shrink-0 text-text-muted font-mono" style={{ fontSize: 'var(--font-size-xs, 10px)', minWidth: '3.5em', textAlign: 'right' }}>
           {formatTime(message.createdAt)}
         </span>
         <div className="min-w-0 flex-1">
           <span className="inline">
             <span
-              className="font-medium cursor-pointer hover:underline mr-1.5"
+              className="font-medium display-text cursor-pointer hover:underline mr-1.5"
               style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-username, var(--color-text-primary))' }}
               onContextMenu={(e) => {
                 if (message.authorId === currentUserId) return;
@@ -186,14 +185,14 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
           )}
         </div>
 
-        {/* Action buttons (show on hover) */}
-        <div className="absolute right-2 top-0 hidden items-center gap-0.5 rounded border border-border bg-surface-2 px-0.5 shadow-sm group-hover:flex">
+        {/* Action buttons (show on hover) — glass style */}
+        <div className="absolute right-2 top-0 hidden items-center gap-0.5 rounded-xl glass-panel px-1 group-hover:flex">
           <button
             onClick={handleToggleBookmark}
-            className={`rounded p-1 transition-colors ${
+            className={`rounded-lg p-1 transition-colors ${
               isBookmarked
-                ? 'text-accent hover:bg-surface-3'
-                : 'text-text-muted hover:bg-surface-3 hover:text-text-primary'
+                ? 'text-accent hover:bg-white/10'
+                : 'text-text-muted hover:bg-white/10 hover:text-text-primary'
             }`}
             title={isBookmarked ? 'Remove bookmark' : 'Bookmark message'}
           >
@@ -201,10 +200,10 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
           </button>
           <button
             onClick={handleTogglePin}
-            className={`rounded p-1 transition-colors ${
+            className={`rounded-lg p-1 transition-colors ${
               isPinned
-                ? 'text-accent hover:bg-surface-3'
-                : 'text-text-muted hover:bg-surface-3 hover:text-text-primary'
+                ? 'text-accent hover:bg-white/10'
+                : 'text-text-muted hover:bg-white/10 hover:text-text-primary'
             }`}
             title={isPinned ? 'Unpin message' : 'Pin message'}
           >
@@ -225,90 +224,118 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
     );
   }
 
-  // ---- Normal mode ----
+  // ---- Normal mode: ORBIT glass-card node ----
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15 }}
-      className={`group relative flex gap-3 px-4 py-0.5 hover:bg-surface-1/50 ${
-        isConsecutive ? '' : 'mt-3 pt-1'
+      className={`message-node group relative rounded-2xl transition-colors ${
+        isConsecutive ? 'pl-16 py-0.5' : 'glass-card p-5 mt-3'
       }`}
     >
-      {/* Avatar column */}
-      <div className="shrink-0" style={{ width: 'var(--icon-size-base, 32px)' }}>
+      {/* Avatar + content */}
+      <div className={isConsecutive ? '' : 'flex gap-4'}>
+        {/* Avatar column */}
         {!isConsecutive && (
-          <Avatar
-            src={cachedAvatarUrl}
-            fallback={displayHandle}
-            size="md"
-            style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }}
-          />
-        )}
-      </div>
-
-      {/* Content column */}
-      <div className="min-w-0 flex-1">
-        {!isConsecutive && (
-          <div className="flex items-baseline gap-2">
-            <span
-              className="font-medium cursor-pointer hover:underline"
-              style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-username, var(--color-text-primary))' }}
-              onContextMenu={(e) => {
-                if (message.authorId === currentUserId) return;
-                e.preventDefault();
-                setContextMenu({ x: e.clientX, y: e.clientY });
-              }}
-            >
-              {displayHandle}
-            </span>
-            <span className="text-text-muted" style={{ fontSize: 'var(--font-size-xs, 10px)' }}>
-              {formatTime(message.createdAt)}
-            </span>
-            {message.editedAt && (
-              <span className="text-xs text-text-muted">(edited)</span>
-            )}
-            {isPinned && (
-              <span className="flex items-center gap-0.5 text-xs text-accent" title="Pinned message">
-                <PinIcon className="text-accent" />
-                <span>pinned</span>
-              </span>
-            )}
-          </div>
-        )}
-        <MessageContent content={message.content} />
-        {message.content && extractUrls(message.content).length > 0 && (
-          <div className="flex flex-col gap-1">
-            {extractUrls(message.content).slice(0, 3).map((url) => (
-              <LinkPreview key={url} url={url} />
-            ))}
-          </div>
-        )}
-        {message.attachments && message.attachments.length > 0 && (
-          <div className="flex flex-col gap-1">
-            {message.attachments.map((att) => (
-              <AttachmentPreview
-                key={att.id}
-                attachmentId={att.id}
-                fileNameEncrypted={att.fileNameEncrypted}
-                fileSize={att.fileSize}
-                contentTypeEncrypted={att.contentTypeEncrypted}
-                encryptionKeyId={att.encryptionKeyId}
-                nonce={att.nonce}
+          <div className="relative shrink-0">
+            <div className="rounded-full border-2 border-accent/30 p-[1px]">
+              <Avatar
+                src={cachedAvatarUrl}
+                fallback={displayHandle}
+                size="md"
+                style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }}
               />
-            ))}
+            </div>
+            {/* Online dot */}
+            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-accent rounded-full border-2 border-void" />
           </div>
         )}
+
+        {/* Content column */}
+        <div className="min-w-0 flex-1">
+          {!isConsecutive && (
+            <div className="flex items-center gap-3 mb-1.5">
+              <span
+                className="display-text font-semibold cursor-pointer hover:underline"
+                style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-username, var(--color-text-primary))' }}
+                onContextMenu={(e) => {
+                  if (message.authorId === currentUserId) return;
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY });
+                }}
+              >
+                {displayHandle}
+              </span>
+              <span className="text-xs text-white/40 font-mono">
+                {formatTime(message.createdAt)}
+              </span>
+              {message.editedAt && (
+                <span className="text-xs text-text-muted">(edited)</span>
+              )}
+              {isPinned && (
+                <span className="flex items-center gap-0.5 text-xs text-accent" title="Pinned message">
+                  <PinIcon className="text-accent" />
+                  <span>pinned</span>
+                </span>
+              )}
+            </div>
+          )}
+          <div className="text-white/80">
+            <MessageContent content={message.content} />
+          </div>
+          {message.content && extractUrls(message.content).length > 0 && (
+            <div className="flex flex-col gap-1 mt-2">
+              {extractUrls(message.content).slice(0, 3).map((url) => (
+                <LinkPreview key={url} url={url} />
+              ))}
+            </div>
+          )}
+          {message.attachments && message.attachments.length > 0 && (
+            <div className="flex flex-col gap-1 mt-2">
+              {message.attachments.map((att) => (
+                <AttachmentPreview
+                  key={att.id}
+                  attachmentId={att.id}
+                  fileNameEncrypted={att.fileNameEncrypted}
+                  fileSize={att.fileSize}
+                  contentTypeEncrypted={att.contentTypeEncrypted}
+                  encryptionKeyId={att.encryptionKeyId}
+                  nonce={att.nonce}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Thread interaction strip — ORBIT branch + reaction indicators */}
+          {!isConsecutive && (
+            <div className="mt-3 flex items-center gap-4">
+              <button className="flex items-center gap-1.5 text-sm text-white/40 hover:text-accent transition-colors">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 3v10M6 13l-4-4M6 13l4-4" />
+                  <path d="M10 3h3v3" />
+                  <path d="M13 3L6 10" />
+                </svg>
+                <span>Thread</span>
+              </button>
+              <button className="flex items-center gap-1.5 text-sm text-white/40 hover:text-accent-magenta transition-colors">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 14s-5.5-3.5-5.5-7.5C2.5 4 4.5 2 7 2a3.5 3.5 0 011 .5A3.5 3.5 0 019 2c2.5 0 4.5 2 4.5 4.5S8 14 8 14z" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Action buttons (show on hover) */}
-      <div className="absolute right-2 top-0 hidden items-center gap-0.5 rounded border border-border bg-surface-2 px-0.5 shadow-sm group-hover:flex">
+      {/* Action buttons (show on hover) — glass overlay */}
+      <div className="absolute right-3 top-3 hidden items-center gap-0.5 rounded-xl glass-panel px-1 group-hover:flex">
         <button
           onClick={handleToggleBookmark}
-          className={`rounded p-1 transition-colors ${
+          className={`rounded-lg p-1.5 transition-colors ${
             isBookmarked
-              ? 'text-accent hover:bg-surface-3'
-              : 'text-text-muted hover:bg-surface-3 hover:text-text-primary'
+              ? 'text-accent hover:bg-white/10'
+              : 'text-text-muted hover:bg-white/10 hover:text-text-primary'
           }`}
           title={isBookmarked ? 'Remove bookmark' : 'Bookmark message'}
         >
@@ -316,10 +343,10 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
         </button>
         <button
           onClick={handleTogglePin}
-          className={`rounded p-1 transition-colors ${
+          className={`rounded-lg p-1.5 transition-colors ${
             isPinned
-              ? 'text-accent hover:bg-surface-3'
-              : 'text-text-muted hover:bg-surface-3 hover:text-text-primary'
+              ? 'text-accent hover:bg-white/10'
+              : 'text-text-muted hover:bg-white/10 hover:text-text-primary'
           }`}
           title={isPinned ? 'Unpin message' : 'Pin message'}
         >
@@ -329,7 +356,7 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
 
       {/* Timestamp on hover for consecutive messages */}
       {isConsecutive && (
-        <span className="hidden shrink-0 text-xs text-text-muted group-hover:block">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 hidden text-xs text-white/30 font-mono group-hover:block">
           {formatTime(message.createdAt)}
         </span>
       )}
