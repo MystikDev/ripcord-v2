@@ -201,8 +201,10 @@ export function UpdateChecker() {
           <span>Ripcord v{state.version} is ready to install!</span>
           <button
             onClick={() => {
-              // Force logout before relaunch so the updated app opens to login
-              localStorage.removeItem('ripcord-auth');
+              // Clear auth unless the user opted into "Remember me"
+              if (localStorage.getItem('ripcord-remember-me') !== 'true') {
+                localStorage.removeItem('ripcord-auth');
+              }
               relaunch();
             }}
             className="rounded bg-white/20 px-2 py-0.5 font-medium transition-colors hover:bg-white/30"

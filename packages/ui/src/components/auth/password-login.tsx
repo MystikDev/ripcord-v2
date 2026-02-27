@@ -40,6 +40,9 @@ export function PasswordLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(
+    () => localStorage.getItem('ripcord-remember-me') === 'true',
+  );
 
   // When set, shows the verification screen instead of the login form
   const [pendingVerification, setPendingVerification] = useState<VerificationInfo | null>(null);
@@ -65,6 +68,14 @@ export function PasswordLogin() {
       setTokens(tokens.accessToken, tokens.refreshToken);
       const avatarUrl = tokens.avatarUrl ? getUserAvatarUrl(tokens.userId) : undefined;
       setUser(tokens.userId, tokens.handle, tokens.deviceId, avatarUrl);
+
+      // Persist "Remember me" preference so clear-session.ts can check it
+      if (rememberMe) {
+        localStorage.setItem('ripcord-remember-me', 'true');
+      } else {
+        localStorage.removeItem('ripcord-remember-me');
+      }
+
       const redirect = searchParams.get('redirect');
       const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/';
       router.push(safeRedirect);
@@ -148,6 +159,16 @@ export function PasswordLogin() {
             </button>
           </div>
         </div>
+
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="h-4 w-4 rounded border-border bg-surface-2 accent-accent"
+          />
+          <span className="text-sm text-text-secondary">Remember me</span>
+        </label>
 
         <Button type="submit" loading={loading} className="w-full">
           Sign In with Password

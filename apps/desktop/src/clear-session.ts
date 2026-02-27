@@ -15,6 +15,9 @@
  */
 
 if (!sessionStorage.getItem('ripcord-session')) {
-  localStorage.removeItem('ripcord-auth');
+  // Only wipe auth state if the user hasn't opted into "Remember me"
+  if (localStorage.getItem('ripcord-remember-me') !== 'true') {
+    localStorage.removeItem('ripcord-auth');
+  }
   sessionStorage.setItem('ripcord-session', '1');
 }

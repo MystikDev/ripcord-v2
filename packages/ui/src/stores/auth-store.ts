@@ -62,7 +62,9 @@ export const useAuthStore = create<AuthState>()(
 
       setAvatarUrl: (url) => set({ avatarUrl: url }),
 
-      logout: () =>
+      logout: () => {
+        // Clear "Remember me" so the next launch shows the login screen
+        localStorage.removeItem('ripcord-remember-me');
         set({
           accessToken: null,
           refreshToken: null,
@@ -71,7 +73,8 @@ export const useAuthStore = create<AuthState>()(
           avatarUrl: null,
           deviceId: null,
           isAuthenticated: false,
-        }),
+        });
+      },
     }),
     {
       name: 'ripcord-auth',
