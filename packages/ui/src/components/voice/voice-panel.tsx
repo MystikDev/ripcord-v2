@@ -9,7 +9,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LiveKitRoom, RoomAudioRenderer } from '@livekit/components-react';
+import { LiveKitRoom } from '@livekit/components-react';
 import { Room, RoomOptions, setLogLevel, LogLevel } from 'livekit-client';
 import { useHubStore } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
@@ -21,7 +21,7 @@ import { useNoiseGate } from '../../hooks/use-noise-gate';
 import { useRestoreSpeaker } from '../../hooks/use-restore-speaker';
 import { useSyncSpeaking } from '../../hooks/use-sync-speaking';
 import { useSyncScreenSharing } from '../../hooks/use-sync-screen-sharing';
-import { useApplyUserVolumes } from '../../hooks/use-apply-user-volumes';
+import { VoiceAudioRenderer } from './voice-audio-renderer';
 import { VoiceControls } from './voice-controls';
 import { ScreenShareView } from './screen-share-view';
 import { StreamPreview } from './stream-preview';
@@ -90,8 +90,7 @@ function VoicePanelContent({
   useSyncSpeaking();
   // Bridge LiveKit screen-share state to Zustand store for sidebar icons
   useSyncScreenSharing();
-  // Apply per-user volume overrides (including deafen) to LiveKit tracks
-  useApplyUserVolumes();
+  // Volume is handled by <VoiceAudioRenderer /> (sibling component)
   // Poll WebRTC stats for voice latency
   const { latencyMs, quality } = useVoiceLatency();
 
@@ -360,7 +359,7 @@ export function VoicePanel() {
           onError={handleRoomError}
           onConnected={handleRoomConnected}
         >
-          <RoomAudioRenderer />
+          <VoiceAudioRenderer />
           <VoicePanelContent
             channelName={voiceChannel?.name ?? 'Voice'}
             connectionState={connectionState}
