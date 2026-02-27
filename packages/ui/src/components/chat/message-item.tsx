@@ -15,7 +15,10 @@ import { MessageContent } from './message-content';
 import { LinkPreview } from './link-preview';
 import { extractUrls } from '../../lib/url-utils';
 import { useMemberStore } from '../../stores/member-store';
+import { useHubStore } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
+import { useSettingsStore } from '../../stores/settings-store';
+import { useBookmarkStore } from '../../stores/bookmark-store';
 import { UserContextMenu } from '../ui/user-context-menu';
 import { pinMessage, unpinMessage } from '../../lib/hub-api';
 import type { Message } from '../../stores/message-store';
@@ -67,6 +70,15 @@ function PinActionIcon({ pinned }: { pinned: boolean }) {
   );
 }
 
+/** Bookmark icon for the action button. */
+function BookmarkIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 2h10a1 1 0 011 1v12l-6-3-6 3V3a1 1 0 011-1z" />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -75,13 +87,36 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
   // Resolve handle + avatar from member cache (reactive — updates when members load)
   const cachedHandle = useMemberStore((s) => s.members[message.authorId]?.handle);
   const cachedAvatarUrl = useMemberStore((s) => s.members[message.authorId]?.avatarUrl);
-  const displayHandle = cachedHandle ?? message.authorHandle;
+  // Fallback to DM participant handle when the author isn't in the hub member cache
+  const dmHandle = useHubStore((s) => {
+    const dm = s.dmChannels.find((d) => d.channelId === message.channelId);
+    return dm?.participants.find((p) => p.userId === message.authorId)?.handle;
+  });
+  const displayHandle = cachedHandle ?? dmHandle ?? message.authorHandle;
   const currentUserId = useAuthStore((s) => s.userId);
+  const compactMode = useSettingsStore((s) => s.compactMode);
+  const isBookmarked = useBookmarkStore((s) => s.isBookmarked(message.id));
+  const addBookmark = useBookmarkStore((s) => s.addBookmark);
+  const removeBookmark = useBookmarkStore((s) => s.removeBookmark);
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const isPinned = !!message.pinnedAt;
+
+  const handleToggleBookmark = useCallback(() => {
+    if (isBookmarked) {
+      removeBookmark(message.id);
+    } else {
+      addBookmark({
+        messageId: message.id,
+        channelId: message.channelId,
+        authorHandle: displayHandle,
+        contentPreview: message.content.slice(0, 200),
+        messageTimestamp: message.createdAt,
+      });
+    }
+  }, [isBookmarked, addBookmark, removeBookmark, message, displayHandle]);
 
   const handleTogglePin = useCallback(async () => {
     try {
@@ -95,6 +130,102 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
     }
   }, [isPinned, message.channelId, message.id]);
 
+  // ---- Compact mode: single-line layout, no avatar ----
+  if (compactMode) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.15 }}
+        className="group relative flex items-start gap-2 px-4 py-px hover:bg-surface-1/50"
+      >
+        <span className="shrink-0 text-text-muted" style={{ fontSize: 'var(--font-size-xs, 10px)', minWidth: '3.5em', textAlign: 'right' }}>
+          {formatTime(message.createdAt)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <span className="inline">
+            <span
+              className="font-medium cursor-pointer hover:underline mr-1.5"
+              style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-username, var(--color-text-primary))' }}
+              onContextMenu={(e) => {
+                if (message.authorId === currentUserId) return;
+                e.preventDefault();
+                setContextMenu({ x: e.clientX, y: e.clientY });
+              }}
+            >
+              {displayHandle}
+            </span>
+            {isPinned && (
+              <span className="inline-flex items-center gap-0.5 text-xs text-accent mr-1.5" title="Pinned message">
+                <PinIcon className="text-accent" />
+              </span>
+            )}
+          </span>
+          <MessageContent content={message.content} />
+          {message.content && extractUrls(message.content).length > 0 && (
+            <div className="flex flex-col gap-1">
+              {extractUrls(message.content).slice(0, 3).map((url) => (
+                <LinkPreview key={url} url={url} />
+              ))}
+            </div>
+          )}
+          {message.attachments && message.attachments.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {message.attachments.map((att) => (
+                <AttachmentPreview
+                  key={att.id}
+                  attachmentId={att.id}
+                  fileNameEncrypted={att.fileNameEncrypted}
+                  fileSize={att.fileSize}
+                  contentTypeEncrypted={att.contentTypeEncrypted}
+                  encryptionKeyId={att.encryptionKeyId}
+                  nonce={att.nonce}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons (show on hover) */}
+        <div className="absolute right-2 top-0 hidden items-center gap-0.5 rounded border border-border bg-surface-2 px-0.5 shadow-sm group-hover:flex">
+          <button
+            onClick={handleToggleBookmark}
+            className={`rounded p-1 transition-colors ${
+              isBookmarked
+                ? 'text-accent hover:bg-surface-3'
+                : 'text-text-muted hover:bg-surface-3 hover:text-text-primary'
+            }`}
+            title={isBookmarked ? 'Remove bookmark' : 'Bookmark message'}
+          >
+            <BookmarkIcon active={isBookmarked} />
+          </button>
+          <button
+            onClick={handleTogglePin}
+            className={`rounded p-1 transition-colors ${
+              isPinned
+                ? 'text-accent hover:bg-surface-3'
+                : 'text-text-muted hover:bg-surface-3 hover:text-text-primary'
+            }`}
+            title={isPinned ? 'Unpin message' : 'Pin message'}
+          >
+            <PinActionIcon pinned={isPinned} />
+          </button>
+        </div>
+
+        {/* User context menu */}
+        {contextMenu && (
+          <UserContextMenu
+            userId={message.authorId}
+            displayName={displayHandle}
+            position={contextMenu}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
+      </motion.div>
+    );
+  }
+
+  // ---- Normal mode ----
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -172,6 +303,17 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
 
       {/* Action buttons (show on hover) */}
       <div className="absolute right-2 top-0 hidden items-center gap-0.5 rounded border border-border bg-surface-2 px-0.5 shadow-sm group-hover:flex">
+        <button
+          onClick={handleToggleBookmark}
+          className={`rounded p-1 transition-colors ${
+            isBookmarked
+              ? 'text-accent hover:bg-surface-3'
+              : 'text-text-muted hover:bg-surface-3 hover:text-text-primary'
+          }`}
+          title={isBookmarked ? 'Remove bookmark' : 'Bookmark message'}
+        >
+          <BookmarkIcon active={isBookmarked} />
+        </button>
         <button
           onClick={handleTogglePin}
           className={`rounded p-1 transition-colors ${

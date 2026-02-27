@@ -68,6 +68,8 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
   const setIconSize = useSettingsStore((s) => s.setIconSize);
   const setUsernameColor = useSettingsStore((s) => s.setUsernameColor);
   const setChatTextColor = useSettingsStore((s) => s.setChatTextColor);
+  const compactMode = useSettingsStore((s) => s.compactMode);
+  const setCompactMode = useSettingsStore((s) => s.setCompactMode);
 
   // Close on outside click
   useEffect(() => {
@@ -229,6 +231,26 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Compact Mode */}
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <label className="text-sm font-medium text-text-secondary">Compact Mode</label>
+            <p className="text-[11px] text-text-muted mt-0.5">Hide avatars and use single-line message layout</p>
+          </div>
+          <button
+            onClick={() => setCompactMode(!compactMode)}
+            className={`relative h-5 w-9 rounded-full transition-colors ${
+              compactMode ? 'bg-accent' : 'bg-surface-3'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                compactMode ? 'translate-x-4' : ''
+              }`}
+            />
+          </button>
         </div>
 
         {/* Preview */}

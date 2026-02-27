@@ -89,6 +89,8 @@ export interface SettingsState {
   usernameColor: string | null;
   /** Custom chat message text color (hex string) or null for default. Independent of fontColor. */
   chatTextColor: string | null;
+  /** Whether compact mode is enabled (no avatars, single-line layout). Default: false */
+  compactMode: boolean;
   /** Set the base font size. */
   setFontSize: (size: number) => void;
   /** Set a custom font color or null to reset. */
@@ -99,6 +101,8 @@ export interface SettingsState {
   setUsernameColor: (color: string | null) => void;
   /** Set a custom chat text color or null to reset. */
   setChatTextColor: (color: string | null) => void;
+  /** Toggle compact mode on/off. */
+  setCompactMode: (enabled: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -156,11 +160,13 @@ export const useSettingsStore = create<SettingsState>()(
       iconSize: 32,
       usernameColor: null,
       chatTextColor: null,
+      compactMode: false,
       setFontSize: (size) => set({ fontSize: Math.max(12, Math.min(20, size)) }),
       setFontColor: (color) => set({ fontColor: color }),
       setIconSize: (size) => set({ iconSize: Math.max(24, Math.min(64, size)) }),
       setUsernameColor: (color) => set({ usernameColor: color }),
       setChatTextColor: (color) => set({ chatTextColor: color }),
+      setCompactMode: (enabled) => set({ compactMode: enabled }),
     }),
     {
       name: 'ripcord-settings',
@@ -181,6 +187,7 @@ export const useSettingsStore = create<SettingsState>()(
         iconSize: state.iconSize,
         usernameColor: state.usernameColor,
         chatTextColor: state.chatTextColor,
+        compactMode: state.compactMode,
       }),
     },
   ),

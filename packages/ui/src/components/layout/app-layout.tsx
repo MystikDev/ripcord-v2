@@ -18,6 +18,7 @@ import { ToastProvider } from '../ui/toast';
 import { AppShell } from './app-shell';
 import { OnboardingFlow } from '../onboarding/onboarding-flow';
 import { WhatsNewDialog } from '../ui/whats-new-dialog';
+import { QuickSwitcher } from '../ui/quick-switcher';
 
 /**
  * App layout: wraps the 3-column shell, guards auth,
@@ -43,6 +44,20 @@ export function AppLayout() {
   const lastSeenVersion = useSettingsStore((s) => s.lastSeenVersion);
   const setHideWhatsNew = useSettingsStore((s) => s.setHideWhatsNew);
   const setLastSeenVersion = useSettingsStore((s) => s.setLastSeenVersion);
+
+  // ---- Quick Switcher (Ctrl+K / Cmd+K) ----
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setQuickSwitcherOpen((prev) => !prev);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const currentVersion = getAppVersion();
@@ -85,6 +100,7 @@ export function AppLayout() {
     <ToastProvider>
       <TooltipProvider>
         <AppShell />
+        <QuickSwitcher open={quickSwitcherOpen} onOpenChange={setQuickSwitcherOpen} />
         <OnboardingFlow
           open={showOnboarding}
           onComplete={() => setShowOnboarding(false)}

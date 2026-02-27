@@ -148,7 +148,15 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
       if (participants.length === 0) {
         delete next[channelId];
       } else {
-        next[channelId] = participants;
+        // Merge with existing participants to avoid a race condition where
+        // a real-time 'join' event processed before this 'sync' would be
+        // overwritten. Keep any existing participants not in the sync list.
+        const existing = state.voiceStates[channelId] ?? [];
+        const syncUserIds = new Set(participants.map((p) => p.userId));
+        const missing = existing.filter((p) => !syncUserIds.has(p.userId));
+        next[channelId] = missing.length > 0
+          ? [...participants, ...missing]
+          : participants;
       }
       return { voiceStates: next };
     }),

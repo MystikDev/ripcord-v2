@@ -17,6 +17,7 @@ import { MessageComposer, type MessageComposerHandle } from '../chat/message-com
 import { TypingIndicator } from '../chat/typing-indicator';
 import { AIResponseCard } from '../chat/ai-response-card';
 import { PinnedMessagesPanel } from '../chat/pinned-messages-panel';
+import { BookmarksPanel } from '../chat/bookmarks-panel';
 import { sendMessage } from '../../lib/hub-api';
 import { getDmVoiceToken } from '../../lib/voice-api';
 import { gateway } from '../../lib/gateway-client';
@@ -44,6 +45,7 @@ export function ChatArea() {
   const composerRef = useRef<MessageComposerHandle>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showPinned, setShowPinned] = useState(false);
+  const [showBookmarks, setShowBookmarks] = useState(false);
   const dragCounter = useRef(0);
 
   const handleDragEnter = useCallback((e: DragEvent) => {
@@ -229,6 +231,22 @@ export function ChatArea() {
             </button>
           )}
 
+          {/* Bookmarks toggle */}
+          <button
+            onClick={() => setShowBookmarks((v) => !v)}
+            className={clsx(
+              'rounded-md p-1.5 transition-colors',
+              showBookmarks
+                ? 'bg-surface-2 text-text-primary'
+                : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
+            )}
+            title="Bookmarks"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 2h10a1 1 0 011 1v12l-6-3-6 3V3a1 1 0 011-1z" />
+            </svg>
+          </button>
+
           {/* Pinned messages toggle */}
           <button
             onClick={() => setShowPinned((v) => !v)}
@@ -289,6 +307,11 @@ export function ChatArea() {
           channelId={effectiveChannelId}
           onClose={() => setShowPinned(false)}
         />
+      )}
+
+      {/* Bookmarks panel */}
+      {showBookmarks && (
+        <BookmarksPanel onClose={() => setShowBookmarks(false)} />
       )}
     </div>
   );

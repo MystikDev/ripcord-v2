@@ -20,6 +20,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.15',
+    date: '2026-02-27',
+    highlights: [
+      'Markdown in messages — bold, italic, strikethrough, code blocks, blockquotes, and lists',
+      'Quick Switcher (Ctrl+K / Cmd+K) — jump between hubs, channels, and DMs instantly',
+      'Compact mode — toggle in Appearance settings for a denser message layout',
+      'Message bookmarks — save important messages locally with the bookmark button',
+      'Fixed user handles showing as truncated IDs in DM conversations',
+      'Fixed voice channel participants not appearing in the sidebar',
+    ],
+  },
+  {
     version: '0.9.13',
     date: '2026-02-26',
     highlights: [

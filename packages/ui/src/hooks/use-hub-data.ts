@@ -306,11 +306,27 @@ export function useHubData() {
         if (cancelled) return;
         // Messages come DESC from API, reverse for display (oldest first)
         const memberState = useMemberStore.getState();
+        const hubState = useHubStore.getState();
+
+        // Build a DM participant handle map for the active channel so DM
+        // partners who aren't in the current hub still show their name
+        // instead of a truncated user-ID.
+        const dmParticipantHandles = new Map<string, string>();
+        const activeDm = hubState.dmChannels.find((dm) => dm.channelId === activeChannelId);
+        if (activeDm) {
+          for (const p of activeDm.participants) {
+            dmParticipantHandles.set(p.userId, p.handle);
+          }
+        }
+
         const mapped: Message[] = messages.reverse().map((m) => ({
           id: m.id,
           channelId: m.channelId,
           authorId: m.senderUserId,
-          authorHandle: memberState.getHandle(m.senderUserId) ?? m.senderUserId.slice(0, 8),
+          authorHandle:
+            memberState.getHandle(m.senderUserId)
+            ?? dmParticipantHandles.get(m.senderUserId)
+            ?? m.senderUserId.slice(0, 8),
           content: (() => {
             try {
               return decodeURIComponent(escape(atob(m.envelope.ciphertext)));

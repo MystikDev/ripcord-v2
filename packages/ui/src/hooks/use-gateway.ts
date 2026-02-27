@@ -13,6 +13,7 @@ import { usePresenceStore, type PresenceStatus } from '../stores/presence-store'
 import { useTypingStore } from '../stores/typing-store';
 import { useVoiceStateStore } from '../stores/voice-state-store';
 import { useMemberStore } from '../stores/member-store';
+import { useHubStore } from '../stores/server-store';
 import { gateway } from '../lib/gateway-client';
 import { useSettingsStore } from '../stores/settings-store';
 import { useCallStore } from '../stores/call-store';
@@ -90,10 +91,16 @@ export function useGateway() {
         const id = raw.id;
         if (!channelId || !id) return;
 
-        // Resolve handle from member cache
-        const handle = useMemberStore.getState().getHandle(raw.senderUserId ?? raw.authorId ?? '')
+        // Resolve handle from member cache, then DM participant data, then fallback
+        const senderId = raw.senderUserId ?? raw.authorId ?? '';
+        const dmHandle = (() => {
+          const dm = useHubStore.getState().dmChannels.find((d) => d.channelId === channelId);
+          return dm?.participants.find((p) => p.userId === senderId)?.handle;
+        })();
+        const handle = useMemberStore.getState().getHandle(senderId)
+          ?? dmHandle
           ?? raw.authorHandle
-          ?? (raw.senderUserId ?? raw.authorId ?? '').slice(0, 8);
+          ?? senderId.slice(0, 8);
 
         // Decrypt content if envelope is present
         let content = raw.content ?? '[encrypted message]';
