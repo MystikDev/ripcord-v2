@@ -50,6 +50,57 @@ export function mouseButtonKey(button: number): string {
   return `Mouse${button}`;
 }
 
+// ---------------------------------------------------------------------------
+// Tauri accelerator mapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Map from KeyboardEvent.key → Tauri accelerator string.
+ * Tauri uses a different naming convention for special keys.
+ * Returns `null` for mouse buttons (not supported by Tauri global shortcuts).
+ */
+const TAURI_KEY_MAP: Record<string, string> = {
+  ' ': 'Space',
+  'Control': 'Control',
+  'Meta': 'Super',
+  'ArrowUp': 'Up',
+  'ArrowDown': 'Down',
+  'ArrowLeft': 'Left',
+  'ArrowRight': 'Right',
+  'Backspace': 'Backspace',
+  'Delete': 'Delete',
+  'Escape': 'Escape',
+  'CapsLock': 'CapsLock',
+  'Tab': 'Tab',
+  'Enter': 'Return',
+  'Shift': 'Shift',
+  'Alt': 'Alt',
+};
+
+/**
+ * Convert a KeyboardEvent.key value to a Tauri accelerator string.
+ * Returns `null` for mouse buttons (Tauri can't register global mouse shortcuts).
+ *
+ * Examples:
+ *   ' '       → 'Space'
+ *   'v'       → 'V'
+ *   'F5'      → 'F5'
+ *   'Control' → 'Control'
+ *   'Mouse3'  → null
+ */
+export function toTauriAccelerator(key: string): string | null {
+  if (isMouseButton(key)) return null;
+  if (TAURI_KEY_MAP[key]) return TAURI_KEY_MAP[key];
+  // Single characters get uppercased (e.g. 'v' → 'V')
+  if (key.length === 1) return key.toUpperCase();
+  // Everything else passes through as-is (e.g. 'F5', 'PageUp')
+  return key;
+}
+
+// ---------------------------------------------------------------------------
+// Display labels
+// ---------------------------------------------------------------------------
+
 export function getKeyDisplayLabel(key: string): string {
   if (KEY_DISPLAY_MAP[key]) return KEY_DISPLAY_MAP[key];
 
