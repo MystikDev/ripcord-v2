@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.13',
+    date: '2026-02-26',
+    highlights: [
+      'Fixed voice audio — switched to single shared AudioContext for reliable remote audio playback',
+    ],
+  },
+  {
     version: '0.9.12',
     date: '2026-02-26',
     highlights: [

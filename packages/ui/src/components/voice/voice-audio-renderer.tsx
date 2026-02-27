@@ -21,11 +21,12 @@
  *
  * ## Architecture
  *
- * For each remote audio track (microphone, screen-share audio):
+ * A single shared AudioContext feeds all remote audio tracks:
  *
  *   MediaStreamTrack → createMediaStreamSource → GainNode → destination
  *
  * Key advantages:
+ *   - Single AudioContext avoids browser limits and autoplay-policy issues
  *   - createMediaStreamSource can be called multiple times (no one-shot issue)
  *   - No HTMLMediaElement involved (no 0-1 volume clamping)
  *   - No conflict with LiveKit's internal volume management
@@ -35,7 +36,7 @@
  * Must be rendered inside a <LiveKitRoom> provider.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useTracks } from '@livekit/components-react';
 import { Track, RemoteAudioTrack } from 'livekit-client';
 import { useSettingsStore } from '../../stores/settings-store';
@@ -45,7 +46,6 @@ import { useSettingsStore } from '../../stores/settings-store';
 // ---------------------------------------------------------------------------
 
 interface AudioChain {
-  context: AudioContext;
   source: MediaStreamAudioSourceNode;
   gain: GainNode;
   /** ID of the MediaStreamTrack this chain is connected to. */
@@ -56,9 +56,8 @@ function cleanupChain(chain: AudioChain): void {
   try {
     chain.source.disconnect();
     chain.gain.disconnect();
-    void chain.context.close();
   } catch {
-    // Ignore cleanup errors (context may already be closed)
+    // Ignore cleanup errors (nodes may already be disconnected)
   }
 }
 
@@ -74,8 +73,27 @@ export function VoiceAudioRenderer() {
   const userVolumes = useSettingsStore((s) => s.userVolumes);
   const isDeafened = useSettingsStore((s) => s.isDeafened);
 
+  /** Single shared AudioContext for all audio chains. */
+  const contextRef = useRef<AudioContext | null>(null);
   /** Map of composite key (identity:source) → active AudioChain. */
   const chainsRef = useRef(new Map<string, AudioChain>());
+
+  /** Lazily create or retrieve the shared AudioContext. */
+  const getContext = useCallback((): AudioContext => {
+    let ctx = contextRef.current;
+    if (!ctx || ctx.state === 'closed') {
+      ctx = new AudioContext();
+      contextRef.current = ctx;
+    }
+    // Always attempt to resume — browsers may suspend the context if the tab
+    // loses focus or if it was created outside a direct user-gesture call stack.
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {
+        // Silently ignore — will retry on next render cycle
+      });
+    }
+    return ctx;
+  }, []);
 
   // ---- Apply volumes and manage audio chains every render ----
   useEffect(() => {
@@ -108,18 +126,14 @@ export function VoiceAudioRenderer() {
 
       if (!chain) {
         try {
-          const context = new AudioContext();
-          // Resume if suspended (browser autoplay policy — should be running
-          // since user already clicked "Join Voice", but handle edge cases)
-          if (context.state === 'suspended') void context.resume();
-
+          const context = getContext();
           const stream = new MediaStream([mst]);
           const source = context.createMediaStreamSource(stream);
           const gain = context.createGain();
           source.connect(gain);
           gain.connect(context.destination);
 
-          chain = { context, source, gain, trackId: mst.id };
+          chain = { source, gain, trackId: mst.id };
           chainsRef.current.set(chainKey, chain);
         } catch (err) {
           console.warn('[VoiceAudioRenderer] Failed to create audio chain for', chainKey, err);
@@ -138,15 +152,26 @@ export function VoiceAudioRenderer() {
         chainsRef.current.delete(key);
       }
     }
+
+    // Ensure the shared context is running — covers the case where the context
+    // was suspended when chains were first created and audio was silent.
+    const ctx = contextRef.current;
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
   });
 
-  // Cleanup all chains on unmount (disconnect from voice)
+  // Cleanup all chains and close the AudioContext on unmount
   useEffect(() => {
     return () => {
       for (const chain of chainsRef.current.values()) {
         cleanupChain(chain);
       }
       chainsRef.current.clear();
+      if (contextRef.current) {
+        void contextRef.current.close();
+        contextRef.current = null;
+      }
     };
   }, []);
 
