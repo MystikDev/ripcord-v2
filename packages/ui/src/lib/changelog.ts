@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.23',
+    date: '2026-02-27',
+    highlights: [
+      'Fixed push-to-talk — PTT no longer tears down on every mic state change',
+      'Role colors now visible in the main member sidebar (not just admin panel)',
+      'Fixed screen share stop passing invalid options to LiveKit',
+      'Hub owners now auto-assigned Admin role on hub creation',
+    ],
+  },
+  {
     version: '0.9.22',
     date: '2026-02-27',
     highlights: [

@@ -112,10 +112,13 @@ function MemberRow({ member, offline }: { member: MemberInfo; offline?: boolean 
 // Role group header
 // ---------------------------------------------------------------------------
 
-function RoleGroupHeader({ name, count }: { name: string; count: number }) {
+function RoleGroupHeader({ name, count, color }: { name: string; count: number; color?: string }) {
   return (
     <div className="px-2 pt-4 pb-1">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+      <p
+        className={clsx('text-[11px] font-semibold uppercase tracking-wide', !color && 'text-text-secondary')}
+        style={color ? { color } : undefined}
+      >
         {name} — {count}
       </p>
     </div>
@@ -130,6 +133,7 @@ interface RoleGroup {
   roleId: string | null; // null = catch-all "Members" group
   name: string;
   priority: number;
+  color?: string;
   members: MemberInfo[];
 }
 
@@ -190,6 +194,7 @@ function buildRoleGroups(
       roleId,
       name: def?.name ?? 'Members',
       priority: def?.priority ?? Number.MAX_SAFE_INTEGER,
+      color: def?.color,
       members: groupMembers,
     });
   }
@@ -248,7 +253,7 @@ export function MemberListPanel() {
           {/* Online members grouped by role */}
           {onlineGroups.map((group) => (
             <div key={group.roleId ?? '__members'}>
-              <RoleGroupHeader name={group.name} count={group.members.length} />
+              <RoleGroupHeader name={group.name} count={group.members.length} color={group.color} />
               {group.members.map((member) => (
                 <MemberRow key={member.userId} member={member} />
               ))}

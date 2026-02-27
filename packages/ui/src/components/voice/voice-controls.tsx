@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useLocalParticipant } from '@livekit/components-react';
 import { usePushToTalk } from '../../hooks/use-push-to-talk';
 import { useSettingsStore } from '../../stores/settings-store';
@@ -112,14 +112,18 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
   }, [localParticipant]);
 
   // ----- Push-to-talk -----
+  // Use a ref so the PTT callbacks always see the latest localParticipant
+  // without creating new references that would tear down the PTT hook.
+  const localParticipantRef = useRef(localParticipant);
+  localParticipantRef.current = localParticipant;
 
   const handlePttActivate = useCallback(async () => {
-    await localParticipant.setMicrophoneEnabled(true);
-  }, [localParticipant]);
+    await localParticipantRef.current.setMicrophoneEnabled(true);
+  }, []);
 
   const handlePttDeactivate = useCallback(async () => {
-    await localParticipant.setMicrophoneEnabled(false);
-  }, [localParticipant]);
+    await localParticipantRef.current.setMicrophoneEnabled(false);
+  }, []);
 
   const { isActive: pttActive } = usePushToTalk({
     key: pttKey,
@@ -131,11 +135,17 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
   // ----- Screen share -----
 
   const toggleScreenShare = useCallback(async () => {
-    await localParticipant.setScreenShareEnabled(!isScreenSharing, {
-      audio: true,
-      resolution: { width: 1920, height: 1080, frameRate: 30 },
-      contentHint: 'detail',
-    });
+    if (isScreenSharing) {
+      // Stop sharing — no options needed
+      await localParticipant.setScreenShareEnabled(false);
+    } else {
+      // Start sharing — capture system audio alongside video
+      await localParticipant.setScreenShareEnabled(true, {
+        audio: true,
+        resolution: { width: 1920, height: 1080, frameRate: 30 },
+        contentHint: 'detail',
+      });
+    }
   }, [localParticipant, isScreenSharing]);
 
   // ----- Render -----

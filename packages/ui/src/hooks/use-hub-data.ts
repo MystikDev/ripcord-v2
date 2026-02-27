@@ -187,6 +187,7 @@ export function useHubData() {
           id: r.id,
           name: r.name,
           priority: r.priority,
+          ...(r.color ? { color: r.color } : {}),
         })));
       })
       .catch((err) => {

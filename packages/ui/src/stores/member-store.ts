@@ -14,6 +14,7 @@ import { create } from 'zustand';
 export interface MemberRole {
   id: string;
   name: string;
+  color?: string;
 }
 
 /** Profile information for a single hub member. */

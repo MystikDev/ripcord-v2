@@ -103,6 +103,22 @@ export interface MemberWithUser {
 }
 
 /**
+ * Assign a role to a member.
+ *
+ * @param hubId - Hub UUID.
+ * @param userId - User UUID.
+ * @param roleId - Role UUID.
+ */
+export async function assignRole(hubId: string, userId: string, roleId: string): Promise<void> {
+  await query(
+    `INSERT INTO member_roles (hub_id, user_id, role_id)
+     VALUES ($1, $2, $3)
+     ON CONFLICT DO NOTHING`,
+    [hubId, userId, roleId],
+  );
+}
+
+/**
  * List members of a hub with user handles (cursor-paginated).
  *
  * @param hubId - Hub UUID.

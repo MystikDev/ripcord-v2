@@ -97,6 +97,15 @@ hubsRouter.post(
         String(DEFAULT_EVERYONE_PERMISSIONS),
       );
 
+      // Create Admin role with full permissions and assign to the creator
+      const adminRole = await roleRepo.create(
+        hub.id,
+        'Admin',
+        100,
+        String(Permission.ADMINISTRATOR | DEFAULT_EVERYONE_PERMISSIONS),
+      );
+      await memberRepo.assignRole(hub.id, auth.sub, adminRole.id);
+
       // Audit event
       auditRepo.create(
         auth.sub,

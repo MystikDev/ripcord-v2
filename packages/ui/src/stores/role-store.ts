@@ -15,6 +15,7 @@ export interface RoleDefinition {
   id: string;
   name: string;
   priority: number;
+  color?: string;
 }
 
 export interface RoleStore {
