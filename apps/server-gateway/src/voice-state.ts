@@ -31,6 +31,7 @@ export async function joinVoiceChannel(
   userId: string,
   handle: string | undefined,
   manager: ConnectionManager,
+  senderConnId?: string,
 ): Promise<void> {
   // --- Enforce single-channel: auto-leave previous channel if different ---
   const currentKey = `${VOICE_CURRENT_PREFIX}${userId}`;
@@ -57,13 +58,14 @@ export async function joinVoiceChannel(
   // Track the user's current channel
   await redis.set(currentKey, channelId, 'EX', VOICE_TTL_SEC);
 
-  // Broadcast to all subscribers of this channel
-  manager.broadcastToChannel(
-    channelId,
-    GatewayOpcode.VOICE_STATE_UPDATE,
-    { channelId, userId, handle, action: 'join', selfMute: false, selfDeaf: false },
-    'VOICE_STATE_UPDATE',
-  );
+  // Broadcast to all subscribers of this channel (excluding the sender who
+  // already applied an optimistic UI update to avoid duplicate entries).
+  const payload = { channelId, userId, handle, action: 'join', selfMute: false, selfDeaf: false };
+  if (senderConnId) {
+    manager.broadcastToChannelExcept(channelId, GatewayOpcode.VOICE_STATE_UPDATE, payload, senderConnId, 'VOICE_STATE_UPDATE');
+  } else {
+    manager.broadcastToChannel(channelId, GatewayOpcode.VOICE_STATE_UPDATE, payload, 'VOICE_STATE_UPDATE');
+  }
 
   log.debug({ channelId, userId }, 'User joined voice channel');
 }
@@ -77,6 +79,7 @@ export async function leaveVoiceChannel(
   channelId: string,
   userId: string,
   manager: ConnectionManager,
+  senderConnId?: string,
 ): Promise<void> {
   const key = `${VOICE_PREFIX}${channelId}`;
   await redis.hdel(key, userId);
@@ -94,13 +97,14 @@ export async function leaveVoiceChannel(
     await redis.del(currentKey);
   }
 
-  // Broadcast leave to all subscribers
-  manager.broadcastToChannel(
-    channelId,
-    GatewayOpcode.VOICE_STATE_UPDATE,
-    { channelId, userId, action: 'leave' },
-    'VOICE_STATE_UPDATE',
-  );
+  // Broadcast leave to all subscribers (excluding the sender who already
+  // applied an optimistic UI update).
+  const payload = { channelId, userId, action: 'leave' };
+  if (senderConnId) {
+    manager.broadcastToChannelExcept(channelId, GatewayOpcode.VOICE_STATE_UPDATE, payload, senderConnId, 'VOICE_STATE_UPDATE');
+  } else {
+    manager.broadcastToChannel(channelId, GatewayOpcode.VOICE_STATE_UPDATE, payload, 'VOICE_STATE_UPDATE');
+  }
 
   log.debug({ channelId, userId }, 'User left voice channel');
 }
@@ -114,6 +118,7 @@ export async function updateVoiceState(
   selfMute: boolean,
   selfDeaf: boolean,
   manager: ConnectionManager,
+  senderConnId?: string,
 ): Promise<void> {
   const key = `${VOICE_PREFIX}${channelId}`;
   const raw = await redis.hget(key, userId);
@@ -126,12 +131,12 @@ export async function updateVoiceState(
   await redis.hset(key, userId, JSON.stringify(participant));
   await redis.expire(key, VOICE_TTL_SEC);
 
-  manager.broadcastToChannel(
-    channelId,
-    GatewayOpcode.VOICE_STATE_UPDATE,
-    { channelId, userId, action: 'update', selfMute, selfDeaf },
-    'VOICE_STATE_UPDATE',
-  );
+  const payload = { channelId, userId, action: 'update', selfMute, selfDeaf };
+  if (senderConnId) {
+    manager.broadcastToChannelExcept(channelId, GatewayOpcode.VOICE_STATE_UPDATE, payload, senderConnId, 'VOICE_STATE_UPDATE');
+  } else {
+    manager.broadcastToChannel(channelId, GatewayOpcode.VOICE_STATE_UPDATE, payload, 'VOICE_STATE_UPDATE');
+  }
 }
 
 // ---------------------------------------------------------------------------

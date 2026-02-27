@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.16',
+    date: '2026-02-27',
+    highlights: [
+      'Fixed voice channel participants not visible — gateway auth race condition resolved',
+      'Gateway client now waits for AUTH_OK before subscribing to channels',
+      'Server no longer kills connections on pre-auth SUBSCRIBE (defense-in-depth)',
+      'Voice broadcasts exclude sender to prevent duplicate UI entries',
+    ],
+  },
+  {
     version: '0.9.15',
     date: '2026-02-27',
     highlights: [

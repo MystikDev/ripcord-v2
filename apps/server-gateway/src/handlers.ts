@@ -153,8 +153,9 @@ export async function handleSubscribe(
   manager: ConnectionManager,
 ): Promise<void> {
   if (!conn.authenticated || !conn.userId) {
+    // Don't close the connection — AUTH may still be in-flight (async).
+    // The client will retry after AUTH_OK.
     conn.send(GatewayOpcode.ERROR, { message: 'Not authenticated' });
-    conn.close(4003, 'Not authenticated');
     return;
   }
 
@@ -257,7 +258,6 @@ export function handleUnsubscribe(
 ): void {
   if (!conn.authenticated) {
     conn.send(GatewayOpcode.ERROR, { message: 'Not authenticated' });
-    conn.close(4003, 'Not authenticated');
     return;
   }
 
@@ -373,7 +373,7 @@ export async function handleVoiceStateUpdate(
 
   switch (payload.action) {
     case 'join': {
-      await joinVoiceChannel(payload.channelId, conn.userId, payload.handle, manager);
+      await joinVoiceChannel(payload.channelId, conn.userId, payload.handle, manager, conn.id);
 
       // Send the full participant list back to the joining connection so they
       // immediately see everyone already in the channel (the broadcast only
@@ -388,7 +388,7 @@ export async function handleVoiceStateUpdate(
       break;
     }
     case 'leave':
-      await leaveVoiceChannel(payload.channelId, conn.userId, manager);
+      await leaveVoiceChannel(payload.channelId, conn.userId, manager, conn.id);
       break;
     case 'update':
       await updateVoiceState(
@@ -397,6 +397,7 @@ export async function handleVoiceStateUpdate(
         payload.selfMute ?? false,
         payload.selfDeaf ?? false,
         manager,
+        conn.id,
       );
       break;
     default:

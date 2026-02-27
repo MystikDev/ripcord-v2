@@ -47,7 +47,7 @@ export type GatewayEvent =
   | 'CALL_END';
 
 export interface GatewayPayload {
-  op: string;
+  op: number;
   d?: Record<string, unknown>;
   t?: GatewayEvent;
 }
@@ -71,6 +71,7 @@ export class GatewayClient {
   private reconnectAttempt = 0;
   private token: string | null = null;
   private intentionalClose = false;
+  private authenticated = false;
   private listeners = new Map<string, Set<EventHandler>>();
 
   // -----------------------------------------------------------------------
@@ -81,6 +82,7 @@ export class GatewayClient {
   connect(accessToken: string): void {
     this.token = accessToken;
     this.intentionalClose = false;
+    this.authenticated = false;
     this.reconnectAttempt = 0;
     this.openSocket();
   }
@@ -113,11 +115,21 @@ export class GatewayClient {
     };
   }
 
-  /** Send a gateway message. Silently no-ops if the socket isn't open. */
+  /**
+   * Send a gateway message. Silently no-ops if the socket isn't open.
+   *
+   * Before authentication completes, only AUTH (0) and HEARTBEAT (6) are
+   * allowed. All other opcodes are silently dropped until AUTH_OK is received,
+   * preventing a race where SUBSCRIBE arrives at the server before the
+   * connection is authenticated.
+   */
   send(op: number, data?: Record<string, unknown>): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ op, d: data, ts: Date.now() }));
-    }
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+
+    // Pre-auth guard: only allow AUTH and HEARTBEAT before AUTH_OK
+    if (!this.authenticated && op !== 0 && op !== 6) return;
+
+    this.ws.send(JSON.stringify({ op, d: data, ts: Date.now() }));
   }
 
   // -----------------------------------------------------------------------
@@ -136,16 +148,33 @@ export class GatewayClient {
 
     this.ws.onopen = () => {
       this.reconnectAttempt = 0;
-      // Authenticate immediately
-      // AUTH opcode = 0
+      // Authenticate immediately — AUTH opcode = 0
+      // Do NOT emit 'open' yet; wait for AUTH_OK (opcode 1) so that
+      // subscribers (SUBSCRIBE, voice hydration) only fire after the
+      // server has confirmed authentication.
       this.send(0, { token: this.token });
       this.startHeartbeat();
-      this.emit('open', {});
     };
 
     this.ws.onmessage = (event) => {
       try {
         const payload: GatewayPayload = JSON.parse(event.data as string);
+
+        // --- Handle auth responses (no `t` field) ---
+        if (payload.op === 1) {
+          // AUTH_OK — authentication confirmed by the server
+          this.authenticated = true;
+          this.emit('open', payload.d ?? {});
+          return;
+        }
+        if (payload.op === 2) {
+          // AUTH_FAIL — stop reconnecting, surface the error
+          this.intentionalClose = true;
+          this.emit('error', payload.d ?? {});
+          return;
+        }
+
+        // --- Handle event dispatches (have a `t` field) ---
         if (payload.t) {
           this.emit(payload.t, payload.d ?? {});
         }
@@ -197,6 +226,7 @@ export class GatewayClient {
   }
 
   private cleanup(): void {
+    this.authenticated = false;
     this.stopHeartbeat();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
