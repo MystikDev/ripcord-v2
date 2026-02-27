@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.17',
+    date: '2026-02-27',
+    highlights: [
+      'Fixed voice participants not appearing on first join — SUBSCRIBE race condition resolved',
+      'Server auto-subscribes users to voice channel on join if subscription is still pending',
+      'Client fetches voice states from REST as failsafe after joining voice',
+    ],
+  },
+  {
     version: '0.9.16',
     date: '2026-02-27',
     highlights: [
