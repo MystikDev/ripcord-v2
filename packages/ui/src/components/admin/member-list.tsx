@@ -28,6 +28,7 @@ export function MemberList({ hubId }: { hubId: string }) {
   const members = useAdminStore((s) => s.members);
   const setMembers = useAdminStore((s) => s.setMembers);
   const removeMember = useAdminStore((s) => s.removeMember);
+  const updateMemberRoles = useAdminStore((s) => s.updateMemberRoles);
   const isLoading = useAdminStore((s) => s.isLoading);
   const setLoading = useAdminStore((s) => s.setLoading);
   const error = useAdminStore((s) => s.error);
@@ -122,6 +123,7 @@ export function MemberList({ hubId }: { hubId: string }) {
                   member={member}
                   onKicked={() => removeMember(member.userId)}
                   onBanned={() => removeMember(member.userId)}
+                  onRolesChanged={(roles) => updateMemberRoles(member.userId, roles)}
                 />
               )}
             </div>

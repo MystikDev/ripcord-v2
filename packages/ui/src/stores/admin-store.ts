@@ -29,6 +29,8 @@ interface AdminState {
   removeMember: (userId: string) => void;
   /** Optimistically remove a ban by user ID. */
   removeBan: (userId: string) => void;
+  /** Update a member's role list in-place (after assign/remove). */
+  updateMemberRoles: (userId: string, roles: { id: string; name: string }[]) => void;
   /** Reset all admin state. */
   reset: () => void;
 }
@@ -44,5 +46,9 @@ export const useAdminStore = create<AdminState>((set) => ({
   setError: (error) => set({ error }),
   removeMember: (userId) => set((s) => ({ members: s.members.filter((m) => m.userId !== userId) })),
   removeBan: (userId) => set((s) => ({ bans: s.bans.filter((b) => b.userId !== userId) })),
+  updateMemberRoles: (userId, roles) =>
+    set((s) => ({
+      members: s.members.map((m) => (m.userId === userId ? { ...m, roles } : m)),
+    })),
   reset: () => set({ members: [], bans: [], isLoading: false, error: null }),
 }));
