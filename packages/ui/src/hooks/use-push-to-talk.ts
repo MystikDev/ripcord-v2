@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ShortcutEvent } from '@tauri-apps/plugin-global-shortcut';
 import { isMouseButton, parseMouseButton, toTauriAccelerator } from '../lib/key-display';
 
 // ---------------------------------------------------------------------------
@@ -186,7 +187,7 @@ export function usePushToTalk({
             '@tauri-apps/plugin-global-shortcut'
           );
 
-          await register(tauriKey, (event) => {
+          await register(tauriKey, (event: ShortcutEvent) => {
             if (event.state === 'Pressed') {
               // Only activate from Tauri when the window is NOT focused —
               // the DOM listener handles the focused case (with text-input
