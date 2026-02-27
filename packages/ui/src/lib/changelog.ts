@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.20',
+    date: '2026-02-27',
+    highlights: [
+      'Role editor scrollbar — roles list and permissions grid now scroll properly in hub settings',
+      'Remember me fix — username and password are now saved and restored correctly',
+    ],
+  },
+  {
     version: '0.9.19',
     date: '2026-02-27',
     highlights: [
