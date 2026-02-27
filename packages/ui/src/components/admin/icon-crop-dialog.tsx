@@ -25,6 +25,16 @@ interface IconCropDialogProps {
   imageType: string;
   /** Called with the cropped File when the user confirms. */
   onCropConfirm: (croppedFile: File) => void;
+  /** Crop aspect ratio. Default: 1 (square). Use 5/2 for banners. */
+  aspect?: number;
+  /** Dialog title. Default: 'Crop Hub Icon'. */
+  title?: string;
+  /** Output width override (non-square). */
+  outputWidth?: number;
+  /** Output height override (non-square). */
+  outputHeight?: number;
+  /** Output filename without extension. Default: 'hub-icon'. */
+  fileName?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,6 +47,11 @@ export function IconCropDialog({
   imageSrc,
   imageType,
   onCropConfirm,
+  aspect = 1,
+  title = 'Crop Hub Icon',
+  outputWidth,
+  outputHeight,
+  fileName,
 }: IconCropDialogProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -60,6 +75,10 @@ export function IconCropDialog({
 
       const croppedFile = await cropImage(imageSrc, croppedAreaPixels, {
         mimeType,
+        ...(outputWidth && outputHeight
+          ? { outputWidth, outputHeight }
+          : {}),
+        ...(fileName ? { fileName } : {}),
       });
       onCropConfirm(croppedFile);
     } catch {
@@ -73,7 +92,7 @@ export function IconCropDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        title="Crop Hub Icon"
+        title={title}
         description="Drag to reposition, scroll to zoom."
         className="max-w-lg"
       >
@@ -83,7 +102,7 @@ export function IconCropDialog({
             image={imageSrc}
             crop={crop}
             zoom={zoom}
-            aspect={1}
+            aspect={aspect}
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={handleCropComplete}

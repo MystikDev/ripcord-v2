@@ -16,6 +16,7 @@ export interface Hub {
   id: string;
   name: string;
   iconUrl?: string;
+  bannerUrl?: string;
   ownerId: string;
 }
 

@@ -20,6 +20,101 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.12',
+    date: '2026-02-26',
+    highlights: [
+      'Right-click hub icons to access a context menu with Leave Hub and Copy Hub ID',
+      'Hub banners — upload a banner image in Hub Settings, displayed below the hub name',
+      'Removed 128px minimum size requirement for hub icon uploads',
+    ],
+  },
+  {
+    version: '0.9.11',
+    date: '2026-02-26',
+    highlights: [
+      'Fixed per-user volume control with a custom Web Audio renderer',
+      'Replaced LiveKit RoomAudioRenderer with VoiceAudioRenderer for reliable volume/boost/deafen',
+    ],
+  },
+  {
+    version: '0.9.10',
+    date: '2026-02-26',
+    highlights: [
+      'Event-driven push-to-talk on Windows using WH_KEYBOARD_LL hook — zero-latency background PTT',
+      'PTT hook is the same mechanism Discord uses (system-wide, does not consume the key)',
+      'Volume control rewrite — GainNode-based per-user volume with boost up to 400%',
+    ],
+  },
+  {
+    version: '0.9.9',
+    date: '2026-02-26',
+    highlights: [
+      'Background push-to-talk on Windows via GetAsyncKeyState polling',
+      'PTT works even when Ripcord is not focused',
+    ],
+  },
+  {
+    version: '0.9.8',
+    date: '2026-02-26',
+    highlights: [
+      'Independent chat text color setting in Appearance',
+      'Chat text color is now separate from username color',
+    ],
+  },
+  {
+    version: '0.9.7',
+    date: '2026-02-26',
+    highlights: [
+      'Background push-to-talk via Tauri global shortcuts (macOS/Linux)',
+      'PTT key works when the app is not focused',
+    ],
+  },
+  {
+    version: '0.9.6',
+    date: '2026-02-26',
+    highlights: [
+      'Fixed unnecessary disconnect/reconnect when switching voice channels',
+    ],
+  },
+  {
+    version: '0.9.5',
+    date: '2026-02-26',
+    highlights: [
+      'Global appearance settings — icon size, username color, and font scaling',
+    ],
+  },
+  {
+    version: '0.9.4',
+    date: '2026-02-26',
+    highlights: [
+      'Auto-generated release notes from git commits',
+    ],
+  },
+  {
+    version: '0.9.3',
+    date: '2026-02-26',
+    highlights: [
+      'Version consolidation and stability improvements',
+    ],
+  },
+  {
+    version: '0.9.1',
+    date: '2026-02-26',
+    highlights: [
+      'Fixed voice channel participants not visible to other users',
+      'Fixed presence status flickering during token refresh',
+      'Adjusted voice participant icon and username sizing',
+    ],
+  },
+  {
+    version: '0.9.0',
+    date: '2026-02-26',
+    highlights: [
+      'Password reset via email — forgot password flow with Resend email service',
+      'Email verification for new account registrations',
+    ],
+  },
+  {
     version: '0.8.9',
     date: '2026-02-26',
     highlights: [

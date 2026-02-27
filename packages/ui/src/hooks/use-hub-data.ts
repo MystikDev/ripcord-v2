@@ -76,6 +76,7 @@ export function useHubData() {
           id: h.id,
           name: h.name,
           iconUrl: h.iconUrl ? `${getApiBaseUrl()}/v1/hubs/${h.id}/icon` : undefined,
+          bannerUrl: h.bannerUrl ? `${getApiBaseUrl()}/v1/hubs/${h.id}/banner` : undefined,
           ownerId: h.ownerUserId,
         }));
         setHubs(mapped);

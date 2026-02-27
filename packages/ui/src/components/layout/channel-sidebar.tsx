@@ -518,6 +518,18 @@ export function ChannelSidebar() {
         )}
       </div>
 
+      {/* Hub banner */}
+      {activeHub?.bannerUrl && !isDmView && (
+        <div className="h-24 w-full shrink-0 overflow-hidden border-b border-border">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={activeHub.bannerUrl}
+            alt={`${activeHub.name} banner`}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
+
       {/* Channel list or DM list */}
       <ScrollArea className="flex-1">
         {isDmView ? (

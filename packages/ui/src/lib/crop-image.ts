@@ -10,14 +10,20 @@ export interface CropArea {
 }
 
 export interface CropOptions {
-  /** Output dimension (square). Default: 512 */
+  /** Output dimension (square). Default: 512. Ignored when outputWidth/outputHeight are set. */
   outputSize?: number;
+  /** Output width in pixels. Overrides outputSize for non-square crops. */
+  outputWidth?: number;
+  /** Output height in pixels. Overrides outputSize for non-square crops. */
+  outputHeight?: number;
   /** MIME type for export. Default: 'image/jpeg' */
   mimeType?: string;
   /** JPEG quality (0-1). Default: 0.92 */
   quality?: number;
   /** Max output file size in bytes. Default: 512 * 1024 (512 KB) */
   maxFileSize?: number;
+  /** Output filename (without extension). Default: 'hub-icon' */
+  fileName?: string;
 }
 
 /**
@@ -37,8 +43,10 @@ export async function cropImage(
   cropPixels: CropArea,
   options?: CropOptions,
 ): Promise<File> {
-  const outputSize = options?.outputSize ?? 512;
+  const outW = options?.outputWidth ?? options?.outputSize ?? 512;
+  const outH = options?.outputHeight ?? options?.outputSize ?? 512;
   const maxFileSize = options?.maxFileSize ?? 512 * 1024;
+  const fileName = options?.fileName ?? 'hub-icon';
   let mimeType = options?.mimeType ?? 'image/jpeg';
   let quality = options?.quality ?? 0.92;
 
@@ -52,8 +60,8 @@ export async function cropImage(
 
   // Draw cropped region onto output canvas
   const canvas = document.createElement('canvas');
-  canvas.width = outputSize;
-  canvas.height = outputSize;
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Failed to get canvas context');
 
@@ -65,8 +73,8 @@ export async function cropImage(
     cropPixels.height,
     0,
     0,
-    outputSize,
-    outputSize,
+    outW,
+    outH,
   );
 
   // Export to blob with size management
@@ -86,7 +94,7 @@ export async function cropImage(
   }
 
   const ext = mimeType === 'image/png' ? 'png' : 'jpg';
-  return new File([blob], `hub-icon.${ext}`, { type: mimeType });
+  return new File([blob], `${fileName}.${ext}`, { type: mimeType });
 }
 
 // ---------------------------------------------------------------------------

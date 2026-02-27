@@ -9,6 +9,7 @@ export interface HubResponse {
   name: string;
   ownerUserId: string;
   iconUrl?: string;
+  bannerUrl?: string;
   createdAt: string;
 }
 
@@ -266,4 +267,43 @@ export async function deleteHubIcon(hubId: string): Promise<void> {
 /** Get the API proxy URL for a hub's icon. */
 export function getHubIconUrl(hubId: string): string {
   return `/v1/hubs/${hubId}/icon`;
+}
+
+// ---------------------------------------------------------------------------
+// Hub Leave
+// ---------------------------------------------------------------------------
+
+/** Leave a hub. The hub owner cannot leave. */
+export async function leaveHub(hubId: string): Promise<void> {
+  const res = await apiFetch(`/v1/hubs/${hubId}/leave`, { method: 'POST' });
+  if (!res.ok) throw new Error(res.error ?? 'Failed to leave hub');
+}
+
+// ---------------------------------------------------------------------------
+// Hub Banner
+// ---------------------------------------------------------------------------
+
+/** Upload a hub banner image. */
+export async function uploadHubBanner(hubId: string, file: File): Promise<string> {
+  const res = await apiFetch<{ bannerUrl: string }>(
+    `/v1/hubs/${hubId}/banner`,
+    {
+      method: 'POST',
+      body: file,
+      headers: { 'Content-Type': file.type },
+    },
+  );
+  if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to upload banner');
+  return res.data.bannerUrl;
+}
+
+/** Remove the hub's banner. */
+export async function deleteHubBanner(hubId: string): Promise<void> {
+  const res = await apiFetch(`/v1/hubs/${hubId}/banner`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(res.error ?? 'Failed to remove banner');
+}
+
+/** Get the API proxy URL for a hub's banner. */
+export function getHubBannerUrl(hubId: string): string {
+  return `/v1/hubs/${hubId}/banner`;
 }

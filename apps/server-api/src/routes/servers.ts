@@ -576,3 +576,138 @@ hubsRouter.delete(
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// Hub Banner Endpoints
+// ---------------------------------------------------------------------------
+
+/** Maximum banner file size: 2 MB. */
+const MAX_BANNER_SIZE = 2 * 1024 * 1024;
+
+const bannerRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  keyPrefix: 'rl:hub-banner',
+  keyExtractor: (req) => req.auth?.sub ?? 'anon',
+});
+
+/**
+ * POST /v1/hubs/:id/banner
+ *
+ * Upload a hub banner image directly (server-proxied to MinIO).
+ * Requires MANAGE_HUB permission.
+ *
+ * Body: raw binary image data with Content-Type header set to the image MIME type.
+ * Response: { ok: true, data: { bannerUrl: string } }
+ */
+hubsRouter.post(
+  '/:id/banner',
+  requireAuth,
+  bannerRateLimit,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = req.auth!;
+      const hubId = req.params['id'] as string | undefined;
+      if (!hubId) throw ApiError.badRequest('Hub ID is required');
+
+      await requireManageHub(hubId, auth.sub);
+
+      const contentType = req.headers['content-type'] ?? '';
+      if (!ALLOWED_ICON_TYPES.has(contentType)) {
+        throw ApiError.badRequest('Banner must be JPEG, PNG, or GIF');
+      }
+
+      const imageBuffer = collectRawBody(req, MAX_BANNER_SIZE);
+
+      logger.info(
+        { hubId, actorId: auth.sub, contentType, bodyBytes: imageBuffer.length },
+        'Hub banner upload: body received',
+      );
+
+      if (imageBuffer.length === 0) {
+        throw ApiError.badRequest('No image data received');
+      }
+
+      validateImageMagicBytes(imageBuffer, contentType);
+
+      const ext = MIME_TO_EXT[contentType] ?? 'png';
+      const storageKey = `hub-banners/${hubId}/${randomUUID()}.${ext}`;
+
+      await storage.uploadDirect(storageKey, imageBuffer, contentType);
+      await hubRepo.updateBannerUrl(hubId, storageKey);
+
+      logger.info({ hubId, actorId: auth.sub, storageKey }, 'Hub banner uploaded');
+
+      const body: ApiResponse<{ bannerUrl: string }> = {
+        ok: true,
+        data: { bannerUrl: storageKey },
+      };
+      res.status(200).json(body);
+    } catch (err) {
+      logger.error({ err, hubId: req.params['id'] }, 'Hub banner upload failed');
+      next(err);
+    }
+  },
+);
+
+/**
+ * GET /v1/hubs/:id/banner
+ *
+ * Serve the hub's banner image by proxying it from MinIO.
+ * No auth required — hub banners are public.
+ *
+ * Returns 200 with the image body, or 404 if no banner is set.
+ */
+hubsRouter.get(
+  '/:id/banner',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const hubId = req.params['id'] as string | undefined;
+      if (!hubId) throw ApiError.badRequest('Hub ID is required');
+
+      const hub = await hubRepo.findById(hubId);
+      if (!hub) throw ApiError.notFound('Hub not found');
+      if (!hub.bannerUrl) throw ApiError.notFound('Hub has no banner');
+
+      const object = await storage.getObject(hub.bannerUrl);
+      res.setHeader('Content-Type', object.contentType ?? 'image/jpeg');
+      if (object.contentLength) res.setHeader('Content-Length', String(object.contentLength));
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      object.body.pipe(res);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/**
+ * DELETE /v1/hubs/:id/banner
+ *
+ * Remove the hub's banner. Requires MANAGE_HUB permission.
+ *
+ * Response: { ok: true, data: { message: "Banner removed" } }
+ */
+hubsRouter.delete(
+  '/:id/banner',
+  requireAuth,
+  bannerRateLimit,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = req.auth!;
+      const hubId = req.params['id'] as string | undefined;
+      if (!hubId) throw ApiError.badRequest('Hub ID is required');
+
+      await requireManageHub(hubId, auth.sub);
+
+      await hubRepo.updateBannerUrl(hubId, null);
+
+      logger.info({ hubId, actorId: auth.sub }, 'Hub banner removed');
+
+      const body: ApiResponse = { ok: true, data: { message: 'Banner removed' } };
+      res.json(body);
+    } catch (err) {
+      next(err);
+    }
+  },
+);

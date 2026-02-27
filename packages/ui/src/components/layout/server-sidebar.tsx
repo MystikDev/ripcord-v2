@@ -5,11 +5,14 @@
  */
 'use client';
 
+import { useState } from 'react';
 import { useHubStore, type Hub } from '../../stores/server-store';
+import { useAuthStore } from '../../stores/auth-store';
 import { Tooltip } from '../ui/tooltip';
 import { Separator } from '../ui/separator';
 import { ScrollArea } from '../ui/scroll-area';
 import { AddHubDialog } from '../hub/create-hub-dialog';
+import { HubContextMenu } from '../hub/hub-context-menu';
 import clsx from 'clsx';
 
 // ---------------------------------------------------------------------------
@@ -18,40 +21,59 @@ import clsx from 'clsx';
 
 function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
   const setActiveHub = useHubStore((s) => s.setActiveHub);
+  const currentUserId = useAuthStore((s) => s.userId);
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   return (
-    <Tooltip content={hub.name} side="right">
-      <button
-        onClick={() => setActiveHub(hub.id)}
-        className={clsx(
-          'group relative flex h-12 w-12 items-center justify-center transition-all duration-200',
-          isActive
-            ? 'rounded-2xl bg-accent text-white'
-            : 'rounded-3xl bg-surface-2 text-text-secondary hover:rounded-2xl hover:bg-accent hover:text-white',
-        )}
-      >
-        {/* Active indicator pill */}
-        <span
+    <>
+      <Tooltip content={hub.name} side="right">
+        <button
+          onClick={() => setActiveHub(hub.id)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setContextMenu({ x: e.clientX, y: e.clientY });
+          }}
           className={clsx(
-            'absolute -left-3 w-1 rounded-r-full bg-text-primary transition-all duration-200',
-            isActive ? 'h-10' : 'h-0 group-hover:h-5',
+            'group relative flex h-12 w-12 items-center justify-center transition-all duration-200',
+            isActive
+              ? 'rounded-2xl bg-accent text-white'
+              : 'rounded-3xl bg-surface-2 text-text-secondary hover:rounded-2xl hover:bg-accent hover:text-white',
           )}
-        />
-
-        {hub.iconUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={hub.iconUrl}
-            alt={hub.name}
-            className="h-full w-full rounded-[inherit] object-cover"
+        >
+          {/* Active indicator pill */}
+          <span
+            className={clsx(
+              'absolute -left-3 w-1 rounded-r-full bg-text-primary transition-all duration-200',
+              isActive ? 'h-10' : 'h-0 group-hover:h-5',
+            )}
           />
-        ) : (
-          <span className="text-sm font-semibold">
-            {hub.name.slice(0, 2).toUpperCase()}
-          </span>
-        )}
-      </button>
-    </Tooltip>
+
+          {hub.iconUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={hub.iconUrl}
+              alt={hub.name}
+              className="h-full w-full rounded-[inherit] object-cover"
+            />
+          ) : (
+            <span className="text-sm font-semibold">
+              {hub.name.slice(0, 2).toUpperCase()}
+            </span>
+          )}
+        </button>
+      </Tooltip>
+
+      {contextMenu && (
+        <HubContextMenu
+          hubId={hub.id}
+          hubName={hub.name}
+          isOwner={hub.ownerId === currentUserId}
+          position={contextMenu}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+    </>
   );
 }
 

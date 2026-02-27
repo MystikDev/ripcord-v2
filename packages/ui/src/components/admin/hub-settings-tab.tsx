@@ -1,8 +1,8 @@
 /**
  * @module hub-settings-tab
- * Admin settings panel for hub icon upload (with crop dialog), hub rename,
- * and danger-zone hub deletion. Deletion is owner-only and requires typing
- * the hub name to confirm.
+ * Admin settings panel for hub icon upload (with crop dialog), hub banner
+ * upload, hub rename, and danger-zone hub deletion. Deletion is owner-only
+ * and requires typing the hub name to confirm.
  */
 'use client';
 
@@ -14,7 +14,7 @@ import { useAuthStore } from '../../stores/auth-store';
 import { useToast } from '../ui/toast';
 import { apiFetch } from '../../lib/api';
 import { deleteHub } from '../../lib/roles-api';
-import { uploadHubIcon, deleteHubIcon } from '../../lib/hub-api';
+import { uploadHubIcon, deleteHubIcon, uploadHubBanner, deleteHubBanner } from '../../lib/hub-api';
 import { getApiBaseUrl } from '../../lib/constants';
 import { IconCropDialog } from './icon-crop-dialog';
 
@@ -24,32 +24,6 @@ import { IconCropDialog } from './icon-crop-dialog';
 
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
 const MAX_INPUT_FILE_SIZE = 5 * 1024 * 1024; // 5 MB (source image, before crop)
-const MIN_DIMENSION = 128;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Reject images that are too small to produce a decent 512×512 icon. */
-function validateMinDimensions(file: File): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      if (img.width < MIN_DIMENSION || img.height < MIN_DIMENSION) {
-        reject(new Error(`Image must be at least ${MIN_DIMENSION}x${MIN_DIMENSION} pixels`));
-      } else {
-        resolve({ width: img.width, height: img.height });
-      }
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Failed to load image'));
-    };
-    img.src = url;
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -70,10 +44,20 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
   const [iconUploading, setIconUploading] = useState(false);
   const [iconRemoving, setIconRemoving] = useState(false);
 
-  // Crop dialog state
+  // Icon crop dialog state
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [cropImageType, setCropImageType] = useState('image/jpeg');
+
+  // Banner state
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [bannerRemoving, setBannerRemoving] = useState(false);
+
+  // Banner crop dialog state
+  const [bannerCropOpen, setBannerCropOpen] = useState(false);
+  const [bannerCropSrc, setBannerCropSrc] = useState<string | null>(null);
+  const [bannerCropType, setBannerCropType] = useState('image/jpeg');
 
   // Rename state
   const [name, setName] = useState(hubName);
@@ -84,49 +68,34 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Icon file selection — validates, then opens crop dialog
+  // ----- Icon handlers -----
+
   const handleIconSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    // Reset input so the same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (!file) return;
 
-    // Validate type
     if (!ALLOWED_TYPES.has(file.type)) {
       toast.error('Icon must be a JPG, PNG, or GIF image');
       return;
     }
-
-    // Validate input file size (generous limit — will be cropped down)
     if (file.size > MAX_INPUT_FILE_SIZE) {
       toast.error('Image file must be under 5 MB');
       return;
     }
 
-    // Validate minimum dimensions
-    try {
-      await validateMinDimensions(file);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Invalid image');
-      return;
-    }
-
-    // Open crop dialog
     setCropImageSrc(URL.createObjectURL(file));
     setCropImageType(file.type);
     setCropDialogOpen(true);
   }, [toast]);
 
-  // Crop confirmed — upload the cropped file
   const handleCropConfirm = useCallback(async (croppedFile: File) => {
-    // Close dialog and clean up object URL
     setCropDialogOpen(false);
     if (cropImageSrc) {
       URL.revokeObjectURL(cropImageSrc);
       setCropImageSrc(null);
     }
 
-    // Upload the cropped file
     setIconUploading(true);
     try {
       await uploadHubIcon(hubId, croppedFile);
@@ -140,7 +109,6 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
     }
   }, [hubId, hubs, setHubs, toast, cropImageSrc]);
 
-  // Clean up object URL when crop dialog is closed without confirming
   const handleCropDialogChange = useCallback((open: boolean) => {
     setCropDialogOpen(open);
     if (!open && cropImageSrc) {
@@ -149,7 +117,6 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
     }
   }, [cropImageSrc]);
 
-  // Icon remove handler
   const handleIconRemove = useCallback(async () => {
     setIconRemoving(true);
     try {
@@ -163,7 +130,70 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
     }
   }, [hubId, hubs, setHubs, toast]);
 
-  // Rename handler
+  // ----- Banner handlers -----
+
+  const handleBannerSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (bannerInputRef.current) bannerInputRef.current.value = '';
+    if (!file) return;
+
+    if (!ALLOWED_TYPES.has(file.type)) {
+      toast.error('Banner must be a JPG, PNG, or GIF image');
+      return;
+    }
+    if (file.size > MAX_INPUT_FILE_SIZE) {
+      toast.error('Image file must be under 5 MB');
+      return;
+    }
+
+    setBannerCropSrc(URL.createObjectURL(file));
+    setBannerCropType(file.type);
+    setBannerCropOpen(true);
+  }, [toast]);
+
+  const handleBannerCropConfirm = useCallback(async (croppedFile: File) => {
+    setBannerCropOpen(false);
+    if (bannerCropSrc) {
+      URL.revokeObjectURL(bannerCropSrc);
+      setBannerCropSrc(null);
+    }
+
+    setBannerUploading(true);
+    try {
+      await uploadHubBanner(hubId, croppedFile);
+      const newBannerUrl = `${getApiBaseUrl()}/v1/hubs/${hubId}/banner?t=${Date.now()}`;
+      setHubs(hubs.map((h) => (h.id === hubId ? { ...h, bannerUrl: newBannerUrl } : h)));
+      toast.success('Hub banner updated');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to upload banner');
+    } finally {
+      setBannerUploading(false);
+    }
+  }, [hubId, hubs, setHubs, toast, bannerCropSrc]);
+
+  const handleBannerCropDialogChange = useCallback((open: boolean) => {
+    setBannerCropOpen(open);
+    if (!open && bannerCropSrc) {
+      URL.revokeObjectURL(bannerCropSrc);
+      setBannerCropSrc(null);
+    }
+  }, [bannerCropSrc]);
+
+  const handleBannerRemove = useCallback(async () => {
+    setBannerRemoving(true);
+    try {
+      await deleteHubBanner(hubId);
+      setHubs(hubs.map((h) => (h.id === hubId ? { ...h, bannerUrl: undefined } : h)));
+      toast.success('Hub banner removed');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove banner');
+    } finally {
+      setBannerRemoving(false);
+    }
+  }, [hubId, hubs, setHubs, toast]);
+
+  // ----- Rename handler -----
+
   const handleRename = async (e: FormEvent) => {
     e.preventDefault();
     const trimmed = name.trim();
@@ -192,14 +222,14 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
     }
   };
 
-  // Delete handler
+  // ----- Delete handler -----
+
   const handleDelete = async () => {
     if (deleteConfirm !== hubName) return;
     setDeleteLoading(true);
     try {
       await deleteHub(hubId);
       toast.success('Hub deleted');
-      // Remove from store and switch to first remaining hub
       const remaining = hubs.filter((h) => h.id !== hubId);
       setHubs(remaining);
       if (remaining.length > 0) {
@@ -267,7 +297,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
           </div>
         </div>
 
-        {/* Crop dialog */}
+        {/* Icon crop dialog */}
         {cropImageSrc && (
           <IconCropDialog
             open={cropDialogOpen}
@@ -275,6 +305,74 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
             imageSrc={cropImageSrc}
             imageType={cropImageType}
             onCropConfirm={handleCropConfirm}
+          />
+        )}
+      </section>
+
+      {/* Hub Banner section */}
+      <section>
+        <h3 className="mb-3 text-base font-semibold text-text-primary">Hub Banner</h3>
+        <div className="flex flex-col gap-3">
+          {/* Banner preview */}
+          <div className="h-24 w-full max-w-md overflow-hidden rounded-lg bg-surface-2">
+            {hub?.bannerUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={hub.bannerUrl}
+                alt={`${hubName} banner`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-text-muted">
+                No banner set
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-text-muted">
+            JPG, PNG, or GIF. Banner will be cropped to 960×384px (5:2 ratio).
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              loading={bannerUploading}
+              onClick={() => bannerInputRef.current?.click()}
+            >
+              Upload Banner
+            </Button>
+            {hub?.bannerUrl && (
+              <Button
+                variant="ghost"
+                size="sm"
+                loading={bannerRemoving}
+                onClick={handleBannerRemove}
+              >
+                Remove
+              </Button>
+            )}
+          </div>
+          <input
+            ref={bannerInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif"
+            className="hidden"
+            onChange={handleBannerSelect}
+          />
+        </div>
+
+        {/* Banner crop dialog */}
+        {bannerCropSrc && (
+          <IconCropDialog
+            open={bannerCropOpen}
+            onOpenChange={handleBannerCropDialogChange}
+            imageSrc={bannerCropSrc}
+            imageType={bannerCropType}
+            onCropConfirm={handleBannerCropConfirm}
+            aspect={5 / 2}
+            title="Crop Hub Banner"
+            outputWidth={960}
+            outputHeight={384}
+            fileName="hub-banner"
           />
         )}
       </section>

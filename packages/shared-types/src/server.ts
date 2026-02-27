@@ -27,6 +27,8 @@ export interface Hub {
   ownerUserId: string;
   /** Storage key for the hub icon image, or undefined if no icon is set. */
   iconUrl?: string;
+  /** Storage key for the hub banner image, or undefined if no banner is set. */
+  bannerUrl?: string;
   /** ISO-8601 timestamp of hub creation. */
   createdAt: string;
 }
