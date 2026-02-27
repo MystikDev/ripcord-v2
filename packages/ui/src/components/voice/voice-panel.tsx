@@ -9,7 +9,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LiveKitRoom } from '@livekit/components-react';
+import { LiveKitRoom, useRoomContext } from '@livekit/components-react';
 import { Room, RoomOptions, setLogLevel, LogLevel } from 'livekit-client';
 import { useHubStore } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
@@ -94,6 +94,21 @@ function VoicePanelContent({
   // Volume is handled by <VoiceAudioRenderer /> (sibling component)
   // Poll WebRTC stats for voice latency
   const { latencyMs, quality } = useVoiceLatency();
+
+  // Server-mute enforcement: disable mic when server-muted by an admin
+  const room = useRoomContext();
+  const currentUserId = useAuthStore((s) => s.userId);
+  const connectedCh = useVoiceStateStore((s) => s.connectedChannelId);
+  const participants = useVoiceStateStore(
+    (s) => connectedCh ? (s.voiceStates[connectedCh] ?? null) : null,
+  );
+  const isServerMuted = participants?.find((p) => p.userId === currentUserId)?.serverMute ?? false;
+
+  useEffect(() => {
+    if (isServerMuted) {
+      room.localParticipant.setMicrophoneEnabled(false);
+    }
+  }, [isServerMuted, room]);
 
   return (
     <div className="flex flex-col gap-2 p-3">

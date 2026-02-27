@@ -34,6 +34,10 @@ export const Permission = {
   STREAM_VIDEO: 1 << 10,
   /** Upload file attachments to channels. */
   ATTACH_FILES: 1 << 11,
+  /** Move members between voice channels. */
+  MOVE_MEMBERS: 1 << 12,
+  /** Server-mute or unmute members in voice channels. */
+  MUTE_MEMBERS: 1 << 13,
   /** Bypasses all permission checks. Use with care. */
   ADMINISTRATOR: 1 << 31,
 } as const;

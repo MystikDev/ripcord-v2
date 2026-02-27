@@ -41,6 +41,8 @@ const PERMISSION_GROUPS: { label: string; perms: PermDef[] }[] = [
       { name: 'Connect Voice', bit: 1 << 8, description: 'Connect to voice channels' },
       { name: 'Speak Voice', bit: 1 << 9, description: 'Speak in voice channels' },
       { name: 'Stream Video', bit: 1 << 10, description: 'Screen-share in voice channels' },
+      { name: 'Move Members', bit: 1 << 12, description: 'Move users between voice channels' },
+      { name: 'Mute Members', bit: 1 << 13, description: 'Server-mute users in voice channels' },
     ],
   },
   {

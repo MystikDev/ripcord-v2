@@ -17,6 +17,7 @@ import { useVoiceStateStore, type VoiceParticipant } from '../stores/voice-state
 import { useMemberStore } from '../stores/member-store';
 import { useRoleStore } from '../stores/role-store';
 import { usePresenceStore, type PresenceStatus } from '../stores/presence-store';
+import { usePermissionStore } from '../stores/permission-store';
 import { gateway } from '../lib/gateway-client';
 import { apiFetch } from '../lib/api';
 import { getApiBaseUrl } from '../lib/constants';
@@ -56,6 +57,7 @@ export function useHubData() {
   const setMembersStore = useMemberStore((s) => s.setMembers);
   const setRolesStore = useRoleStore((s) => s.setRoles);
   const setPresenceMany = usePresenceStore((s) => s.setMany);
+  const setPermissions = usePermissionStore((s) => s.setPermissions);
 
   // Onboarding flag — true when user has zero hubs
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -202,6 +204,17 @@ export function useHubData() {
         if (!cancelled) console.error('Failed to load presence:', err);
       });
 
+    // Fetch current user's permissions for this hub
+    apiFetch<{ permissions: number }>(`/v1/voice/permissions/${activeHubId}`)
+      .then((res) => {
+        if (!cancelled && res.ok && res.data) {
+          setPermissions(activeHubId, res.data.permissions);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Failed to load permissions:', err);
+      });
+
     // Clear stale subscriptions — this is a fresh hub load
     subscribedRef.current.clear();
 
@@ -250,7 +263,7 @@ export function useHubData() {
     return () => {
       cancelled = true;
     };
-  }, [activeHubId, setChannels, setActiveChannel, setVoiceStates, setMembersStore, setRolesStore, setPresenceMany]);
+  }, [activeHubId, setChannels, setActiveChannel, setVoiceStates, setMembersStore, setRolesStore, setPresenceMany, setPermissions]);
 
   // Re-subscribe channels & re-hydrate voice states on gateway reconnect
   useEffect(() => {

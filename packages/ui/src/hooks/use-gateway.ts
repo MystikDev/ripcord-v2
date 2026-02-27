@@ -153,14 +153,17 @@ export function useGateway() {
           channelId: string;
           userId?: string;
           handle?: string;
-          action: 'join' | 'leave' | 'update' | 'sync';
+          action: 'join' | 'leave' | 'update' | 'sync' | 'force_move' | 'server_mute';
           selfMute?: boolean;
           selfDeaf?: boolean;
+          serverMute?: boolean;
+          targetChannelId?: string;
           participants?: Array<{
             userId: string;
             handle?: string;
             selfMute: boolean;
             selfDeaf: boolean;
+            serverMute?: boolean;
             joinedAt: string;
           }>;
         };
@@ -185,6 +188,7 @@ export function useGateway() {
             handle: raw.handle,
             selfMute: raw.selfMute ?? false,
             selfDeaf: raw.selfDeaf ?? false,
+            serverMute: raw.serverMute,
             joinedAt: new Date().toISOString(),
           });
           if (soundsEnabled && raw.userId !== currentUserId) {
@@ -199,6 +203,17 @@ export function useGateway() {
           updateVoiceParticipant(raw.channelId, raw.userId, {
             selfMute: raw.selfMute ?? false,
             selfDeaf: raw.selfDeaf ?? false,
+          });
+        } else if (raw.action === 'force_move') {
+          // If this user was force-moved, switch their channel
+          if (raw.userId === currentUserId && raw.targetChannelId) {
+            const { setPendingVoiceJoin } = useHubStore.getState();
+            setPendingVoiceJoin(raw.targetChannelId);
+          }
+        } else if (raw.action === 'server_mute') {
+          // Update the participant's server-mute state
+          updateVoiceParticipant(raw.channelId, raw.userId, {
+            serverMute: raw.serverMute ?? false,
           });
         }
       }),

@@ -155,11 +155,15 @@ export interface VoiceStatePayload {
   /** Display handle for sidebar rendering. */
   handle?: string;
   /** The action being taken. */
-  action: 'join' | 'leave' | 'update';
+  action: 'join' | 'leave' | 'update' | 'force_move' | 'server_mute';
   /** Whether the user has self-muted their microphone. */
   selfMute?: boolean;
   /** Whether the user has self-deafened. */
   selfDeaf?: boolean;
+  /** Whether the user has been server-muted by an admin. */
+  serverMute?: boolean;
+  /** Target channel for force_move actions. */
+  targetChannelId?: string;
 }
 
 /** Payload for MESSAGE_PINNED / MESSAGE_UNPINNED. */
@@ -200,6 +204,8 @@ export interface VoiceParticipant {
   selfMute: boolean;
   /** Whether the user is self-deafened. */
   selfDeaf: boolean;
+  /** Whether the user has been server-muted by an admin. */
+  serverMute?: boolean;
   /** ISO-8601 timestamp of when the user joined. */
   joinedAt: string;
 }

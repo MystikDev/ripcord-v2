@@ -32,6 +32,9 @@ import { gateway } from '../../lib/gateway-client';
 import { useCallback, useRef, useState } from 'react';
 import { useToast } from '../ui/toast';
 import { getAppVersion } from '../../lib/constants';
+import { useHasPermission } from '../../hooks/use-has-permission';
+import { Permission } from '@ripcord/types';
+import { apiFetch } from '../../lib/api';
 
 const EMPTY_MESSAGES: never[] = [];
 
@@ -99,11 +102,34 @@ function ChannelItem({ channel, isActive }: { channel: Channel; isActive: boolea
 function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: boolean }) {
   const setActiveChannel = useHubStore((s) => s.setActiveChannel);
   const setPendingVoiceJoin = useHubStore((s) => s.setPendingVoiceJoin);
+  const activeHubId = useHubStore((s) => s.activeHubId);
   const participants = useVoiceStateStore((s) => s.voiceStates[channel.id] ?? EMPTY_PARTICIPANTS);
   const speakingUserIds = useVoiceStateStore((s) => s.speakingUserIds);
   const screenSharingUserIds = useVoiceStateStore((s) => s.screenSharingUserIds);
   const members = useMemberStore((s) => s.members);
   const currentUserId = useAuthStore((s) => s.userId);
+
+  // Admin drag-and-drop permission
+  const canMove = useHasPermission(Permission.MOVE_MEMBERS);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (!canMove || !activeHubId) return;
+    const sourceUserId = e.dataTransfer.getData('text/participant-userId');
+    const sourceChannelId = e.dataTransfer.getData('text/participant-channelId');
+    if (!sourceUserId || !sourceChannelId || sourceChannelId === channel.id) return;
+    await apiFetch('/v1/voice/move', {
+      method: 'POST',
+      body: JSON.stringify({
+        hubId: activeHubId,
+        channelId: sourceChannelId,
+        targetChannelId: channel.id,
+        userId: sourceUserId,
+      }),
+    });
+  }, [canMove, activeHubId, channel.id]);
 
   const [contextMenu, setContextMenu] = useState<{
     userId: string;
@@ -117,8 +143,16 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
       <button
         onClick={() => setActiveChannel(channel.id)}
         onDoubleClick={() => setPendingVoiceJoin(channel.id)}
+        onDragOver={(e) => {
+          if (!canMove) return;
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
         className={clsx(
           'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
+          dragOver && 'ring-2 ring-accent ring-inset',
           isActive
             ? 'bg-surface-3 text-text-primary'
             : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary',
@@ -147,7 +181,17 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
             return (
             <div
               key={p.userId}
-              className="flex items-center gap-2 py-0.5 text-xs text-text-muted select-none cursor-default"
+              draggable={canMove && p.userId !== currentUserId}
+              onDragStart={(e) => {
+                if (!canMove) return;
+                e.dataTransfer.setData('text/participant-userId', p.userId);
+                e.dataTransfer.setData('text/participant-channelId', channel.id);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              className={clsx(
+                'flex items-center gap-2 py-0.5 text-xs text-text-muted select-none',
+                canMove && p.userId !== currentUserId ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
+              )}
               onContextMenu={(e) => {
                 if (p.userId === currentUserId) return;
                 e.preventDefault();
@@ -197,7 +241,16 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
                   </svg>
                 </button>
               )}
-              {p.selfMute && (
+              {p.serverMute && (
+                <Tooltip content="Server Muted" side="top">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-warning" aria-label="Server Muted">
+                    <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
+                    <path d="M3 7.5a5 5 0 0 0 10 0" />
+                    <path d="M2 2l12 12" strokeWidth="2" />
+                  </svg>
+                </Tooltip>
+              )}
+              {p.selfMute && !p.serverMute && (
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-danger/70" aria-label="Muted">
                   <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
                   <path d="M3 7.5a5 5 0 0 0 10 0" />
@@ -216,11 +269,12 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
         </div>
       )}
 
-      {/* Per-user volume context menu */}
+      {/* Per-user volume / admin context menu */}
       {contextMenu && (
         <ParticipantContextMenu
           userId={contextMenu.userId}
           displayName={contextMenu.handle}
+          channelId={channel.id}
           position={{ x: contextMenu.x, y: contextMenu.y }}
           onClose={() => setContextMenu(null)}
         />

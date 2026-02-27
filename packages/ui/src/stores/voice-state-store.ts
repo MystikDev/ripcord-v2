@@ -18,6 +18,7 @@ export interface VoiceParticipant {
   handle?: string;
   selfMute: boolean;
   selfDeaf: boolean;
+  serverMute?: boolean;
   joinedAt: string;
 }
 

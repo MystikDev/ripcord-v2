@@ -10,6 +10,7 @@ import * as dmRepo from '../repositories/dm.repo.js';
 import * as permissionService from '../services/permission.service.js';
 import * as voiceService from '../services/voice.service.js';
 import { redis } from '../redis.js';
+import { logger } from '../logger.js';
 
 export const voiceRouter: Router = Router();
 
@@ -204,6 +205,265 @@ voiceRouter.get(
       const responseBody: ApiResponse<Record<string, VoiceParticipant[]>> = {
         ok: true,
         data: result,
+      };
+      res.json(responseBody);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Admin voice actions
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /v1/voice/move
+ *
+ * Move a user from one voice channel to another.
+ * Requires MOVE_MEMBERS permission in the source channel.
+ *
+ * Body: { hubId, channelId, targetChannelId, userId }
+ */
+voiceRouter.post(
+  '/move',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = req.auth!;
+      const body = req.body as {
+        hubId?: string;
+        channelId?: string;
+        targetChannelId?: string;
+        userId?: string;
+      };
+
+      if (!body.hubId || !body.channelId || !body.targetChannelId || !body.userId) {
+        throw ApiError.badRequest('hubId, channelId, targetChannelId, and userId are required');
+      }
+
+      if (body.userId === auth.sub) {
+        throw ApiError.badRequest('Cannot move yourself — switch channels directly');
+      }
+
+      // Verify actor membership
+      const membership = await memberRepo.findOne(body.hubId, auth.sub);
+      if (!membership) {
+        throw ApiError.forbidden('You are not a member of this hub');
+      }
+
+      // Check MOVE_MEMBERS permission
+      const hasPerm = await permissionService.checkPermission(
+        body.hubId,
+        body.channelId,
+        auth.sub,
+        Permission.MOVE_MEMBERS,
+      );
+      if (!hasPerm) {
+        throw ApiError.forbidden('Missing MOVE_MEMBERS permission');
+      }
+
+      // Verify target user is in source channel
+      const participantRaw = await redis.hget(`voice:${body.channelId}`, body.userId);
+      if (!participantRaw) {
+        throw ApiError.notFound('User is not in the source voice channel');
+      }
+      const participant: VoiceParticipant = JSON.parse(participantRaw);
+
+      // Verify target channel is a voice channel in the same hub
+      const targetChannel = await channelRepo.findById(body.targetChannelId);
+      if (!targetChannel || targetChannel.type !== ChannelType.VOICE) {
+        throw ApiError.badRequest('Target channel is not a voice channel');
+      }
+      if (targetChannel.hubId !== body.hubId) {
+        throw ApiError.badRequest('Target channel is not in the same hub');
+      }
+
+      // Move in Redis: remove from source, add to target
+      await redis.hdel(`voice:${body.channelId}`, body.userId);
+      const movedParticipant: VoiceParticipant = {
+        ...participant,
+        joinedAt: new Date().toISOString(),
+      };
+      await redis.hset(
+        `voice:${body.targetChannelId}`,
+        body.userId,
+        JSON.stringify(movedParticipant),
+      );
+      await redis.expire(`voice:${body.targetChannelId}`, 90);
+
+      // Broadcast leave to source channel
+      try {
+        await redis.publish(`ch:${body.channelId}`, JSON.stringify({
+          type: 'VOICE_STATE_UPDATE',
+          data: { channelId: body.channelId, userId: body.userId, action: 'leave' },
+        }));
+      } catch (err) {
+        logger.error({ err }, 'Failed to publish voice leave on move');
+      }
+
+      // Broadcast join to target channel
+      try {
+        await redis.publish(`ch:${body.targetChannelId}`, JSON.stringify({
+          type: 'VOICE_STATE_UPDATE',
+          data: {
+            channelId: body.targetChannelId,
+            userId: body.userId,
+            handle: participant.handle,
+            action: 'join',
+            selfMute: participant.selfMute,
+            selfDeaf: participant.selfDeaf,
+            serverMute: participant.serverMute,
+          },
+        }));
+      } catch (err) {
+        logger.error({ err }, 'Failed to publish voice join on move');
+      }
+
+      // Send force_move to source channel so the moved user's client switches
+      try {
+        await redis.publish(`ch:${body.channelId}`, JSON.stringify({
+          type: 'VOICE_STATE_UPDATE',
+          data: {
+            channelId: body.channelId,
+            userId: body.userId,
+            action: 'force_move',
+            targetChannelId: body.targetChannelId,
+          },
+        }));
+      } catch (err) {
+        logger.error({ err }, 'Failed to publish force_move event');
+      }
+
+      const responseBody: ApiResponse<{ moved: true }> = { ok: true, data: { moved: true } };
+      res.json(responseBody);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/**
+ * POST /v1/voice/server-mute
+ *
+ * Server-mute or unmute a user in a voice channel.
+ * Requires MUTE_MEMBERS permission.
+ *
+ * Body: { hubId, channelId, userId, muted: boolean }
+ */
+voiceRouter.post(
+  '/server-mute',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = req.auth!;
+      const body = req.body as {
+        hubId?: string;
+        channelId?: string;
+        userId?: string;
+        muted?: boolean;
+      };
+
+      if (!body.hubId || !body.channelId || !body.userId || body.muted === undefined) {
+        throw ApiError.badRequest('hubId, channelId, userId, and muted are required');
+      }
+
+      // Verify actor membership
+      const membership = await memberRepo.findOne(body.hubId, auth.sub);
+      if (!membership) {
+        throw ApiError.forbidden('You are not a member of this hub');
+      }
+
+      // Check MUTE_MEMBERS permission
+      const hasPerm = await permissionService.checkPermission(
+        body.hubId,
+        body.channelId,
+        auth.sub,
+        Permission.MUTE_MEMBERS,
+      );
+      if (!hasPerm) {
+        throw ApiError.forbidden('Missing MUTE_MEMBERS permission');
+      }
+
+      // Verify target user is in channel
+      const participantRaw = await redis.hget(`voice:${body.channelId}`, body.userId);
+      if (!participantRaw) {
+        throw ApiError.notFound('User is not in this voice channel');
+      }
+      const participant: VoiceParticipant = JSON.parse(participantRaw);
+
+      // Update serverMute in Redis
+      participant.serverMute = body.muted;
+      await redis.hset(`voice:${body.channelId}`, body.userId, JSON.stringify(participant));
+
+      // Broadcast server_mute event
+      try {
+        await redis.publish(`ch:${body.channelId}`, JSON.stringify({
+          type: 'VOICE_STATE_UPDATE',
+          data: {
+            channelId: body.channelId,
+            userId: body.userId,
+            action: 'server_mute',
+            serverMute: body.muted,
+          },
+        }));
+      } catch (err) {
+        logger.error({ err }, 'Failed to publish server_mute event');
+      }
+
+      const responseBody: ApiResponse<{ serverMute: boolean }> = {
+        ok: true,
+        data: { serverMute: body.muted },
+      };
+      res.json(responseBody);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/**
+ * GET /v1/voice/permissions/:hubId
+ *
+ * Get the authenticated user's computed permission bitfield for a hub.
+ *
+ * Response: { ok: true, data: { permissions: number } }
+ */
+voiceRouter.get(
+  '/permissions/:hubId',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = req.auth!;
+      const hubId = req.params.hubId as string;
+
+      if (!hubId) {
+        throw ApiError.badRequest('hubId is required');
+      }
+
+      // Verify membership
+      const membership = await memberRepo.findOne(hubId, auth.sub);
+      if (!membership) {
+        throw ApiError.forbidden('You are not a member of this hub');
+      }
+
+      // Use the first channel for hub-level permission resolution
+      const channels = await channelRepo.findByHubId(hubId);
+      const firstChannel = channels[0];
+
+      if (!firstChannel) {
+        const responseBody: ApiResponse<{ permissions: number }> = {
+          ok: true,
+          data: { permissions: 0 },
+        };
+        res.json(responseBody);
+        return;
+      }
+
+      const permissions = await permissionService.resolvePermissions(hubId, firstChannel.id, auth.sub);
+      const responseBody: ApiResponse<{ permissions: number }> = {
+        ok: true,
+        data: { permissions },
       };
       res.json(responseBody);
     } catch (err) {
