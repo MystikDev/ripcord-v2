@@ -8,9 +8,13 @@
 import { useHubStore, type DmChannel } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { usePresenceStore, type PresenceStatus } from '../../stores/presence-store';
+import { useReadStateStore } from '../../stores/read-state-store';
+import { useMessageStore } from '../../stores/message-store';
 import { Avatar } from '../ui/avatar';
 import { getUserAvatarUrl } from '../../lib/user-api';
 import clsx from 'clsx';
+
+const EMPTY_MESSAGES: never[] = [];
 
 // ---------------------------------------------------------------------------
 // Presence dot
@@ -44,6 +48,22 @@ function DmRow({ dm }: { dm: DmChannel }) {
   const activeDmChannelId = useHubStore((s) => s.activeDmChannelId);
   const setActiveDmChannel = useHubStore((s) => s.setActiveDmChannel);
 
+  // Unread badge — same pattern as ChannelItem in channel-sidebar.tsx
+  const lastReadId = useReadStateStore((s) => s.readStates[dm.channelId]?.lastReadMessageId);
+  const messages = useMessageStore((s) => s.messages[dm.channelId] ?? EMPTY_MESSAGES);
+
+  let unreadCount = 0;
+  if (lastReadId && messages.length > 0) {
+    const lastReadIdx = messages.findIndex((m) => m.id === lastReadId);
+    if (lastReadIdx >= 0) {
+      unreadCount = messages.length - lastReadIdx - 1;
+    } else {
+      unreadCount = messages.length;
+    }
+  } else if (!lastReadId && messages.length > 0) {
+    unreadCount = messages.length;
+  }
+
   // Find the other participant (not the current user)
   const other = dm.participants.find((p) => p.userId !== currentUserId) ?? dm.participants[0];
   if (!other) return null;
@@ -70,6 +90,11 @@ function DmRow({ dm }: { dm: DmChannel }) {
         <PresenceDot userId={other.userId} />
       </div>
       <span className="truncate font-medium" style={{ fontSize: 'var(--font-size-sm, 12px)', color: 'var(--color-username, var(--color-text-primary))' }}>{other.handle}</span>
+      {unreadCount > 0 && !isActive && (
+        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
     </button>
   );
 }

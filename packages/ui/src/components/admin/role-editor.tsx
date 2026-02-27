@@ -35,6 +35,7 @@ export function RoleEditor({ hubId }: { hubId: string }) {
   const [editName, setEditName] = useState('');
   const [editPriority, setEditPriority] = useState(100);
   const [editBitset, setEditBitset] = useState(0);
+  const [editColor, setEditColor] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Create new role dialog state
@@ -69,6 +70,7 @@ export function RoleEditor({ hubId }: { hubId: string }) {
     setEditName(role.name);
     setEditPriority(role.priority);
     setEditBitset(Number(role.bitsetPermissions));
+    setEditColor(role.color ?? '');
     setConfirmDelete(null);
   };
 
@@ -85,6 +87,9 @@ export function RoleEditor({ hubId }: { hubId: string }) {
       if (String(editBitset) !== selectedRole.bitsetPermissions) {
         updates.bitsetPermissions = String(editBitset);
       }
+      if (editColor !== (selectedRole.color ?? '')) {
+        updates.color = editColor || null;
+      }
 
       if (Object.keys(updates).length === 0) {
         toast.info('No changes to save');
@@ -96,6 +101,7 @@ export function RoleEditor({ hubId }: { hubId: string }) {
         name?: string;
         priority?: number;
         bitsetPermissions?: string;
+        color?: string | null;
       });
       setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       toast.success('Role updated');
@@ -200,7 +206,15 @@ export function RoleEditor({ hubId }: { hubId: string }) {
                     : 'text-text-muted hover:bg-surface-2 hover:text-text-secondary'
                 }`}
               >
-                <span className="truncate block">{role.name}</span>
+                <span className="flex items-center gap-1.5 truncate">
+                  {role.color && (
+                    <span
+                      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: role.color }}
+                    />
+                  )}
+                  <span className="truncate">{role.name}</span>
+                </span>
                 <span className="text-[10px] text-text-muted">Priority: {role.priority}</span>
               </button>
             ))}
@@ -252,7 +266,7 @@ export function RoleEditor({ hubId }: { hubId: string }) {
               )}
             </div>
 
-            {/* Name & priority */}
+            {/* Name, priority & color */}
             <div className="grid shrink-0 grid-cols-2 gap-3">
               <Input
                 label="Name"
@@ -268,6 +282,54 @@ export function RoleEditor({ hubId }: { hubId: string }) {
                 onChange={(e) => setEditPriority(Number(e.target.value))}
                 disabled={isEveryone}
               />
+            </div>
+
+            {/* Color picker */}
+            <div className="shrink-0">
+              <label className="mb-1.5 block text-sm font-medium text-text-secondary">Color</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={editColor || '#6B7280'}
+                  onChange={(e) => setEditColor(e.target.value)}
+                  className="h-8 w-8 cursor-pointer rounded border border-border bg-transparent p-0"
+                />
+                <Input
+                  value={editColor}
+                  onChange={(e) => setEditColor(e.target.value)}
+                  placeholder="#6B7280"
+                  maxLength={7}
+                  className="w-28"
+                />
+                {/* Preset colors */}
+                <div className="flex items-center gap-1.5">
+                  {[
+                    { color: '#EF4444', label: 'Red' },
+                    { color: '#F97316', label: 'Orange' },
+                    { color: '#EAB308', label: 'Yellow' },
+                    { color: '#22C55E', label: 'Green' },
+                    { color: '#3B82F6', label: 'Blue' },
+                    { color: '#8B5CF6', label: 'Purple' },
+                    { color: '#6B7280', label: 'Gray' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.color}
+                      onClick={() => setEditColor(preset.color)}
+                      className="h-6 w-6 rounded-full border border-border transition-transform hover:scale-110"
+                      style={{ backgroundColor: preset.color }}
+                      title={preset.label}
+                    />
+                  ))}
+                </div>
+                {editColor && (
+                  <button
+                    onClick={() => setEditColor('')}
+                    className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Permission grid */}

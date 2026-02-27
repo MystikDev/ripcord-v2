@@ -106,7 +106,13 @@ export function MemberList({ hubId }: { hubId: string }) {
                       {member.roles.map((role) => (
                         <span
                           key={role.id}
-                          className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent"
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            role.color ? '' : 'bg-accent/10 text-accent'
+                          }`}
+                          style={role.color ? {
+                            backgroundColor: `${role.color}1A`,
+                            color: role.color,
+                          } : undefined}
                         >
                           {role.name}
                         </span>

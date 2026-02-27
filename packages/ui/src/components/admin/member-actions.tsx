@@ -20,7 +20,7 @@ interface MemberActionsProps {
   member: MemberResponse;
   onKicked: () => void;
   onBanned: () => void;
-  onRolesChanged: (roles: { id: string; name: string }[]) => void;
+  onRolesChanged: (roles: { id: string; name: string; color?: string }[]) => void;
 }
 
 export function MemberActions({ hubId, member, onKicked, onBanned, onRolesChanged }: MemberActionsProps) {
@@ -90,7 +90,7 @@ export function MemberActions({ hubId, member, onKicked, onBanned, onRolesChange
           if (r.id === role.id) return !hasRole;
           return memberRoleIds.has(r.id);
         })
-        .map((r) => ({ id: r.id, name: r.name }));
+        .map((r) => ({ id: r.id, name: r.name, color: r.color }));
       onRolesChanged(updatedRoles);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update role');

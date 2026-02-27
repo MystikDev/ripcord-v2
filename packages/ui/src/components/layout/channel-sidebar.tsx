@@ -113,6 +113,8 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
   const canMove = useHasPermission(Permission.MOVE_MEMBERS);
   const [dragOver, setDragOver] = useState(false);
 
+  const toast = useToast();
+
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -120,8 +122,9 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
     const sourceUserId = e.dataTransfer.getData('text/participant-userId');
     const sourceChannelId = e.dataTransfer.getData('text/participant-channelId');
     if (!sourceUserId || !sourceChannelId || sourceChannelId === channel.id) return;
-    await apiFetch('/v1/voice/move', {
+    const res = await apiFetch('/v1/voice/move', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         hubId: activeHubId,
         channelId: sourceChannelId,
@@ -129,7 +132,8 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
         userId: sourceUserId,
       }),
     });
-  }, [canMove, activeHubId, channel.id]);
+    if (!res.ok) toast.error(res.error ?? 'Failed to move user');
+  }, [canMove, activeHubId, channel.id, toast]);
 
   const [contextMenu, setContextMenu] = useState<{
     userId: string;

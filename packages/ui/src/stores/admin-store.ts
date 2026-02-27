@@ -30,7 +30,7 @@ interface AdminState {
   /** Optimistically remove a ban by user ID. */
   removeBan: (userId: string) => void;
   /** Update a member's role list in-place (after assign/remove). */
-  updateMemberRoles: (userId: string, roles: { id: string; name: string }[]) => void;
+  updateMemberRoles: (userId: string, roles: { id: string; name: string; color?: string }[]) => void;
   /** Reset all admin state. */
   reset: () => void;
 }

@@ -201,9 +201,11 @@ export function UpdateChecker() {
           <span>Ripcord v{state.version} is ready to install!</span>
           <button
             onClick={() => {
-              // Clear auth unless the user opted into "Remember me"
+              // Set a flag that clear-session.ts will pick up on the next
+              // launch. This avoids a race condition where localStorage.removeItem
+              // may not flush before the process restarts via relaunch().
               if (localStorage.getItem('ripcord-remember-me') !== 'true') {
-                localStorage.removeItem('ripcord-auth');
+                localStorage.setItem('ripcord-force-logout', 'true');
               }
               relaunch();
             }}

@@ -75,6 +75,8 @@ export interface Role {
   priority: number;
   /** Permission bitfield encoded as a decimal string (bigint-safe). */
   bitsetPermissions: string;
+  /** Optional hex color for role badges (e.g. '#EF4444'). */
+  color?: string;
 }
 
 // ---------------------------------------------------------------------------

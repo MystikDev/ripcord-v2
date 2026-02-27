@@ -8,6 +8,7 @@ interface RoleRow {
   name: string;
   priority: number;
   bitset_permissions: string;
+  color: string | null;
 }
 
 /** Row shape returned from the member_roles table. */
@@ -25,6 +26,7 @@ function toRole(row: RoleRow): Role {
     name: row.name,
     priority: row.priority,
     bitsetPermissions: row.bitset_permissions,
+    ...(row.color ? { color: row.color } : {}),
   };
 }
 
@@ -51,12 +53,13 @@ export async function create(
   name: string,
   priority: number,
   bitsetPermissions: string,
+  color?: string,
 ): Promise<Role> {
   const rows = await query<RoleRow>(
-    `INSERT INTO roles (hub_id, name, priority, bitset_permissions)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id, hub_id, name, priority, bitset_permissions`,
-    [hubId, name, priority, bitsetPermissions],
+    `INSERT INTO roles (hub_id, name, priority, bitset_permissions, color)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, hub_id, name, priority, bitset_permissions, color`,
+    [hubId, name, priority, bitsetPermissions, color ?? null],
   );
   return toRole(rows[0]!);
 }
@@ -69,7 +72,7 @@ export async function create(
  */
 export async function findById(id: string): Promise<Role | null> {
   const row = await queryOne<RoleRow>(
-    `SELECT id, hub_id, name, priority, bitset_permissions FROM roles WHERE id = $1`,
+    `SELECT id, hub_id, name, priority, bitset_permissions, color FROM roles WHERE id = $1`,
     [id],
   );
   return row ? toRole(row) : null;
@@ -84,7 +87,7 @@ export async function findById(id: string): Promise<Role | null> {
  */
 export async function findEveryoneRole(hubId: string): Promise<Role | null> {
   const row = await queryOne<RoleRow>(
-    `SELECT id, hub_id, name, priority, bitset_permissions
+    `SELECT id, hub_id, name, priority, bitset_permissions, color
      FROM roles WHERE hub_id = $1 AND name = '@everyone'`,
     [hubId],
   );
@@ -99,7 +102,7 @@ export async function findEveryoneRole(hubId: string): Promise<Role | null> {
  */
 export async function findByHubId(hubId: string): Promise<Role[]> {
   const rows = await query<RoleRow>(
-    `SELECT id, hub_id, name, priority, bitset_permissions
+    `SELECT id, hub_id, name, priority, bitset_permissions, color
      FROM roles WHERE hub_id = $1
      ORDER BY priority ASC`,
     [hubId],
@@ -132,7 +135,7 @@ export async function findMemberRoles(hubId: string, userId: string): Promise<Me
  */
 export async function findRolesForMember(hubId: string, userId: string): Promise<Role[]> {
   const rows = await query<RoleRow>(
-    `SELECT r.id, r.hub_id, r.name, r.priority, r.bitset_permissions
+    `SELECT r.id, r.hub_id, r.name, r.priority, r.bitset_permissions, r.color
      FROM roles r
      INNER JOIN member_roles mr ON mr.role_id = r.id
      WHERE mr.hub_id = $1 AND mr.user_id = $2
@@ -173,7 +176,7 @@ export async function removeRole(hubId: string, userId: string, roleId: string):
  */
 export async function update(
   roleId: string,
-  updates: { name?: string; priority?: number; bitsetPermissions?: string },
+  updates: { name?: string; priority?: number; bitsetPermissions?: string; color?: string | null },
 ): Promise<Role | null> {
   const sets: string[] = [];
   const params: unknown[] = [];
@@ -191,12 +194,16 @@ export async function update(
     sets.push(`bitset_permissions = $${paramIndex++}`);
     params.push(updates.bitsetPermissions);
   }
+  if (updates.color !== undefined) {
+    sets.push(`color = $${paramIndex++}`);
+    params.push(updates.color);
+  }
 
   if (sets.length === 0) return null;
 
   params.push(roleId);
   const row = await queryOne<RoleRow>(
-    `UPDATE roles SET ${sets.join(', ')} WHERE id = $${paramIndex} RETURNING id, hub_id, name, priority, bitset_permissions`,
+    `UPDATE roles SET ${sets.join(', ')} WHERE id = $${paramIndex} RETURNING id, hub_id, name, priority, bitset_permissions, color`,
     params,
   );
   return row ? toRole(row) : null;

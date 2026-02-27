@@ -25,12 +25,14 @@ const CreateRoleSchema = z.object({
   name: z.string().min(1, 'Role name is required').max(100),
   priority: z.number().int().min(0).default(100),
   bitsetPermissions: z.string().default('0'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex color').optional(),
 });
 
 const UpdateRoleSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   priority: z.number().int().min(0).optional(),
   bitsetPermissions: z.string().optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex color').nullable().optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -81,13 +83,14 @@ rolesRouter.post(
         throw ApiError.forbidden('Missing MANAGE_ROLES permission');
       }
 
-      const { name, priority, bitsetPermissions } = req.body as {
+      const { name, priority, bitsetPermissions, color } = req.body as {
         name: string;
         priority: number;
         bitsetPermissions: string;
+        color?: string;
       };
 
-      const role = await roleRepo.create(hubId, name, priority, bitsetPermissions);
+      const role = await roleRepo.create(hubId, name, priority, bitsetPermissions, color);
       await permissionService.invalidatePermissions(hubId);
 
       // Audit event
@@ -178,6 +181,7 @@ rolesRouter.patch(
         name?: string;
         priority?: number;
         bitsetPermissions?: string;
+        color?: string | null;
       };
 
       const updated = await roleRepo.update(roleId, updates);

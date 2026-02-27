@@ -14,6 +14,12 @@
  * the auth store module is evaluated and reads from localStorage.
  */
 
+// Handle forced logout from update-checker (survives app restart via localStorage)
+if (localStorage.getItem('ripcord-force-logout') === 'true') {
+  localStorage.removeItem('ripcord-auth');
+  localStorage.removeItem('ripcord-force-logout');
+}
+
 if (!sessionStorage.getItem('ripcord-session')) {
   // Only wipe auth state if the user hasn't opted into "Remember me"
   if (localStorage.getItem('ripcord-remember-me') !== 'true') {

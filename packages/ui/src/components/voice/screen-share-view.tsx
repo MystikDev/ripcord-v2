@@ -2,16 +2,29 @@
  * @module screen-share-view
  * Renders the active screen-share track in a video element with a header
  * overlay. Supports multiple simultaneous streams via a switcher bar and
- * auto-fallback when the active stream ends.
+ * auto-fallback when the active stream ends. Includes audio track
+ * subscription, quality selector, and live FPS overlay.
  */
 'use client';
 
 import { useTracks, useLocalParticipant } from '@livekit/components-react';
-import { Track } from 'livekit-client';
-import { useCallback, useEffect, useRef } from 'react';
+import { Track, VideoQuality, RemoteTrackPublication } from 'livekit-client';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoiceStateStore } from '../../stores/voice-state-store';
 import { useMemberStore } from '../../stores/member-store';
 import clsx from 'clsx';
+
+// ---------------------------------------------------------------------------
+// Quality options
+// ---------------------------------------------------------------------------
+
+type QualityOption = '720p' | '1080p' | 'Source';
+
+const QUALITY_MAP: Record<QualityOption, VideoQuality> = {
+  '720p': VideoQuality.LOW,
+  '1080p': VideoQuality.MEDIUM,
+  'Source': VideoQuality.HIGH,
+};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -25,35 +38,53 @@ import clsx from 'clsx';
  */
 export function ScreenShareView() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const { localParticipant } = useLocalParticipant();
 
-  const tracks = useTracks([Track.Source.ScreenShare], {
+  // Subscribe to both video and audio screen share tracks
+  const videoTracks = useTracks([Track.Source.ScreenShare], {
+    onlySubscribed: true,
+  });
+
+  const audioTracks = useTracks([Track.Source.ScreenShareAudio], {
     onlySubscribed: true,
   });
 
   const activeScreenShareId = useVoiceStateStore((s) => s.activeScreenShareId);
   const setActiveScreenShareId = useVoiceStateStore((s) => s.setActiveScreenShareId);
 
+  // Quality selector state
+  const [quality, setQuality] = useState<QualityOption>('Source');
+
+  // FPS overlay state
+  const [fps, setFps] = useState<number | null>(null);
+
   // Find the track matching the active selection, fallback to first available
   const activeTrackRef =
-    tracks.find((t) => t.participant.identity === activeScreenShareId) ?? tracks[0] ?? null;
+    videoTracks.find((t) => t.participant.identity === activeScreenShareId) ?? videoTracks[0] ?? null;
 
   const screenTrack = activeTrackRef?.publication?.track ?? null;
+  const screenPublication = activeTrackRef?.publication ?? null;
   const sharerIdentity = activeTrackRef?.participant?.identity ?? 'Someone';
   const isLocalSharing = localParticipant.isScreenShareEnabled;
 
+  // Find matching audio track for the active sharer
+  const activeAudioRef =
+    audioTracks.find((t) => t.participant.identity === sharerIdentity);
+  const audioTrack = activeAudioRef?.publication?.track ?? null;
+
   // Auto-switch when the active stream ends (identity no longer in tracks)
   useEffect(() => {
-    if (tracks.length === 0) {
+    if (videoTracks.length === 0) {
       if (activeScreenShareId !== null) setActiveScreenShareId(null);
       return;
     }
-    const stillPresent = tracks.some((t) => t.participant.identity === activeScreenShareId);
+    const stillPresent = videoTracks.some((t) => t.participant.identity === activeScreenShareId);
     if (!stillPresent && activeScreenShareId !== null) {
       // Fall back to first available
-      setActiveScreenShareId(tracks[0]?.participant?.identity ?? null);
+      setActiveScreenShareId(videoTracks[0]?.participant?.identity ?? null);
     }
-  }, [tracks, activeScreenShareId, setActiveScreenShareId]);
+  }, [videoTracks, activeScreenShareId, setActiveScreenShareId]);
 
   // Attach / detach the video track
   useEffect(() => {
@@ -64,6 +95,74 @@ export function ScreenShareView() {
     return () => {
       screenTrack.detach(el);
     };
+  }, [screenTrack]);
+
+  // Attach / detach the audio track
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !audioTrack) return;
+
+    audioTrack.attach(el);
+    return () => {
+      audioTrack.detach(el);
+    };
+  }, [audioTrack]);
+
+  // Apply quality preference to the subscription
+  useEffect(() => {
+    if (!screenPublication) return;
+    // setVideoQuality is only available on RemoteTrackPublication
+    if (screenPublication instanceof RemoteTrackPublication) {
+      try {
+        screenPublication.setVideoQuality(QUALITY_MAP[quality]);
+      } catch {
+        // Silently ignore if quality setting fails
+      }
+    }
+  }, [quality, screenPublication]);
+
+  // FPS counter — poll WebRTC stats every second
+  useEffect(() => {
+    if (!screenTrack) {
+      setFps(null);
+      return;
+    }
+
+    let lastFrameCount = 0;
+    let lastTimestamp = performance.now();
+
+    const interval = setInterval(async () => {
+      try {
+        // Access the MediaStreamTrack to get frame stats
+        const mediaTrack = screenTrack.mediaStreamTrack;
+        if (!mediaTrack) return;
+
+        // Use getStats on the track if available
+        const settings = mediaTrack.getSettings?.();
+        if (settings?.frameRate) {
+          setFps(Math.round(settings.frameRate));
+          return;
+        }
+
+        // Fallback: use requestVideoFrameCallback if available on the video element
+        const el = videoRef.current;
+        if (el && 'getVideoPlaybackQuality' in el) {
+          const quality = (el as HTMLVideoElement).getVideoPlaybackQuality();
+          const now = performance.now();
+          const elapsed = (now - lastTimestamp) / 1000;
+          if (elapsed > 0.5) {
+            const frames = quality.totalVideoFrames - lastFrameCount;
+            setFps(Math.round(frames / elapsed));
+            lastFrameCount = quality.totalVideoFrames;
+            lastTimestamp = now;
+          }
+        }
+      } catch {
+        // Stats not available — skip silently
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, [screenTrack]);
 
   const handleFullscreen = useCallback(() => {
@@ -82,14 +181,14 @@ export function ScreenShareView() {
 
   if (!screenTrack) return null;
 
-  const multipleStreams = tracks.length > 1;
+  const multipleStreams = videoTracks.length > 1;
 
   return (
     <div className="relative rounded-lg overflow-hidden bg-surface-1 border border-border">
       {/* Stream switcher tabs (only shown when 2+ streams active) */}
       {multipleStreams && (
         <div className="flex items-center gap-1 bg-surface-2/80 px-2 py-1.5 border-b border-border">
-          {tracks.map((t) => {
+          {videoTracks.map((t) => {
             const identity = t.participant.identity;
             const isActive = identity === sharerIdentity;
             return (
@@ -112,6 +211,18 @@ export function ScreenShareView() {
           <SharerName identity={sharerIdentity} />&apos;s screen
         </span>
         <div className="flex items-center gap-1.5">
+          {/* Quality selector */}
+          {!isLocalSharing && (
+            <select
+              value={quality}
+              onChange={(e) => setQuality(e.target.value as QualityOption)}
+              className="rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3"
+            >
+              <option value="720p">720p</option>
+              <option value="1080p">1080p</option>
+              <option value="Source">Source</option>
+            </select>
+          )}
           {/* Stop sharing — always visible when LOCAL user is sharing */}
           {isLocalSharing && (
             <button
@@ -147,6 +258,13 @@ export function ScreenShareView() {
         </div>
       </div>
 
+      {/* FPS overlay */}
+      {fps !== null && (
+        <div className="absolute bottom-2 right-2 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-medium text-white/80 backdrop-blur-sm">
+          {fps} fps
+        </div>
+      )}
+
       {/* Video */}
       <video
         ref={videoRef}
@@ -154,6 +272,9 @@ export function ScreenShareView() {
         playsInline
         className="w-full max-h-64 object-contain bg-black"
       />
+
+      {/* Hidden audio element for screen share audio */}
+      <audio ref={audioRef} autoPlay />
     </div>
   );
 }

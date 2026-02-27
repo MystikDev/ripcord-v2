@@ -20,6 +20,7 @@ export interface RoleResponse {
   name: string;
   priority: number;
   bitsetPermissions: string;
+  color?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ export async function fetchRoles(hubId: string): Promise<RoleResponse[]> {
 /** Create a new role with a name, priority, and optional permission bitfield. */
 export async function createRole(
   hubId: string,
-  data: { name: string; priority?: number; bitsetPermissions?: string },
+  data: { name: string; priority?: number; bitsetPermissions?: string; color?: string },
 ): Promise<RoleResponse> {
   const res = await apiFetch<{ ok: boolean; data: RoleResponse }>(`/v1/hubs/${hubId}/roles`, {
     method: 'POST',
@@ -53,7 +54,7 @@ export async function createRole(
 export async function updateRole(
   hubId: string,
   roleId: string,
-  data: { name?: string; priority?: number; bitsetPermissions?: string },
+  data: { name?: string; priority?: number; bitsetPermissions?: string; color?: string | null },
 ): Promise<RoleResponse> {
   const res = await apiFetch<{ ok: boolean; data: RoleResponse }>(
     `/v1/hubs/${hubId}/roles/${roleId}`,

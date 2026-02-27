@@ -117,7 +117,7 @@ membersRouter.get(
           const roles = await roleRepo.findRolesForMember(hubId, m.userId);
           return {
             ...m,
-            roles: roles.map((r) => ({ id: r.id, name: r.name })),
+            roles: roles.map((r) => ({ id: r.id, name: r.name, ...(r.color ? { color: r.color } : {}) })),
           };
         }),
       );

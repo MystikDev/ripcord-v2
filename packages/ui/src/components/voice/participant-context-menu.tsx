@@ -98,8 +98,9 @@ export function ParticipantContextMenu({
   // Admin action handlers
   const handleServerMute = async () => {
     if (!activeHubId) return;
-    await apiFetch('/v1/voice/server-mute', {
+    const res = await apiFetch('/v1/voice/server-mute', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         hubId: activeHubId,
         channelId,
@@ -107,13 +108,16 @@ export function ParticipantContextMenu({
         muted: !isServerMuted,
       }),
     });
-    onClose();
+    if (res.ok) {
+      onClose();
+    }
   };
 
   const handleMove = async (targetChannelId: string) => {
     if (!activeHubId) return;
-    await apiFetch('/v1/voice/move', {
+    const res = await apiFetch('/v1/voice/move', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         hubId: activeHubId,
         channelId,
@@ -121,7 +125,9 @@ export function ParticipantContextMenu({
         userId,
       }),
     });
-    onClose();
+    if (res.ok) {
+      onClose();
+    }
   };
 
   return createPortal(

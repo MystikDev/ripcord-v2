@@ -131,7 +131,11 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
   // ----- Screen share -----
 
   const toggleScreenShare = useCallback(async () => {
-    await localParticipant.setScreenShareEnabled(!isScreenSharing);
+    await localParticipant.setScreenShareEnabled(!isScreenSharing, {
+      audio: true,
+      resolution: { width: 1920, height: 1080, frameRate: 30 },
+      contentHint: 'detail',
+    });
   }, [localParticipant, isScreenSharing]);
 
   // ----- Render -----

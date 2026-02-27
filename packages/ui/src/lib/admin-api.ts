@@ -18,7 +18,7 @@ export interface MemberResponse {
   handle: string;
   avatarUrl?: string;
   joinedAt: string;
-  roles?: { id: string; name: string }[];
+  roles?: { id: string; name: string; color?: string }[];
 }
 
 export interface BanResponse {

@@ -20,6 +20,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.22',
+    date: '2026-02-27',
+    highlights: [
+      'Role colors — customizable hex colors for role badges with preset palette',
+      'Fixed voice admin — drag-and-drop move, context menu move, and server mute now work correctly',
+      'DM notification badges — unread message count shown on DM conversations',
+      'Fixed auto-logout on update — app now reliably logs out after installing an update',
+      'Screen share audio — system audio is now captured alongside screen share video',
+      'Stream quality selector — choose between 720p, 1080p, or Source quality when viewing streams',
+      'Stream FPS overlay — live framerate counter displayed on screen share views',
+    ],
+  },
+  {
     version: '0.9.21',
     date: '2026-02-27',
     highlights: [
