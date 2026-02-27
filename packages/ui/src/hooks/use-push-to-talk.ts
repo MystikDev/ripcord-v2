@@ -3,16 +3,29 @@
 /**
  * @module use-push-to-talk
  * Provides a push-to-talk keybinding hook that supports both keyboard keys and
- * mouse buttons. When running inside Tauri, a global shortcut is registered so
- * PTT continues to work even when the app window is backgrounded. DOM listeners
- * are kept as the primary handler when the window is focused (they support the
- * text-input guard and preventDefault), while the Tauri global shortcut only
- * activates when the window loses focus.
+ * mouse buttons. When running inside Tauri on Windows, background PTT is
+ * supported via native key-state polling (`GetAsyncKeyState`). On macOS/Linux
+ * the Tauri global shortcut plugin handles background key events natively.
+ *
+ * DOM listeners are the primary handler when the window is focused. When the
+ * window loses focus, the hook switches to one of two strategies:
+ *
+ * 1. **Windows** — polls `check_key_pressed` (Tauri command wrapping
+ *    `GetAsyncKeyState`) every 100 ms. This detects both press and release
+ *    without consuming the key (other apps still receive it).
+ *
+ * 2. **macOS / Linux** — falls back to the Tauri `global-shortcut` plugin
+ *    which fires both `Pressed` and `Released` events natively.
+ *
+ * 3. **Web (non-Tauri)** — PTT deactivates on blur (no background support).
+ *
+ * Mouse buttons cannot be captured globally on any platform; mouse PTT
+ * deactivates when the window loses focus.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ShortcutEvent } from '@tauri-apps/plugin-global-shortcut';
-import { isMouseButton, parseMouseButton, toTauriAccelerator } from '../lib/key-display';
+import { isMouseButton, parseMouseButton, toTauriAccelerator, toVirtualKeyCode } from '../lib/key-display';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,6 +50,28 @@ export interface UsePushToTalkReturn {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers — cached Tauri invoke
+// ---------------------------------------------------------------------------
+
+/** Resolved `invoke` function from `@tauri-apps/api/core`, or `null` if not
+ *  running inside Tauri. Cached after the first (async) resolution. */
+let cachedInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
+let invokeResolved = false;
+
+async function getInvoke() {
+  if (invokeResolved) return cachedInvoke;
+  invokeResolved = true;
+  try {
+    const mod = await import('@tauri-apps/api/core');
+    cachedInvoke = mod.invoke;
+    return cachedInvoke;
+  } catch {
+    // Not running in Tauri
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 
@@ -48,7 +83,8 @@ export interface UsePushToTalkReturn {
  * - Prevents key repeat from firing multiple activations
  * - Prevents default context menu for right-click PTT and browser
  *   back/forward for Mouse 4/5
- * - Registers a Tauri global shortcut for background PTT (keyboard only)
+ * - On Windows: polls GetAsyncKeyState for background PTT
+ * - On macOS/Linux: uses Tauri global shortcut for background PTT
  */
 export function usePushToTalk({
   key = ' ',
@@ -59,10 +95,6 @@ export function usePushToTalk({
   const [isActive, setIsActive] = useState(false);
   const activeRef = useRef(false);
   const isFocusedRef = useRef(document.hasFocus());
-  // Whether we successfully registered a Tauri global shortcut — used to
-  // decide whether blur should auto-deactivate (not needed when Tauri can
-  // deliver the key-release event globally).
-  const hasTauriShortcutRef = useRef(false);
 
   const shouldIgnoreKeyboard = useCallback((e: KeyboardEvent): boolean => {
     const target = e.target as HTMLElement | null;
@@ -87,6 +119,32 @@ export function usePushToTalk({
     }
 
     const isMouse = isMouseButton(key);
+    const vkCode = !isMouse ? toVirtualKeyCode(key) : null;
+
+    // Track whether native key-state polling is available (Windows only).
+    // -1 from the Tauri command means "not supported" (macOS/Linux).
+    let pollingSupported: boolean | null = null; // null = not yet determined
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    // Track whether the Tauri global shortcut was successfully registered
+    // (used as fallback on macOS/Linux where Pressed/Released both work).
+    let hasTauriShortcut = false;
+
+    // ----- Activate / Deactivate helpers -----
+
+    function activate() {
+      if (activeRef.current) return;
+      activeRef.current = true;
+      setIsActive(true);
+      onActivate?.();
+    }
+
+    function deactivate() {
+      if (!activeRef.current) return;
+      activeRef.current = false;
+      setIsActive(false);
+      onDeactivate?.();
+    }
 
     // ----- Keyboard handlers -----
 
@@ -97,9 +155,7 @@ export function usePushToTalk({
       if (shouldIgnoreKeyboard(e)) return;
 
       e.preventDefault();
-      activeRef.current = true;
-      setIsActive(true);
-      onActivate?.();
+      activate();
     }
 
     function handleKeyUp(e: KeyboardEvent) {
@@ -108,9 +164,7 @@ export function usePushToTalk({
       if (!activeRef.current) return;
 
       e.preventDefault();
-      activeRef.current = false;
-      setIsActive(false);
-      onDeactivate?.();
+      deactivate();
     }
 
     // ----- Mouse handlers -----
@@ -122,9 +176,7 @@ export function usePushToTalk({
       if (e.button !== mouseBtn) return;
 
       e.preventDefault();
-      activeRef.current = true;
-      setIsActive(true);
-      onActivate?.();
+      activate();
     }
 
     function handleMouseUp(e: MouseEvent) {
@@ -133,9 +185,7 @@ export function usePushToTalk({
       if (!activeRef.current) return;
 
       e.preventDefault();
-      activeRef.current = false;
-      setIsActive(false);
-      onDeactivate?.();
+      deactivate();
     }
 
     // Prevent context menu when right-click (button 2) is PTT key
@@ -145,22 +195,88 @@ export function usePushToTalk({
       }
     }
 
+    // ----- Key-state polling (Windows background PTT) -----
+
+    async function pollKeyState() {
+      const invoke = await getInvoke();
+      if (!invoke || vkCode === null) {
+        stopPolling();
+        return;
+      }
+
+      try {
+        const result = await invoke('check_key_pressed', { keyCode: vkCode }) as number;
+
+        if (result === -1) {
+          // Platform doesn't support polling (macOS/Linux) — stop polling,
+          // the Tauri global shortcut handles release on those platforms.
+          pollingSupported = false;
+          stopPolling();
+          return;
+        }
+
+        pollingSupported = true;
+
+        if (result === 1 && !activeRef.current) {
+          // Key is pressed while backgrounded — activate
+          activate();
+        } else if (result === 0 && activeRef.current) {
+          // Key was released while backgrounded — deactivate
+          deactivate();
+          stopPolling();
+        }
+      } catch {
+        // IPC failed — stop polling to avoid spamming errors
+        stopPolling();
+      }
+    }
+
+    function startPolling() {
+      if (pollInterval || isMouse || vkCode === null) return;
+      // Immediate first check then poll every 100ms
+      pollKeyState();
+      pollInterval = setInterval(pollKeyState, 100);
+    }
+
+    function stopPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }
+
     // ----- Focus tracking -----
 
     function handleFocus() {
       isFocusedRef.current = true;
+      // DOM listeners take over — stop polling
+      stopPolling();
     }
 
     function handleBlur() {
       isFocusedRef.current = false;
 
-      // Deactivate on blur ONLY for mouse buttons or when there's no Tauri
-      // global shortcut to deliver the release event in the background.
-      if (activeRef.current && (isMouse || !hasTauriShortcutRef.current)) {
-        activeRef.current = false;
-        setIsActive(false);
-        onDeactivate?.();
+      if (isMouse) {
+        // Mouse PTT can't work in background — deactivate
+        deactivate();
+        return;
       }
+
+      // For keyboard keys: try native key-state polling first (Windows).
+      // If polling is known to be unsupported, rely on Tauri global shortcut.
+      if (pollingSupported === false) {
+        // macOS/Linux: Tauri global shortcut handles background PTT.
+        // Don't deactivate — the Released event will come through.
+        if (!hasTauriShortcut) {
+          // No Tauri at all (web browser) — deactivate on blur
+          deactivate();
+        }
+        return;
+      }
+
+      // Either polling is supported (Windows) or we haven't checked yet.
+      // Start polling — the first tick will determine support.
+      startPolling();
     }
 
     // ----- Register DOM listeners -----
@@ -173,9 +289,10 @@ export function usePushToTalk({
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
 
-    // ----- Tauri global shortcut (background PTT) -----
-    // Dynamically imported so the hook works in non-Tauri environments (web).
-    // Only keyboard keys are supported — Tauri can't capture mouse globally.
+    // ----- Tauri global shortcut (background PTT for macOS/Linux) -----
+    // On Windows polling handles everything, but the global shortcut still
+    // works for activation (Pressed). On macOS/Linux it also delivers
+    // Released, so it's the primary background mechanism there.
 
     const tauriKey = !isMouse ? toTauriAccelerator(key) : null;
     let tauriCleanup: (() => void) | null = null;
@@ -190,42 +307,46 @@ export function usePushToTalk({
           await register(tauriKey, (event: ShortcutEvent) => {
             if (event.state === 'Pressed') {
               // Only activate from Tauri when the window is NOT focused —
-              // the DOM listener handles the focused case (with text-input
-              // guard and preventDefault).
+              // the DOM listener handles the focused case.
               if (!isFocusedRef.current && !activeRef.current) {
-                activeRef.current = true;
-                setIsActive(true);
-                onActivate?.();
+                activate();
+                // On Windows, start polling for release detection
+                if (pollingSupported !== false) {
+                  startPolling();
+                }
               }
             } else if (event.state === 'Released') {
-              // Always honour the release to prevent stuck-key state,
-              // regardless of focus.
+              // macOS/Linux: honour the release to prevent stuck-key state
               if (activeRef.current) {
-                activeRef.current = false;
-                setIsActive(false);
-                onDeactivate?.();
+                deactivate();
+                stopPolling();
               }
             }
           });
 
-          hasTauriShortcutRef.current = true;
+          hasTauriShortcut = true;
 
           tauriCleanup = () => {
-            hasTauriShortcutRef.current = false;
+            hasTauriShortcut = false;
             unregister(tauriKey).catch(() => {
               /* best-effort cleanup */
             });
           };
         } catch {
           // Not running in Tauri — global shortcut unavailable, DOM-only PTT
-          hasTauriShortcutRef.current = false;
+          hasTauriShortcut = false;
         }
       })();
     }
 
+    // Pre-resolve invoke so polling starts fast when needed
+    getInvoke();
+
     // ----- Cleanup -----
 
     return () => {
+      stopPolling();
+
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousedown', handleMouseDown);

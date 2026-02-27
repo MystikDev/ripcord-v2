@@ -3,9 +3,44 @@ use tauri::{
     Manager,
 };
 
+// ---------------------------------------------------------------------------
+// Native key-state polling (Windows only)
+// ---------------------------------------------------------------------------
+// Used by the push-to-talk hook to detect key releases when the app window is
+// backgrounded. On Windows the Tauri global-shortcut plugin (`RegisterHotKey`)
+// only fires on key *press*, never *release*, so we fall back to polling
+// `GetAsyncKeyState` via IPC.
+
+#[cfg(target_os = "windows")]
+extern "system" {
+    fn GetAsyncKeyState(vKey: i32) -> i16;
+}
+
+/// Check whether a key is currently held down.
+///
+/// Returns:
+///   `1`  — key is pressed (Windows)
+///   `0`  — key is not pressed (Windows)
+///   `-1` — not supported on this platform
+#[tauri::command]
+fn check_key_pressed(key_code: i32) -> i32 {
+    #[cfg(target_os = "windows")]
+    {
+        // MSB (bit 15) is set when the key is currently down.
+        let state = unsafe { GetAsyncKeyState(key_code) };
+        if state < 0 { 1 } else { 0 }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = key_code;
+        -1
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![check_key_pressed])
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())

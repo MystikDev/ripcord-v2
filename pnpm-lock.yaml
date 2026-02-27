@@ -412,6 +412,9 @@ importers:
         specifier: ^5.0.11
         version: 5.0.11(@types/react@19.2.14)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
+      '@tauri-apps/api':
+        specifier: ^2
+        version: 2.10.1
       '@tauri-apps/plugin-global-shortcut':
         specifier: ^2
         version: 2.3.1
