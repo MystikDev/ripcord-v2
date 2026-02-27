@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.21',
+    date: '2026-02-27',
+    highlights: [
+      'Role assignment UI — assign and remove roles from members in the admin panel',
+    ],
+  },
+  {
     version: '0.9.20',
     date: '2026-02-27',
     highlights: [
