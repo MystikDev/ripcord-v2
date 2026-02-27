@@ -147,11 +147,36 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
   const handleStartShare = useCallback(async (options: ScreenShareOptions) => {
     setShowShareSettings(false);
     try {
-      await localParticipantRef.current.setScreenShareEnabled(true, {
-        audio: options.audio,
-        resolution: options.resolution ? { ...options.resolution, frameRate: options.frameRate } : undefined,
-        contentHint: options.contentHint,
-      });
+      // Compute bitrate based on resolution, frame rate, and content type.
+      // Motion content (video/games) needs ~2x the bitrate of detail (text/slides).
+      const pixels = options.resolution
+        ? options.resolution.width * options.resolution.height
+        : 2560 * 1440; // assume high-res for "source"
+      const motionMultiplier = options.contentHint === 'motion' ? 2.0 : 1.0;
+      const fpsMultiplier = options.frameRate / 30;
+      // Base: ~4 Mbps per megapixel at 30 fps for detail content
+      const maxBitrate = Math.round(
+        (pixels / 1_000_000) * 4_000_000 * fpsMultiplier * motionMultiplier,
+      );
+
+      await localParticipantRef.current.setScreenShareEnabled(
+        true,
+        {
+          audio: options.audio,
+          resolution: options.resolution
+            ? { ...options.resolution, frameRate: options.frameRate }
+            : undefined,
+          contentHint: options.contentHint,
+        },
+        {
+          videoEncoding: {
+            maxBitrate,
+            maxFramerate: options.frameRate,
+          },
+          simulcast: false,
+          videoCodec: 'vp9',
+        },
+      );
     } catch (err) {
       console.error('Failed to start screen share:', err);
     }

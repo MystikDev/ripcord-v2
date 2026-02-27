@@ -30,7 +30,7 @@ import { AppearanceSettings } from '../settings/appearance-settings';
 import { Tooltip } from '../ui/tooltip';
 import { uploadUserAvatar, getUserAvatarUrl } from '../../lib/user-api';
 import { gateway } from '../../lib/gateway-client';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '../ui/toast';
 import { getAppVersion } from '../../lib/constants';
 import { useHasPermission } from '../../hooks/use-has-permission';
@@ -549,6 +549,36 @@ export function ChannelSidebar() {
   const activeChannelId = useHubStore((s) => s.activeChannelId);
   const isDmView = useHubStore((s) => s.isDmView);
 
+  const sidebarWidth = useSettingsStore((s) => s.channelSidebarWidth);
+  const setSidebarWidth = useSettingsStore((s) => s.setChannelSidebarWidth);
+  const resizingRef = useRef(false);
+
+  // Drag-to-resize handler — uses document-level mousemove/mouseup
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    const startX = e.clientX;
+    const startWidth = useSettingsStore.getState().channelSidebarWidth;
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const newWidth = startWidth + (ev.clientX - startX);
+      setSidebarWidth(newWidth);
+    };
+    const onUp = () => {
+      resizingRef.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [setSidebarWidth]);
+
   const [dmTab, setDmTab] = useState<'friends' | 'messages'>('friends');
 
   const activeHub = hubs.find((s) => s.id === activeHubId);
@@ -557,7 +587,7 @@ export function ChannelSidebar() {
   const voiceChannels = channels.filter((c) => c.type === 'voice');
 
   return (
-    <div className="flex h-full w-60 flex-col bg-surface-1">
+    <div className="relative flex h-full flex-col bg-surface-1" style={{ width: sidebarWidth }}>
       {/* Header */}
       <div className="flex h-12 items-center justify-between border-b border-border px-4">
         <h2 className="truncate text-base font-semibold text-text-primary">
@@ -690,6 +720,12 @@ export function ChannelSidebar() {
 
       {/* User panel */}
       <UserPanel />
+
+      {/* Resize handle */}
+      <div
+        onMouseDown={handleResizeStart}
+        className="absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize hover:bg-accent/40 active:bg-accent/60 transition-colors"
+      />
     </div>
   );
 }

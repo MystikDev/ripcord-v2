@@ -22,8 +22,8 @@ import clsx from 'clsx';
 type QualityOption = '720p' | '1080p' | 'Source';
 
 const QUALITY_MAP: Record<QualityOption, VideoQuality> = {
-  '720p': VideoQuality.LOW,
-  '1080p': VideoQuality.MEDIUM,
+  '720p': VideoQuality.MEDIUM,
+  '1080p': VideoQuality.HIGH,
   'Source': VideoQuality.HIGH,
 };
 

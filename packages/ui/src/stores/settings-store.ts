@@ -126,6 +126,11 @@ export interface SettingsState {
   setScreenShareContentHint: (v: 'detail' | 'motion') => void;
   /** Set the preferred viewer quality for incoming screen shares. */
   setScreenShareViewerQuality: (v: 'Source' | '1080p' | '720p') => void;
+
+  /** Channel sidebar width in pixels. Default: 240 (w-60). */
+  channelSidebarWidth: number;
+  /** Set the channel sidebar width (clamped 200–480). */
+  setChannelSidebarWidth: (width: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +208,9 @@ export const useSettingsStore = create<SettingsState>()(
       setScreenShareAudio: (v) => set({ screenShareAudio: v }),
       setScreenShareContentHint: (v) => set({ screenShareContentHint: v }),
       setScreenShareViewerQuality: (v) => set({ screenShareViewerQuality: v }),
+
+      channelSidebarWidth: 240,
+      setChannelSidebarWidth: (width) => set({ channelSidebarWidth: Math.max(200, Math.min(480, width)) }),
     }),
     {
       name: 'ripcord-settings',
@@ -229,6 +237,7 @@ export const useSettingsStore = create<SettingsState>()(
         screenShareAudio: state.screenShareAudio,
         screenShareContentHint: state.screenShareContentHint,
         screenShareViewerQuality: state.screenShareViewerQuality,
+        channelSidebarWidth: state.channelSidebarWidth,
       }),
     },
   ),

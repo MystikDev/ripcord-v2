@@ -5,9 +5,11 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useHubStore, type Hub } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
+import { useReadStateStore } from '../../stores/read-state-store';
+import { useMessageStore } from '../../stores/message-store';
 import { Tooltip } from '../ui/tooltip';
 import { Separator } from '../ui/separator';
 import { ScrollArea } from '../ui/scroll-area';
@@ -84,6 +86,30 @@ function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
 function HomeButton() {
   const isDmView = useHubStore((s) => s.isDmView);
   const enterDmView = useHubStore((s) => s.enterDmView);
+  const dmChannels = useHubStore((s) => s.dmChannels);
+  const readStates = useReadStateStore((s) => s.readStates);
+  const allMessages = useMessageStore((s) => s.messages);
+
+  // Aggregate unread counts across all DM channels
+  const totalUnread = useMemo(() => {
+    let total = 0;
+    for (const dm of dmChannels) {
+      const messages = allMessages[dm.channelId];
+      if (!messages || messages.length === 0) continue;
+      const lastReadId = readStates[dm.channelId]?.lastReadMessageId;
+      if (lastReadId) {
+        const lastReadIdx = messages.findIndex((m) => m.id === lastReadId);
+        if (lastReadIdx >= 0) {
+          total += messages.length - lastReadIdx - 1;
+        } else {
+          total += messages.length;
+        }
+      } else {
+        total += messages.length;
+      }
+    }
+    return total;
+  }, [dmChannels, readStates, allMessages]);
 
   return (
     <Tooltip content="Direct Messages" side="right">
@@ -107,6 +133,13 @@ function HomeButton() {
           <path d="M8 4h10c4.42 0 8 2.69 8 6s-3.58 6-8 6h-2l8 12h-5.5L11 16H12c3.31 0 6-1.34 6-4s-2.69-4-6-4h-4v18H8V4z" fill="currentColor" />
           <path d="M6 2l4 2v24l-4 2V2z" fill="currentColor" opacity="0.6" />
         </svg>
+
+        {/* Unread DM badge */}
+        {totalUnread > 0 && !isDmView && (
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white shadow-sm">
+            {totalUnread > 99 ? '99+' : totalUnread}
+          </span>
+        )}
       </button>
     </Tooltip>
   );

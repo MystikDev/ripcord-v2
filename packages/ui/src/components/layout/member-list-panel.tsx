@@ -52,7 +52,7 @@ function StatusDot({ status }: { status: PresenceStatus }) {
 // Member row — subscribes to its own presence for granular re-renders
 // ---------------------------------------------------------------------------
 
-function MemberRow({ member, offline }: { member: MemberInfo; offline?: boolean }) {
+function MemberRow({ member, offline, roleColor }: { member: MemberInfo; offline?: boolean; roleColor?: string }) {
   const status = usePresenceStore((s) => s.getStatus(member.userId));
   const currentUserId = useAuthStore((s) => s.userId);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -90,7 +90,7 @@ function MemberRow({ member, offline }: { member: MemberInfo; offline?: boolean 
           )}
           style={{
             fontSize: 'var(--font-size-sm, 12px)',
-            ...(!offline ? { color: 'var(--color-username, white)' } : {}),
+            ...(!offline ? { color: roleColor ?? 'var(--color-username, white)' } : {}),
           }}
         >
           {member.handle}
@@ -255,7 +255,7 @@ export function MemberListPanel() {
             <div key={group.roleId ?? '__members'}>
               <RoleGroupHeader name={group.name} count={group.members.length} color={group.color} />
               {group.members.map((member) => (
-                <MemberRow key={member.userId} member={member} />
+                <MemberRow key={member.userId} member={member} roleColor={group.color} />
               ))}
             </div>
           ))}
