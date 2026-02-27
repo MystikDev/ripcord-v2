@@ -18,6 +18,7 @@ export function useThemeOverrides(): void {
   const fontColor = useSettingsStore((s) => s.fontColor);
   const iconSize = useSettingsStore((s) => s.iconSize);
   const usernameColor = useSettingsStore((s) => s.usernameColor);
+  const chatTextColor = useSettingsStore((s) => s.chatTextColor);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -49,4 +50,13 @@ export function useThemeOverrides(): void {
       root.style.removeProperty('--color-username');
     }
   }, [usernameColor]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (chatTextColor) {
+      root.style.setProperty('--color-chat-text', chatTextColor);
+    } else {
+      root.style.removeProperty('--color-chat-text');
+    }
+  }, [chatTextColor]);
 }

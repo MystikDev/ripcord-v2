@@ -25,6 +25,17 @@ const COLOR_PRESETS = [
   { label: 'Amber', value: '#FBBF24', hex: '#FBBF24' },
 ];
 
+const CHAT_TEXT_COLOR_PRESETS = [
+  { label: 'Default', value: null, hex: '#B0B7C3' },
+  { label: 'White', value: '#E8ECF4', hex: '#E8ECF4' },
+  { label: 'Warm White', value: '#FFF5E6', hex: '#FFF5E6' },
+  { label: 'Cool Blue', value: '#B8D4E3', hex: '#B8D4E3' },
+  { label: 'Mint', value: '#A8E6CF', hex: '#A8E6CF' },
+  { label: 'Soft Pink', value: '#FFB3BA', hex: '#FFB3BA' },
+  { label: 'Lavender', value: '#C9B1FF', hex: '#C9B1FF' },
+  { label: 'Gold', value: '#FFD700', hex: '#FFD700' },
+];
+
 const USERNAME_COLOR_PRESETS = [
   { label: 'Default', value: null, hex: '#E8ECF4' },
   { label: 'Cyan', value: '#2EE6FF', hex: '#2EE6FF' },
@@ -51,10 +62,12 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
   const fontColor = useSettingsStore((s) => s.fontColor);
   const iconSize = useSettingsStore((s) => s.iconSize);
   const usernameColor = useSettingsStore((s) => s.usernameColor);
+  const chatTextColor = useSettingsStore((s) => s.chatTextColor);
   const setFontSize = useSettingsStore((s) => s.setFontSize);
   const setFontColor = useSettingsStore((s) => s.setFontColor);
   const setIconSize = useSettingsStore((s) => s.setIconSize);
   const setUsernameColor = useSettingsStore((s) => s.setUsernameColor);
+  const setChatTextColor = useSettingsStore((s) => s.setChatTextColor);
 
   // Close on outside click
   useEffect(() => {
@@ -193,6 +206,31 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
           </div>
         </div>
 
+        {/* Chat Text Color */}
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-medium text-text-secondary">Chat Text Color</label>
+          <div className="flex flex-wrap gap-2">
+            {CHAT_TEXT_COLOR_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                onClick={() => setChatTextColor(preset.value)}
+                className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors ${
+                  (preset.value === chatTextColor || (preset.value === null && chatTextColor === null))
+                    ? 'border-accent bg-accent/10 text-text-primary'
+                    : 'border-border bg-surface-2 text-text-secondary hover:border-text-muted'
+                }`}
+                title={preset.label}
+              >
+                <span
+                  className="h-3.5 w-3.5 rounded-full border border-border"
+                  style={{ backgroundColor: preset.hex }}
+                />
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Preview */}
         <div className="mb-6 rounded-lg bg-surface-2 p-3">
           <p className="text-xs text-text-muted mb-2">Preview</p>
@@ -220,7 +258,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
               <p
                 style={{
                   fontSize: `${fontSize}px`,
-                  color: fontColor ?? undefined,
+                  color: chatTextColor ?? fontColor ?? undefined,
                 }}
                 className="text-text-secondary"
               >
@@ -237,6 +275,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
             setFontColor(null);
             setIconSize(32);
             setUsernameColor(null);
+            setChatTextColor(null);
           }}
           className="w-full rounded-lg border border-border px-4 py-2 text-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-secondary"
         >

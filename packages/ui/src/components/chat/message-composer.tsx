@@ -337,7 +337,7 @@ function MessageComposer({ channelId, channelName }, ref) {
           placeholder={`Message #${channelName}`}
           rows={1}
           className="max-h-40 flex-1 resize-none bg-transparent text-text-primary placeholder:text-text-muted focus:outline-none"
-          style={{ fontSize: 'var(--font-size-base, 14px)' }}
+          style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-chat-text, var(--color-text-primary))' }}
         />
         <button
           type="submit"
