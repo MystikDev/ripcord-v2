@@ -89,6 +89,8 @@ function MessageComposer({ channelId, channelName }, ref) {
   const aiProcessing = useAIStore((s) => s.isProcessing);
 
   const fileUploadRef = useRef<FileUploadHandle>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Expose uploadFile to parent (ChatArea drag-and-drop handler)
   useImperativeHandle(ref, () => ({
@@ -274,7 +276,7 @@ function MessageComposer({ channelId, channelName }, ref) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative px-6 pb-4 pt-2 bg-gradient-to-t from-void via-void/90 to-transparent">
+    <form ref={formRef} onSubmit={handleSubmit} className="relative shrink-0 px-6 pb-4 pt-2 bg-gradient-to-t from-void via-void/90 to-transparent">
       {/* Command palette */}
       <CommandPalette
         input={content}
@@ -331,6 +333,7 @@ function MessageComposer({ channelId, channelName }, ref) {
             disabled={sending || aiProcessing}
           />
           <textarea
+            ref={textareaRef}
             value={content}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
@@ -353,19 +356,36 @@ function MessageComposer({ channelId, channelName }, ref) {
 
         {/* Context chips */}
         <div className="flex items-center gap-2 mt-2 overflow-x-auto">
-          <button type="button" className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent hover:border-accent/30 transition-colors whitespace-nowrap">
+          <button
+            type="button"
+            onClick={() => { setContent((prev) => prev + '@'); textareaRef.current?.focus(); }}
+            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent hover:border-accent/30 transition-colors whitespace-nowrap"
+          >
             <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="inline mr-1 -mt-0.5 opacity-60"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 2.5a2 2 0 110 4 2 2 0 010-4zM4 11c0-1.5 2.69-2.5 4-2.5s4 1 4 2.5v.5H4V11z"/></svg>
             Mention
           </button>
-          <button type="button" className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent-magenta hover:border-accent-magenta/30 transition-colors whitespace-nowrap">
+          <button
+            type="button"
+            onClick={() => { const input = formRef.current?.querySelector<HTMLInputElement>('input[type="file"]'); input?.click(); }}
+            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent-magenta hover:border-accent-magenta/30 transition-colors whitespace-nowrap"
+          >
             <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M14 10v2.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V10M11 5l-3-3-3 3M8 2v8" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Attach
           </button>
-          <button type="button" className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent-yellow hover:border-accent-yellow/30 transition-colors whitespace-nowrap">
+          <button
+            type="button"
+            onClick={() => { setContent((prev) => prev + '```\n\n```'); textareaRef.current?.focus(); }}
+            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent-yellow hover:border-accent-yellow/30 transition-colors whitespace-nowrap"
+          >
             <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M4 4l4 4-4 4M8 12h4" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Snippet
           </button>
-          <button type="button" className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 hover:text-accent-violet hover:border-accent-violet/30 transition-colors whitespace-nowrap">
+          <button
+            type="button"
+            disabled
+            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 opacity-50 cursor-not-allowed whitespace-nowrap"
+            title="Coming soon"
+          >
             <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M2 8h12M8 2v12" strokeLinecap="round" /></svg>
             Poll
           </button>

@@ -14,6 +14,7 @@ import { Tooltip } from '../ui/tooltip';
 import { ScrollArea } from '../ui/scroll-area';
 import { AddHubDialog } from '../hub/create-hub-dialog';
 import { HubContextMenu } from '../hub/hub-context-menu';
+import { Avatar } from '../ui/avatar';
 import clsx from 'clsx';
 
 // ---------------------------------------------------------------------------
@@ -151,6 +152,8 @@ function HomeButton() {
 export function HubSidebar() {
   const hubs = useHubStore((s) => s.hubs);
   const activeHubId = useHubStore((s) => s.activeHubId);
+  const userHandle = useAuthStore((s) => s.handle);
+  const userAvatarUrl = useAuthStore((s) => s.avatarUrl);
 
   return (
     <div className="flex h-full w-20 flex-col items-center border-r border-white/5 bg-surface-1/50 backdrop-blur-xl py-6 gap-6">
@@ -189,9 +192,19 @@ export function HubSidebar() {
         </div>
       </ScrollArea>
 
-      {/* User Orb — bottom of rail */}
-      <div className="mt-auto">
-        <div className="w-3 h-3 rounded-full bg-accent shadow-lg shadow-accent/50 animate-pulse mx-auto" />
+      {/* User Avatar — bottom of rail, gentle bounce */}
+      <div className="mt-auto flex flex-col items-center gap-2">
+        <div className="animate-gentle-bounce">
+          <div className="rounded-full border-2 border-accent/30 p-[1px]">
+            <Avatar
+              src={userAvatarUrl ?? undefined}
+              fallback={userHandle ?? '?'}
+              size="sm"
+              style={{ width: '32px', height: '32px', fontSize: '11px' }}
+            />
+          </div>
+        </div>
+        <div className="w-2 h-2 rounded-full bg-accent shadow-lg shadow-accent/50" />
       </div>
     </div>
   );

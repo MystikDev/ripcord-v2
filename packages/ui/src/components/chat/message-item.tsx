@@ -35,13 +35,18 @@ export interface MessageItemProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatTime(iso: string): string {
+function formatRelativeTime(iso: string): string {
   try {
-    const date = new Date(iso);
-    return date.toLocaleTimeString(undefined, {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const now = Date.now();
+    const then = new Date(iso).getTime();
+    const diffSec = Math.floor((now - then) / 1000);
+    if (diffSec < 0) return 'T-0s';
+    if (diffSec < 60) return `T-${diffSec}s`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `T-${diffMin}m`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `T-${diffHr}H`;
+    return `T-${Math.floor(diffHr / 24)}D`;
   } catch {
     return '';
   }
@@ -139,7 +144,7 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
         className="group relative flex items-start gap-2 px-4 py-px hover:bg-white/[0.03] rounded-lg"
       >
         <span className="shrink-0 text-text-muted font-mono" style={{ fontSize: 'var(--font-size-xs, 10px)', minWidth: '3.5em', textAlign: 'right' }}>
-          {formatTime(message.createdAt)}
+          {formatRelativeTime(message.createdAt)}
         </span>
         <div className="min-w-0 flex-1">
           <span className="inline">
@@ -268,7 +273,7 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
                 {displayHandle}
               </span>
               <span className="text-xs text-white/40 font-mono">
-                {formatTime(message.createdAt)}
+                {formatRelativeTime(message.createdAt)}
               </span>
               {message.editedAt && (
                 <span className="text-xs text-text-muted">(edited)</span>
@@ -357,7 +362,7 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
       {/* Timestamp on hover for consecutive messages */}
       {isConsecutive && (
         <span className="absolute left-4 top-1/2 -translate-y-1/2 hidden text-xs text-white/30 font-mono group-hover:block">
-          {formatTime(message.createdAt)}
+          {formatRelativeTime(message.createdAt)}
         </span>
       )}
 

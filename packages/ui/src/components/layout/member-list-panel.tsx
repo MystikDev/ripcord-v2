@@ -53,7 +53,27 @@ function StatusDot({ status }: { status: PresenceStatus }) {
 // Spatial Map — orbiting visualization
 // ---------------------------------------------------------------------------
 
-function SpatialMap({ onlineCount, totalCount }: { onlineCount: number; totalCount: number }) {
+/** Accent colors cycled for orbital dots */
+const ORBIT_DOT_COLORS = [
+  'bg-accent shadow-accent/60',
+  'bg-accent-magenta shadow-accent-magenta/60',
+  'bg-accent-violet shadow-accent-violet/60',
+  'bg-accent-yellow shadow-accent-yellow/60',
+  'bg-accent shadow-accent/60',
+  'bg-accent-magenta shadow-accent-magenta/60',
+];
+
+/** Ring radii (px from center) and animation settings for up to 6 dots on 3 rings */
+const RING_CONFIG = [
+  { radius: 56, duration: '30s', direction: 'normal' as const },
+  { radius: 44, duration: '20s', direction: 'reverse' as const },
+  { radius: 32, duration: '15s', direction: 'normal' as const },
+];
+
+function SpatialMap({ onlineCount, totalCount, onlineHandles }: { onlineCount: number; totalCount: number; onlineHandles: string[] }) {
+  // Take first 6 online users for orbital dots
+  const dots = onlineHandles.slice(0, 6);
+
   return (
     <div className="h-40 relative overflow-hidden border-b border-white/5">
       <div className="absolute inset-0 flex items-center justify-center">
@@ -62,6 +82,39 @@ function SpatialMap({ onlineCount, totalCount }: { onlineCount: number; totalCou
           <div className="absolute inset-0 border border-white/10 rounded-full animate-orbit-spin" style={{ animationDuration: '30s' }} />
           <div className="absolute inset-3 border border-accent/20 rounded-full animate-orbit-spin" style={{ animationDuration: '20s', animationDirection: 'reverse' }} />
           <div className="absolute inset-6 border border-accent-magenta/20 rounded-full animate-orbit-spin" style={{ animationDuration: '15s' }} />
+
+          {/* Orbiting user dots — 2 per ring */}
+          {dots.map((handle, i) => {
+            const ringIdx = Math.floor(i / 2);
+            const ring = RING_CONFIG[ringIdx] ?? RING_CONFIG[0];
+            const offsetDeg = (i % 2) * 180; // opposite sides
+            return (
+              <div
+                key={handle}
+                className="absolute inset-0 animate-orbit-spin"
+                style={{
+                  animationDuration: ring.duration,
+                  animationDirection: ring.direction,
+                  animationDelay: `${-offsetDeg / 36}s`,
+                }}
+              >
+                <div
+                  className={clsx(
+                    'absolute w-2.5 h-2.5 rounded-full shadow-lg',
+                    ORBIT_DOT_COLORS[i] ?? ORBIT_DOT_COLORS[0],
+                  )}
+                  style={{
+                    top: '50%',
+                    left: '50%',
+                    transform: `rotate(${offsetDeg}deg) translateX(${ring.radius / 2}px) rotate(-${offsetDeg}deg)`,
+                    marginTop: '-5px',
+                    marginLeft: '-5px',
+                  }}
+                  title={handle}
+                />
+              </div>
+            );
+          })}
 
           {/* Center pulse */}
           <div className="absolute inset-0 flex items-center justify-center">
@@ -266,10 +319,23 @@ export function MemberListPanel() {
   const totalCount = Object.keys(members).length;
   const onlineCount = totalCount - offlineMembers.length;
 
+  // Collect online user handles for the spatial map dots
+  const onlineHandles = useMemo(() => {
+    const handles: string[] = [];
+    for (const group of onlineGroups) {
+      for (const m of group.members) {
+        handles.push(m.handle);
+        if (handles.length >= 6) break;
+      }
+      if (handles.length >= 6) break;
+    }
+    return handles;
+  }, [onlineGroups]);
+
   return (
     <div className="flex h-full w-72 flex-col glass-panel border-l border-white/5">
       {/* Spatial map visualization */}
-      <SpatialMap onlineCount={onlineCount} totalCount={totalCount} />
+      <SpatialMap onlineCount={onlineCount} totalCount={totalCount} onlineHandles={onlineHandles} />
 
       {/* Active entities */}
       <ScrollArea className="flex-1">

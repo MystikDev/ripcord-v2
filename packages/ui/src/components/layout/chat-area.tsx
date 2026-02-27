@@ -287,21 +287,25 @@ export function ChatArea() {
         </div>
 
         {/* Messages — with top padding for floating HUD */}
-        <div className="flex-1 flex flex-col pt-16">
+        <div className="flex-1 flex flex-col pt-16 min-h-0 overflow-hidden">
           <MessageList channelId={effectiveChannelId} />
         </div>
 
         {/* Typing indicator */}
-        <TypingIndicator channelId={effectiveChannelId} />
+        <div className="shrink-0">
+          <TypingIndicator channelId={effectiveChannelId} />
+        </div>
 
         {/* AI response card */}
-        <AIResponseCard
-          channelId={effectiveChannelId}
-          onSendAsMessage={(text) => {
-            const userId = useAuthStore.getState().userId ?? '';
-            sendMessage(effectiveChannelId, userId, 'dev-device', text).catch(console.error);
-          }}
-        />
+        <div className="shrink-0">
+          <AIResponseCard
+            channelId={effectiveChannelId}
+            onSendAsMessage={(text) => {
+              const userId = useAuthStore.getState().userId ?? '';
+              sendMessage(effectiveChannelId, userId, 'dev-device', text).catch(console.error);
+            }}
+          />
+        </div>
 
         {/* Command Interface (Composer) */}
         <MessageComposer ref={composerRef} channelId={effectiveChannelId} channelName={effectiveChannelName ?? ''} />

@@ -38,6 +38,7 @@
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
   --animate-drift: drift 8s ease-in-out infinite;
   --animate-orbit-spin: orbit-spin 20s linear infinite;
+  --animate-gentle-bounce: gentle-bounce 2s ease-in-out infinite;
 }
 
 body {
@@ -98,6 +99,11 @@ body {
 @keyframes scanline {
   0% { transform: translateY(-100%); }
   100% { transform: translateY(100vh); }
+}
+
+@keyframes gentle-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 
 /* ─── Glass Morphism ─── */
@@ -191,7 +197,7 @@ body {
   inset: 0;
   border-radius: 1rem;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(0, 240, 255, 0.3), transparent, rgba(255, 0, 110, 0.3));
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.5), transparent, rgba(255, 0, 110, 0.5));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -203,6 +209,10 @@ body {
 
 .message-node:hover::before {
   opacity: 1;
+}
+
+.message-node:hover {
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.08), 0 0 40px rgba(0, 240, 255, 0.04);
 }
 
 /* ─── Holographic Input ─── */
