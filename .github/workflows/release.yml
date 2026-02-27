@@ -26,7 +26,7 @@ jobs:
           if [ -z "$PREV_TAG" ]; then
             NOTES="Initial release"
           else
-            NOTES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges | grep -v "^- chore: bump version")
+            NOTES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges | grep -v "^- chore: bump version" || true)
           fi
           # Write to file to preserve newlines
           echo "$NOTES" > /tmp/release_notes.txt
