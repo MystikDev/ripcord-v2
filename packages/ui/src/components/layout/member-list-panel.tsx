@@ -300,7 +300,7 @@ function buildRoleGroups(
       const def = roleById.get(mr.id);
       if (!def) continue;
       if (def.name.toLowerCase() === '@everyone') continue;
-      if (!bestRole || def.priority > bestRole.priority) {
+      if (!bestRole || def.priority < bestRole.priority) {
         bestRole = def;
       }
     }
@@ -323,11 +323,15 @@ function buildRoleGroups(
     });
   }
 
-  // Higher-priority roles (admins) first; ungrouped "Members" (null) always last
+  // Admin-named roles first, then ascending priority (lower = higher rank), null group last
   onlineGroups.sort((a, b) => {
     if (a.roleId === null && b.roleId !== null) return 1;
     if (b.roleId === null && a.roleId !== null) return -1;
-    return b.priority - a.priority;
+    const aAdmin = a.name.toLowerCase().includes('admin');
+    const bAdmin = b.name.toLowerCase().includes('admin');
+    if (aAdmin && !bAdmin) return -1;
+    if (bAdmin && !aAdmin) return 1;
+    return a.priority - b.priority;
   });
 
   for (const group of onlineGroups) {
