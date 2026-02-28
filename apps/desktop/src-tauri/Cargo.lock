@@ -3376,7 +3376,7 @@ dependencies = [
 
 [[package]]
 name = "ripcord-desktop"
-version = "0.9.30"
+version = "0.9.31"
 dependencies = [
  "serde",
  "serde_json",
