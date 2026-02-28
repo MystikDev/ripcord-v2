@@ -115,8 +115,8 @@ function UserAvatarButton() {
 
   return (
     <>
-      {/* Defined border area for bounce containment */}
-      <div className="rounded-xl border border-danger/30 p-2">
+      {/* Bounce containment area */}
+      <div className="rounded-xl p-0.5">
         <button
           onClick={() => fileInputRef.current?.click()}
           className="group relative animate-gentle-bounce"
