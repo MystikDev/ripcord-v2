@@ -760,11 +760,9 @@ export function ChannelSidebar() {
         {panelExpanded ? (
           <UserPanel pinned={panelPinned} onTogglePin={togglePanelPin} />
         ) : (
-          /* Collapsed: avatar-only mini view */
+          /* Collapsed: "Node Commands" label */
           <div className="flex items-center justify-center border-t border-white/5 bg-surface-1/30 backdrop-blur-sm py-2 cursor-pointer">
-            <div className="rounded-full bg-gradient-to-r from-accent/50 to-accent-violet/50 p-[1px]">
-              <Avatar src={avatarUrl ?? undefined} fallback={userHandle ?? '?'} size="sm" style={{ width: '32px', height: '32px', fontSize: '11px' }} />
-            </div>
+            <span className="text-xs font-bold text-danger tracking-wide uppercase">Node Commands</span>
           </div>
         )}
       </div>
