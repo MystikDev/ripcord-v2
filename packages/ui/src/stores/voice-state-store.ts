@@ -203,6 +203,24 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
         }
       }
 
+      // Defensive: strip current user from channels they're not connected to.
+      // Prevents "ghosting" from stale REST hydration during channel switches.
+      const selfId = useAuthStore.getState().userId;
+      if (selfId) {
+        for (const chId of Object.keys(merged)) {
+          if (chId === connectedChannelId) continue;
+          const ch = merged[chId];
+          if (ch?.some((p) => p.userId === selfId)) {
+            const filtered = ch.filter((p) => p.userId !== selfId);
+            if (filtered.length === 0) {
+              delete merged[chId];
+            } else {
+              merged[chId] = filtered;
+            }
+          }
+        }
+      }
+
       return { voiceStates: merged };
     }),
 

@@ -16,8 +16,9 @@
  * window loses focus, one of two strategies takes over:
  *
  * 1. **Windows** — the WH_KEYBOARD_LL hook delivers press/release events
- *    system-wide via Tauri events. Zero latency, event-driven, does not
- *    consume the key (other apps still receive it).
+ *    system-wide via Tauri events, backed by a GetAsyncKeyState polling
+ *    fallback (60ms) for when WebView2 throttles event delivery while
+ *    minimized. Does not consume the key (other apps still receive it).
  *
  * 2. **macOS / Linux** — falls back to the Tauri `global-shortcut` plugin
  *    which fires both `Pressed` and `Released` events natively.
@@ -218,6 +219,7 @@ export function usePushToTalk({
 
     function handleFocus() {
       isFocusedRef.current = true;
+      stopPoll();
     }
 
     function handleBlur() {
@@ -229,10 +231,14 @@ export function usePushToTalk({
         return;
       }
 
-      // For keyboard keys: if the LL hook (Windows) or Tauri global shortcut
-      // (macOS/Linux) is active, the release event will come through natively.
-      // Don't deactivate — the native handler will fire deactivate on release.
-      if (hookActive || hasTauriShortcut) return;
+      // For keyboard keys: if the LL hook (Windows) is active, start polling
+      // as a fallback (WebView2 may throttle Tauri events when minimized).
+      if (hookActive) {
+        startPoll();
+        return;
+      }
+
+      if (hasTauriShortcut) return;
 
       // No native background handler (web browser) — deactivate on blur
       deactivate();
@@ -257,6 +263,29 @@ export function usePushToTalk({
     let hookCleanup: (() => void) | null = null;
     let tauriCleanup: (() => void) | null = null;
 
+    // Polling fallback — WebView2 may throttle Tauri event delivery when the
+    // window is minimized. GetAsyncKeyState polling bypasses this limitation.
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let pollInvoke: typeof cachedInvoke = null;
+    let pollVk: number | null = null;
+
+    function startPoll() {
+      if (pollTimer || !pollInvoke || pollVk === null) return;
+      const inv = pollInvoke;
+      const vk = pollVk;
+      pollTimer = setInterval(async () => {
+        try {
+          const state = (await inv('check_key_pressed', { keyCode: vk })) as number;
+          if (state === 1 && !activeRef.current) activate();
+          else if (state === 0 && activeRef.current) deactivate();
+        } catch { /* ignore */ }
+      }, 60);
+    }
+
+    function stopPoll() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+
     (async () => {
       if (cancelled || isMouse) return;
 
@@ -273,11 +302,9 @@ export function usePushToTalk({
 
             // Listen for hook-emitted press/release events
             const unlistenDown = await listen('ptt-hook-down', () => {
-              // Only activate from hook when window is NOT focused — when
-              // focused the DOM listener handles PTT (with input-field guard).
-              if (!isFocusedRef.current) {
-                activate();
-              }
+              // Always honour hook events — activate() is a no-op if already
+              // active (e.g. DOM keydown fired first while focused).
+              activate();
             });
 
             const unlistenUp = await listen('ptt-hook-up', () => {
@@ -295,8 +322,14 @@ export function usePushToTalk({
               return;
             }
 
+            // Store refs for polling fallback
+            pollInvoke = invoke;
+            pollVk = vkCode;
+            if (!isFocusedRef.current) startPoll();
+
             hookCleanup = () => {
               hookActive = false;
+              stopPoll();
               unlistenDown();
               unlistenUp();
               invoke('stop_ptt_hook').catch(() => { /* best-effort */ });
@@ -358,6 +391,7 @@ export function usePushToTalk({
 
     return () => {
       cancelled = true;
+      stopPoll();
 
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
