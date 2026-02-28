@@ -300,7 +300,7 @@ function buildRoleGroups(
       const def = roleById.get(mr.id);
       if (!def) continue;
       if (def.name.toLowerCase() === '@everyone') continue;
-      if (!bestRole || def.priority < bestRole.priority) {
+      if (!bestRole || def.priority > bestRole.priority) {
         bestRole = def;
       }
     }
@@ -323,7 +323,12 @@ function buildRoleGroups(
     });
   }
 
-  onlineGroups.sort((a, b) => a.priority - b.priority);
+  // Higher-priority roles (admins) first; ungrouped "Members" (null) always last
+  onlineGroups.sort((a, b) => {
+    if (a.roleId === null && b.roleId !== null) return 1;
+    if (b.roleId === null && a.roleId !== null) return -1;
+    return b.priority - a.priority;
+  });
 
   for (const group of onlineGroups) {
     group.members.sort((a, b) => {

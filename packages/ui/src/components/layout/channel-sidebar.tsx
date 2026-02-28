@@ -22,10 +22,10 @@ import { CreateChannelDialog } from '../hub/create-channel-dialog';
 import { AdminConsole } from '../admin/admin-console';
 import { DmChannelList } from '../dm/dm-channel-list';
 import { FriendsPanel } from '../friends/friends-panel';
-import { IconCropDialog } from '../admin/icon-crop-dialog';
+
 import { AppearanceSettings } from '../settings/appearance-settings';
 import { Tooltip } from '../ui/tooltip';
-import { uploadUserAvatar, getUserAvatarUrl } from '../../lib/user-api';
+
 import { gateway } from '../../lib/gateway-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '../ui/toast';
@@ -288,95 +288,12 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
 // User Panel
 // ---------------------------------------------------------------------------
 
-const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
-const MAX_AVATAR_INPUT_SIZE = 5 * 1024 * 1024; // 5 MB source before crop
-const MIN_AVATAR_DIMENSION = 128;
-
 function UserPanel({ pinned, onTogglePin }: { pinned: boolean; onTogglePin: () => void }) {
-  const toast = useToast();
   const handle = useAuthStore((s) => s.handle);
   const userId = useAuthStore((s) => s.userId);
-  const avatarUrl = useAuthStore((s) => s.avatarUrl);
-  const setAvatarUrl = useAuthStore((s) => s.setAvatarUrl);
   const logout = useAuthStore((s) => s.logout);
   const status = usePresenceStore((s) => userId ? s.presence[userId] ?? 'online' : 'online');
   const [appearanceOpen, setAppearanceOpen] = useState(false);
-
-  // Avatar upload state
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
-  const [cropImageType, setCropImageType] = useState('image/jpeg');
-
-  const handleAvatarSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (!file) return;
-
-    if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
-      toast.error('Avatar must be a JPG, PNG, or GIF image');
-      return;
-    }
-    if (file.size > MAX_AVATAR_INPUT_SIZE) {
-      toast.error('Image file must be under 5 MB');
-      return;
-    }
-
-    // Validate minimum dimensions
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const url = URL.createObjectURL(file);
-        const img = new Image();
-        img.onload = () => {
-          URL.revokeObjectURL(url);
-          if (img.width < MIN_AVATAR_DIMENSION || img.height < MIN_AVATAR_DIMENSION) {
-            reject(new Error(`Image must be at least ${MIN_AVATAR_DIMENSION}x${MIN_AVATAR_DIMENSION} pixels`));
-          } else {
-            resolve();
-          }
-        };
-        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
-        img.src = url;
-      });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Invalid image');
-      return;
-    }
-
-    setCropImageSrc(URL.createObjectURL(file));
-    setCropImageType(file.type);
-    setCropDialogOpen(true);
-  }, [toast]);
-
-  const handleCropConfirm = useCallback(async (croppedFile: File) => {
-    setCropDialogOpen(false);
-    if (cropImageSrc) {
-      URL.revokeObjectURL(cropImageSrc);
-      setCropImageSrc(null);
-    }
-    if (!userId) return;
-
-    setUploading(true);
-    try {
-      await uploadUserAvatar(userId, croppedFile);
-      const newAvatarUrl = `${getUserAvatarUrl(userId)}?t=${Date.now()}`;
-      setAvatarUrl(newAvatarUrl);
-      toast.success('Avatar updated');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to upload avatar');
-    } finally {
-      setUploading(false);
-    }
-  }, [userId, setAvatarUrl, toast, cropImageSrc]);
-
-  const handleCropDialogChange = useCallback((open: boolean) => {
-    setCropDialogOpen(open);
-    if (!open && cropImageSrc) {
-      URL.revokeObjectURL(cropImageSrc);
-      setCropImageSrc(null);
-    }
-  }, [cropImageSrc]);
 
   // Voice control state (bridged from LiveKit via store)
   const connectedChannelId = useVoiceStateStore((s) => s.connectedChannelId);
@@ -390,13 +307,11 @@ function UserPanel({ pinned, onTogglePin }: { pinned: boolean; onTogglePin: () =
     toggleDeafen();
 
     if (connectedChannelId && userId) {
-      // Optimistic update: instantly show deafen icon in sidebar participant list
       useVoiceStateStore.getState().updateParticipant(connectedChannelId, userId, {
         selfMute: localMicMuted,
         selfDeaf: newDeafState,
       });
 
-      // Notify gateway so other users see the deafen change
       gateway.send(23, {
         channelId: connectedChannelId,
         userId,
@@ -413,31 +328,6 @@ function UserPanel({ pinned, onTogglePin }: { pinned: boolean; onTogglePin: () =
   return (
     <div>
       <div className="flex items-center gap-2 border-t border-white/5 bg-surface-1/30 backdrop-blur-sm px-3 py-2">
-        {/* Clickable avatar — opens file picker for upload */}
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="group relative shrink-0 rounded-full"
-          title="Change avatar"
-          disabled={uploading}
-        >
-          <div className="rounded-full bg-gradient-to-r from-accent/50 to-accent-violet/50 p-[1px]">
-            <Avatar src={avatarUrl ?? undefined} fallback={handle ?? '?'} size="sm" style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }} />
-          </div>
-          {/* Camera overlay on hover */}
-          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
-              <path d="M5.5 3L4.6 1.6A1 1 0 005.5 0h5a1 1 0 00.9.6L12.5 3H14a2 2 0 012 2v7a2 2 0 01-2 2H2a2 2 0 01-2-2V5a2 2 0 012-2h1.5zM8 12a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" />
-            </svg>
-          </div>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif"
-          className="hidden"
-          onChange={handleAvatarSelect}
-        />
-
         <div className="flex-1 min-w-0">
           <p className="truncate font-medium text-text-primary" style={{ fontSize: 'var(--font-size-sm, 12px)' }}>
             {handle ?? 'Unknown'}
@@ -530,17 +420,6 @@ function UserPanel({ pinned, onTogglePin }: { pinned: boolean; onTogglePin: () =
 
         {/* Appearance settings dialog */}
         <AppearanceSettings open={appearanceOpen} onClose={() => setAppearanceOpen(false)} />
-
-        {/* Crop dialog for avatar */}
-        {cropImageSrc && (
-          <IconCropDialog
-            open={cropDialogOpen}
-            onOpenChange={handleCropDialogChange}
-            imageSrc={cropImageSrc}
-            imageType={cropImageType}
-            onCropConfirm={handleCropConfirm}
-          />
-        )}
       </div>
 
       {/* Version footer */}
@@ -602,8 +481,6 @@ export function ChannelSidebar() {
   });
   const [panelHovered, setPanelHovered] = useState(false);
   const panelExpanded = panelPinned || panelHovered;
-  const avatarUrl = useAuthStore((s) => s.avatarUrl);
-  const userHandle = useAuthStore((s) => s.handle);
   const togglePanelPin = useCallback(() => {
     setPanelPinned((prev) => {
       const next = !prev;

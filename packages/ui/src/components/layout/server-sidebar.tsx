@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useHubStore, type Hub } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useReadStateStore } from '../../stores/read-state-store';
@@ -15,7 +15,152 @@ import { ScrollArea } from '../ui/scroll-area';
 import { AddHubDialog } from '../hub/create-hub-dialog';
 import { HubContextMenu } from '../hub/hub-context-menu';
 import { Avatar } from '../ui/avatar';
+import { IconCropDialog } from '../admin/icon-crop-dialog';
+import { uploadUserAvatar, getUserAvatarUrl } from '../../lib/user-api';
+import { useToast } from '../ui/toast';
 import clsx from 'clsx';
+
+// ---------------------------------------------------------------------------
+// Avatar upload constants
+// ---------------------------------------------------------------------------
+
+const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
+const MAX_AVATAR_INPUT_SIZE = 5 * 1024 * 1024; // 5 MB source before crop
+const MIN_AVATAR_DIMENSION = 128;
+
+// ---------------------------------------------------------------------------
+// User Avatar Button — clickable for avatar change, bounces within border
+// ---------------------------------------------------------------------------
+
+function UserAvatarButton() {
+  const userHandle = useAuthStore((s) => s.handle);
+  const userAvatarUrl = useAuthStore((s) => s.avatarUrl);
+  const setAvatarUrl = useAuthStore((s) => s.setAvatarUrl);
+  const userId = useAuthStore((s) => s.userId);
+  const toast = useToast();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropImageType, setCropImageType] = useState('image/jpeg');
+
+  const handleAvatarSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (!file) return;
+
+    if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
+      toast.error('Avatar must be a JPG, PNG, or GIF image');
+      return;
+    }
+    if (file.size > MAX_AVATAR_INPUT_SIZE) {
+      toast.error('Image file must be under 5 MB');
+      return;
+    }
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          if (img.width < MIN_AVATAR_DIMENSION || img.height < MIN_AVATAR_DIMENSION) {
+            reject(new Error(`Image must be at least ${MIN_AVATAR_DIMENSION}x${MIN_AVATAR_DIMENSION} pixels`));
+          } else {
+            resolve();
+          }
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
+        img.src = url;
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Invalid image');
+      return;
+    }
+
+    setCropImageSrc(URL.createObjectURL(file));
+    setCropImageType(file.type);
+    setCropDialogOpen(true);
+  }, [toast]);
+
+  const handleCropConfirm = useCallback(async (croppedFile: File) => {
+    setCropDialogOpen(false);
+    if (cropImageSrc) {
+      URL.revokeObjectURL(cropImageSrc);
+      setCropImageSrc(null);
+    }
+    if (!userId) return;
+
+    setUploading(true);
+    try {
+      await uploadUserAvatar(userId, croppedFile);
+      const newAvatarUrl = `${getUserAvatarUrl(userId)}?t=${Date.now()}`;
+      setAvatarUrl(newAvatarUrl);
+      toast.success('Avatar updated');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to upload avatar');
+    } finally {
+      setUploading(false);
+    }
+  }, [userId, setAvatarUrl, toast, cropImageSrc]);
+
+  const handleCropDialogChange = useCallback((open: boolean) => {
+    setCropDialogOpen(open);
+    if (!open && cropImageSrc) {
+      URL.revokeObjectURL(cropImageSrc);
+      setCropImageSrc(null);
+    }
+  }, [cropImageSrc]);
+
+  return (
+    <>
+      {/* Defined border area for bounce containment */}
+      <div className="rounded-xl border border-danger/30 p-2">
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="group relative animate-gentle-bounce"
+          title="Change avatar"
+          disabled={uploading}
+        >
+          <div className="rounded-full border-2 border-accent/30 p-[1px]">
+            <Avatar
+              src={userAvatarUrl ?? undefined}
+              fallback={userHandle ?? '?'}
+              size="sm"
+              style={{ width: '32px', height: '32px', fontSize: '11px' }}
+            />
+          </div>
+          {/* Camera overlay on hover */}
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
+              <path d="M5.5 3L4.6 1.6A1 1 0 005.5 0h5a1 1 0 00.9.6L12.5 3H14a2 2 0 012 2v7a2 2 0 01-2 2H2a2 2 0 01-2-2V5a2 2 0 012-2h1.5zM8 12a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" />
+            </svg>
+          </div>
+        </button>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif"
+        className="hidden"
+        onChange={handleAvatarSelect}
+      />
+
+      {/* Crop dialog for avatar */}
+      {cropImageSrc && (
+        <IconCropDialog
+          open={cropDialogOpen}
+          onOpenChange={handleCropDialogChange}
+          imageSrc={cropImageSrc}
+          imageType={cropImageType}
+          onCropConfirm={handleCropConfirm}
+        />
+      )}
+    </>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Hub Icon
@@ -152,9 +297,6 @@ function HomeButton() {
 export function HubSidebar() {
   const hubs = useHubStore((s) => s.hubs);
   const activeHubId = useHubStore((s) => s.activeHubId);
-  const userHandle = useAuthStore((s) => s.handle);
-  const userAvatarUrl = useAuthStore((s) => s.avatarUrl);
-
   return (
     <div className="flex h-full w-20 flex-col items-center border-r border-white/5 bg-surface-1/50 backdrop-blur-xl py-6 gap-6">
       <HomeButton />
@@ -192,18 +334,9 @@ export function HubSidebar() {
         </div>
       </ScrollArea>
 
-      {/* User Avatar — bottom of rail, gentle bounce */}
+      {/* User Avatar — bottom of rail, clickable for avatar change, bounces within border */}
       <div className="mt-auto flex flex-col items-center gap-2">
-        <div className="animate-gentle-bounce">
-          <div className="rounded-full border-2 border-accent/30 p-[1px]">
-            <Avatar
-              src={userAvatarUrl ?? undefined}
-              fallback={userHandle ?? '?'}
-              size="sm"
-              style={{ width: '32px', height: '32px', fontSize: '11px' }}
-            />
-          </div>
-        </div>
+        <UserAvatarButton />
         <div className="w-2 h-2 rounded-full bg-accent shadow-lg shadow-accent/50" />
       </div>
     </div>
