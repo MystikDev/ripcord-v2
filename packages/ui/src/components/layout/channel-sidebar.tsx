@@ -292,7 +292,7 @@ const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
 const MAX_AVATAR_INPUT_SIZE = 5 * 1024 * 1024; // 5 MB source before crop
 const MIN_AVATAR_DIMENSION = 128;
 
-function UserPanel() {
+function UserPanel({ pinned, onTogglePin }: { pinned: boolean; onTogglePin: () => void }) {
   const toast = useToast();
   const handle = useAuthStore((s) => s.handle);
   const userId = useAuthStore((s) => s.userId);
@@ -488,6 +488,23 @@ function UserPanel() {
           </>
         )}
 
+        <Tooltip content={pinned ? 'Unpin panel' : 'Pin panel open'} side="top">
+          <button
+            onClick={onTogglePin}
+            className={clsx(
+              'rounded-md p-1.5 transition-all',
+              pinned
+                ? 'text-accent hover:bg-white/5'
+                : 'text-white/30 hover:bg-white/5 hover:text-accent rotate-45',
+            )}
+            title={pinned ? 'Unpin panel' : 'Pin panel open'}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill={pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9.828 1.172a1 1 0 011.414 0l3.586 3.586a1 1 0 010 1.414L12 9l-1 4-4-4-4.5 4.5M7 9L2.172 4.172l2.828-2.829L9.828 6" />
+            </svg>
+          </button>
+        </Tooltip>
+
         <Tooltip content="Appearance" side="top">
           <button
             onClick={() => setAppearanceOpen(true)}
@@ -578,6 +595,22 @@ export function ChannelSidebar() {
   }, [setSidebarWidth]);
 
   const [dmTab, setDmTab] = useState<'friends' | 'messages'>('friends');
+
+  // Collapsible bottom panel state
+  const [panelPinned, setPanelPinned] = useState(() => {
+    try { return localStorage.getItem('ripcord-panel-pinned') === 'true'; } catch { return true; }
+  });
+  const [panelHovered, setPanelHovered] = useState(false);
+  const panelExpanded = panelPinned || panelHovered;
+  const avatarUrl = useAuthStore((s) => s.avatarUrl);
+  const userHandle = useAuthStore((s) => s.handle);
+  const togglePanelPin = useCallback(() => {
+    setPanelPinned((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('ripcord-panel-pinned', String(next)); } catch { /* noop */ }
+      return next;
+    });
+  }, []);
 
   const activeHub = hubs.find((s) => s.id === activeHubId);
 
@@ -713,11 +746,26 @@ export function ChannelSidebar() {
         )}
       </ScrollArea>
 
-      {/* Voice panel */}
-      <VoicePanel />
-
-      {/* User panel */}
-      <UserPanel />
+      {/* Collapsible bottom controls — hover to expand, pin to persist */}
+      <div
+        onMouseEnter={() => setPanelHovered(true)}
+        onMouseLeave={() => setPanelHovered(false)}
+        className="mt-auto"
+      >
+        {panelExpanded ? (
+          <>
+            <VoicePanel />
+            <UserPanel pinned={panelPinned} onTogglePin={togglePanelPin} />
+          </>
+        ) : (
+          /* Collapsed: avatar-only mini view */
+          <div className="flex items-center justify-center border-t border-white/5 bg-surface-1/30 backdrop-blur-sm py-2 cursor-pointer">
+            <div className="rounded-full bg-gradient-to-r from-accent/50 to-accent-violet/50 p-[1px]">
+              <Avatar src={avatarUrl ?? undefined} fallback={userHandle ?? '?'} size="sm" style={{ width: '32px', height: '32px', fontSize: '11px' }} />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Resize handle — cyan glow on hover */}
       <div
