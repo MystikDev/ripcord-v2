@@ -58,11 +58,14 @@ function buildMessageGroups(messages: Message[]): MessageGroup[] {
 export function MessageList({ channelId }: MessageListProps) {
   const messages = useMessageStore((s) => s.messages[channelId] ?? EMPTY_MESSAGES);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const prevChannelRef = useRef(channelId);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on channel switch (instant) or new messages (smooth)
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+    const isChannelSwitch = prevChannelRef.current !== channelId;
+    prevChannelRef.current = channelId;
+    bottomRef.current?.scrollIntoView({ behavior: isChannelSwitch ? 'instant' : 'smooth' });
+  }, [channelId, messages.length]);
 
   const groups = useMemo(() => buildMessageGroups(messages), [messages]);
 
