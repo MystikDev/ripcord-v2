@@ -752,11 +752,13 @@ export function ChannelSidebar() {
         onMouseLeave={() => setPanelHovered(false)}
         className="mt-auto"
       >
+        {/* VoicePanel: always mounted (hidden when collapsed) to preserve LiveKit connection */}
+        <div className={panelExpanded ? '' : 'hidden'}>
+          <VoicePanel />
+        </div>
+
         {panelExpanded ? (
-          <>
-            <VoicePanel />
-            <UserPanel pinned={panelPinned} onTogglePin={togglePanelPin} />
-          </>
+          <UserPanel pinned={panelPinned} onTogglePin={togglePanelPin} />
         ) : (
           /* Collapsed: avatar-only mini view */
           <div className="flex items-center justify-center border-t border-white/5 bg-surface-1/30 backdrop-blur-sm py-2 cursor-pointer">
