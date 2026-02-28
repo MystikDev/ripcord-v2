@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import { useMemberStore, type MemberInfo } from '../../stores/member-store';
 import { useRoleStore, type RoleDefinition } from '../../stores/role-store';
 import { usePresenceStore, type PresenceStatus } from '../../stores/presence-store';
+import { useVoiceStateStore } from '../../stores/voice-state-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { ScrollArea } from '../ui/scroll-area';
 import { Avatar } from '../ui/avatar';
@@ -53,75 +54,111 @@ function StatusDot({ status }: { status: PresenceStatus }) {
 // Spatial Map — orbiting visualization
 // ---------------------------------------------------------------------------
 
-/** Accent colors cycled for orbital dots */
-const ORBIT_DOT_COLORS = [
-  'bg-accent shadow-accent/60',
-  'bg-accent-magenta shadow-accent-magenta/60',
-  'bg-accent-violet shadow-accent-violet/60',
-  'bg-accent-yellow shadow-accent-yellow/60',
-  'bg-accent shadow-accent/60',
-  'bg-accent-magenta shadow-accent-magenta/60',
-];
+/** Orbital user — data needed for each avatar in the spatial map */
+interface OrbitalUser {
+  userId: string;
+  handle: string;
+  avatarUrl?: string;
+  isScreenSharing: boolean;
+  isInVoice: boolean;
+  status: PresenceStatus;
+}
 
-/** Ring radii (px from center) and animation settings for up to 6 dots on 3 rings */
+/** Ring config: radius in px, animation duration, direction */
 const RING_CONFIG = [
-  { radius: 56, duration: '30s', direction: 'normal' as const },
-  { radius: 44, duration: '20s', direction: 'reverse' as const },
-  { radius: 32, duration: '15s', direction: 'normal' as const },
+  { radius: 90, duration: '40s', direction: 'normal' as const },
+  { radius: 66, duration: '30s', direction: 'reverse' as const },
+  { radius: 42, duration: '22s', direction: 'normal' as const },
 ];
 
-function SpatialMap({ onlineCount, totalCount, onlineHandles }: { onlineCount: number; totalCount: number; onlineHandles: string[] }) {
-  // Take first 6 online users for orbital dots
-  const dots = onlineHandles.slice(0, 6);
+/** Border color based on user activity */
+function getActivityBorder(user: OrbitalUser): string {
+  if (user.isScreenSharing) return 'border-accent-magenta'; // magenta = screen sharing
+  if (user.isInVoice) return 'border-success';              // green = in voice
+  if (user.status === 'dnd') return 'border-danger';         // red = dnd
+  if (user.status === 'idle') return 'border-accent-yellow'; // yellow = idle
+  return 'border-accent/40';                                  // cyan = online default
+}
+
+function SpatialMap({ onlineCount, totalCount, orbitalUsers }: { onlineCount: number; totalCount: number; orbitalUsers: OrbitalUser[] }) {
+  const users = orbitalUsers.slice(0, 6);
 
   return (
-    <div className="h-40 relative overflow-hidden border-b border-white/5">
+    <div className="h-44 relative overflow-hidden border-b border-white/5">
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative w-28 h-28">
-          {/* Orbit rings */}
-          <div className="absolute inset-0 border border-white/10 rounded-full animate-orbit-spin" style={{ animationDuration: '30s' }} />
-          <div className="absolute inset-3 border border-accent/20 rounded-full animate-orbit-spin" style={{ animationDuration: '20s', animationDirection: 'reverse' }} />
-          <div className="absolute inset-6 border border-accent-magenta/20 rounded-full animate-orbit-spin" style={{ animationDuration: '15s' }} />
+        {/* Orbit container — sized to contain all rings + avatars without overflow */}
+        <div className="relative" style={{ width: '110px', height: '110px' }}>
+          {/* 3 orbit rings: faint → light → lighter toward center */}
+          <div className="absolute inset-0 border border-white/[0.06] rounded-full" />
+          <div className="absolute rounded-full border border-white/[0.10]" style={{ inset: '12px' }} />
+          <div className="absolute rounded-full border border-white/[0.15]" style={{ inset: '24px' }} />
 
-          {/* Orbiting user dots — 2 per ring */}
-          {dots.map((handle, i) => {
+          {/* Orbiting user avatars — 2 per ring */}
+          {users.map((user, i) => {
             const ringIdx = Math.floor(i / 2);
             const ring = RING_CONFIG[ringIdx] ?? RING_CONFIG[0];
-            const offsetDeg = (i % 2) * 180; // opposite sides
+            const slotInRing = i % 2;
+            const startDeg = slotInRing * 180 + ringIdx * 60; // offset each ring pair
+            const avatarSize = 22;
+            const orbitRadius = ring.radius / 2;
+
             return (
               <div
-                key={handle}
-                className="absolute inset-0 animate-orbit-spin"
+                key={user.userId}
+                className="absolute animate-orbit-spin"
                 style={{
                   animationDuration: ring.duration,
                   animationDirection: ring.direction,
-                  animationDelay: `${-offsetDeg / 36}s`,
+                  animationTimingFunction: 'linear',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
                 }}
               >
+                {/* Counter-rotate the avatar so it stays upright */}
                 <div
-                  className={clsx(
-                    'absolute w-2.5 h-2.5 rounded-full shadow-lg',
-                    ORBIT_DOT_COLORS[i] ?? ORBIT_DOT_COLORS[0],
-                  )}
+                  className="absolute"
                   style={{
                     top: '50%',
                     left: '50%',
-                    transform: `rotate(${offsetDeg}deg) translateX(${ring.radius / 2}px) rotate(-${offsetDeg}deg)`,
-                    marginTop: '-5px',
-                    marginLeft: '-5px',
+                    width: avatarSize,
+                    height: avatarSize,
+                    marginTop: -avatarSize / 2,
+                    marginLeft: -avatarSize / 2,
+                    transform: `rotate(${startDeg}deg) translateX(${orbitRadius}px) rotate(-${startDeg}deg)`,
                   }}
-                  title={handle}
-                />
+                >
+                  <div
+                    className="animate-orbit-spin"
+                    style={{
+                      animationDuration: ring.duration,
+                      animationDirection: ring.direction === 'normal' ? 'reverse' : 'normal',
+                      animationTimingFunction: 'linear',
+                    }}
+                  >
+                    <div className={clsx('rounded-full border-2 p-[1px]', getActivityBorder(user))} title={user.handle}>
+                      <Avatar
+                        src={user.avatarUrl}
+                        fallback={user.handle}
+                        size="sm"
+                        style={{ width: `${avatarSize - 6}px`, height: `${avatarSize - 6}px`, fontSize: '7px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             );
           })}
 
-          {/* Center pulse */}
+          {/* Center pulse — blue dot */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-3 h-3 bg-accent rounded-full shadow-lg shadow-accent/50 animate-pulse" />
+            <div className="w-2.5 h-2.5 bg-accent rounded-full animate-pulse" />
           </div>
         </div>
       </div>
+
+      {/* Entity count label */}
       <div className="absolute bottom-3 left-3">
         <div className="text-[10px] text-white/40 font-mono uppercase tracking-wider">Spatial View</div>
         <div className="text-sm text-white/80">{onlineCount} / {totalCount} entities</div>
@@ -319,23 +356,42 @@ export function MemberListPanel() {
   const totalCount = Object.keys(members).length;
   const onlineCount = totalCount - offlineMembers.length;
 
-  // Collect online user handles for the spatial map dots
-  const onlineHandles = useMemo(() => {
-    const handles: string[] = [];
+  // Voice & screen-share data for activity borders
+  const connectedChannelId = useVoiceStateStore((s) => s.connectedChannelId);
+  const voiceStates = useVoiceStateStore((s) => s.voiceStates);
+  const screenSharingUserIds = useVoiceStateStore((s) => s.screenSharingUserIds);
+
+  // Build orbital user data for the spatial map (first 6 online members)
+  const orbitalUsers = useMemo(() => {
+    const result: OrbitalUser[] = [];
+    // Collect user IDs currently in any voice channel
+    const inVoiceSet = new Set<string>();
+    for (const participants of Object.values(voiceStates)) {
+      for (const p of participants) inVoiceSet.add(p.userId);
+    }
+    const screenShareSet = new Set(screenSharingUserIds);
+
     for (const group of onlineGroups) {
       for (const m of group.members) {
-        handles.push(m.handle);
-        if (handles.length >= 6) break;
+        result.push({
+          userId: m.userId,
+          handle: m.handle,
+          avatarUrl: m.avatarUrl,
+          isScreenSharing: screenShareSet.has(m.userId),
+          isInVoice: inVoiceSet.has(m.userId),
+          status: presenceMap[m.userId] ?? 'online',
+        });
+        if (result.length >= 6) break;
       }
-      if (handles.length >= 6) break;
+      if (result.length >= 6) break;
     }
-    return handles;
-  }, [onlineGroups]);
+    return result;
+  }, [onlineGroups, voiceStates, screenSharingUserIds, presenceMap]);
 
   return (
     <div className="flex h-full w-72 flex-col glass-panel border-l border-white/5">
       {/* Spatial map visualization */}
-      <SpatialMap onlineCount={onlineCount} totalCount={totalCount} onlineHandles={onlineHandles} />
+      <SpatialMap onlineCount={onlineCount} totalCount={totalCount} orbitalUsers={orbitalUsers} />
 
       {/* Active entities */}
       <ScrollArea className="flex-1">
