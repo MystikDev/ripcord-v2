@@ -268,7 +268,7 @@ export function ScreenShareView() {
           <SharerName identity={sharerIdentity} />&apos;s screen
         </span>
         <div className="flex items-center gap-1.5">
-          {/* Speaker + Quality selectors (viewers only) */}
+          {/* Viewer controls: speaker + quality + fullscreen */}
           {!isLocalSharing && (
             <>
               <SpeakerSelector audioRef={audioRef} />
@@ -281,9 +281,27 @@ export function ScreenShareView() {
                 <option value="1080p">1080p</option>
                 <option value="Source">Source</option>
               </select>
+              <button
+                onClick={handleFullscreen}
+                className="rounded-md p-1 text-text-secondary hover:bg-surface-3/50 hover:text-text-primary transition-colors"
+                title="Toggle fullscreen"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
+                </svg>
+              </button>
             </>
           )}
-          {/* Stop sharing — always visible when LOCAL user is sharing */}
+          {/* Presenter controls: stop sharing */}
           {isLocalSharing && (
             <button
               onClick={handleStopSharing}
@@ -296,25 +314,6 @@ export function ScreenShareView() {
               Stop
             </button>
           )}
-          {/* Fullscreen */}
-          <button
-            onClick={handleFullscreen}
-            className="rounded-md p-1 text-text-secondary hover:bg-surface-3/50 hover:text-text-primary transition-colors"
-            title="Toggle fullscreen"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
-            </svg>
-          </button>
         </div>
       </div>
 

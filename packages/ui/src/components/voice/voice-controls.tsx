@@ -167,7 +167,7 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
       await localParticipantRef.current.setScreenShareEnabled(
         true,
         {
-          audio: options.audio,
+          audio: options.audioSource === 'system',
           resolution: options.resolution
             ? { ...options.resolution, frameRate: options.frameRate }
             : undefined,

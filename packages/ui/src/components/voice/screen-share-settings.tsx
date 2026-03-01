@@ -11,7 +11,7 @@ import { useSettingsStore } from '../../stores/settings-store';
 export interface ScreenShareOptions {
   resolution?: { width: number; height: number };
   frameRate: number;
-  audio: boolean;
+  audioSource: 'none' | 'system';
   contentHint: 'detail' | 'motion';
 }
 
@@ -35,6 +35,12 @@ const RESOLUTION_MAP: Record<string, { width: number; height: number } | undefin
 type Resolution = '720p' | '1080p' | '1440p' | 'source';
 type FrameRate = 15 | 30 | 60;
 type ContentHint = 'detail' | 'motion';
+type AudioSource = 'none' | 'system';
+
+const AUDIO_SOURCES: { value: AudioSource; label: string }[] = [
+  { value: 'none', label: 'No Audio' },
+  { value: 'system', label: 'System Audio' },
+];
 
 const RESOLUTIONS: { value: Resolution; label: string }[] = [
   { value: '720p', label: '720p' },
@@ -72,7 +78,7 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
   // Local state initialised from the persisted store values.
   const [resolution, setResolution] = useState<Resolution>(store.screenShareResolution);
   const [frameRate, setFrameRate] = useState<FrameRate>(store.screenShareFrameRate);
-  const [audio, setAudio] = useState<boolean>(store.screenShareAudio);
+  const [audioSource, setAudioSource] = useState<AudioSource>(store.screenShareAudioSource);
   const [contentHint, setContentHint] = useState<ContentHint>(store.screenShareContentHint);
 
   // Re-sync local state whenever the dialog opens so we always reflect the
@@ -81,7 +87,7 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
     if (open) {
       setResolution(store.screenShareResolution);
       setFrameRate(store.screenShareFrameRate);
-      setAudio(store.screenShareAudio);
+      setAudioSource(store.screenShareAudioSource);
       setContentHint(store.screenShareContentHint);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,13 +109,13 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
     // Persist selections to the settings store.
     store.setScreenShareResolution(resolution);
     store.setScreenShareFrameRate(frameRate);
-    store.setScreenShareAudio(audio);
+    store.setScreenShareAudioSource(audioSource);
     store.setScreenShareContentHint(contentHint);
 
     onStart({
       resolution: RESOLUTION_MAP[resolution],
       frameRate,
-      audio,
+      audioSource,
       contentHint,
     });
   };
@@ -210,17 +216,28 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
           </div>
         </div>
 
-        {/* ---- Audio Capture ---- */}
+        {/* ---- Audio Source ---- */}
         <div className="mb-6">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={audio}
-              onChange={(e) => setAudio(e.target.checked)}
-              className="accent-accent"
-            />
-            <span className="text-sm text-text-primary">Capture audio</span>
+          <label className="text-sm font-medium text-text-primary mb-2 block">
+            Audio Source
           </label>
+          <div className="flex gap-2">
+            {AUDIO_SOURCES.map((a) => (
+              <button
+                key={a.value}
+                type="button"
+                onClick={() => setAudioSource(a.value)}
+                className={clsx(
+                  'px-3 py-1.5 rounded text-sm transition-colors',
+                  audioSource === a.value
+                    ? 'bg-accent text-white'
+                    : 'bg-surface-2 text-text-secondary hover:bg-surface-3',
+                )}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ---- Actions ---- */}

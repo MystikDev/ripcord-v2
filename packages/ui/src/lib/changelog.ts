@@ -20,6 +20,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.41',
+    date: '2026-03-01',
+    highlights: [
+      'Screen share: presenter now controls audio source (System Audio / No Audio)',
+      'Screen share: viewer gets fullscreen + quality selector; presenter gets Stop button only',
+      'Per-user volume boost up to 200% via right-click context menu',
+      'Global 3-band audio equalizer (Bass / Mid / Treble) in Audio Settings',
+      'Hub Settings: member list scrollbar now works correctly',
+    ],
+  },
+  {
     version: '0.9.40',
     date: '2026-03-01',
     highlights: [

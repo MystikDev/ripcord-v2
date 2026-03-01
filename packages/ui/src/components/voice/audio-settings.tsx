@@ -126,6 +126,106 @@ function NoiseSuppression() {
 }
 
 // ---------------------------------------------------------------------------
+// Equalizer Controls
+// ---------------------------------------------------------------------------
+
+/** Reusable single-band EQ slider. */
+function EqBand({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const displayValue = value > 0 ? `+${value}` : `${value}`;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-text-muted">{label}</span>
+        <span className="text-[11px] font-medium text-text-secondary">
+          {displayValue} dB
+        </span>
+      </div>
+      <input
+        type="range"
+        min={-12}
+        max={12}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-accent h-1.5 cursor-pointer"
+      />
+      <div className="flex justify-between text-[10px] text-text-muted">
+        <span>-12</span>
+        <span>0</span>
+        <span>+12</span>
+      </div>
+    </div>
+  );
+}
+
+function Equalizer() {
+  const enabled = useSettingsStore((s) => s.eqEnabled);
+  const bass = useSettingsStore((s) => s.eqBass);
+  const mid = useSettingsStore((s) => s.eqMid);
+  const treble = useSettingsStore((s) => s.eqTreble);
+  const setEnabled = useSettingsStore((s) => s.setEqEnabled);
+  const setBass = useSettingsStore((s) => s.setEqBass);
+  const setMid = useSettingsStore((s) => s.setEqMid);
+  const setTreble = useSettingsStore((s) => s.setEqTreble);
+  const resetEq = useSettingsStore((s) => s.resetEq);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Toggle row */}
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-text-secondary">
+          Equalizer
+        </label>
+        <button
+          onClick={() => setEnabled(!enabled)}
+          className={clsx(
+            'relative h-5 w-9 rounded-full transition-colors',
+            enabled ? 'bg-accent' : 'bg-surface-3',
+          )}
+          role="switch"
+          aria-checked={enabled}
+        >
+          <span
+            className={clsx(
+              'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform',
+              enabled && 'translate-x-4',
+            )}
+          />
+        </button>
+      </div>
+
+      {/* EQ band sliders (only visible when enabled) */}
+      {enabled && (
+        <div className="flex flex-col gap-3">
+          <EqBand label="Bass" value={bass} onChange={setBass} />
+          <EqBand label="Mid" value={mid} onChange={setMid} />
+          <EqBand label="Treble" value={treble} onChange={setTreble} />
+
+          {/* Reset button (only shown when any band is non-zero) */}
+          {(bass !== 0 || mid !== 0 || treble !== 0) && (
+            <button
+              onClick={resetEq}
+              className="self-end rounded px-2 py-1 text-[11px] text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+            >
+              Reset to Flat
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Settings Icon
 // ---------------------------------------------------------------------------
 
@@ -174,6 +274,8 @@ export function AudioSettings() {
           <DeviceSelector kind="audiooutput" label="Speaker" onDeviceChange={setSpeakerId} />
           <Separator />
           <NoiseSuppression />
+          <Separator />
+          <Equalizer />
         </div>
       </DialogContent>
     </Dialog>

@@ -52,6 +52,26 @@ export interface SettingsState {
   /** Whether the user has self-deafened (muted all incoming audio). */
   isDeafened: boolean;
 
+  /** Whether the global audio equalizer is enabled. */
+  eqEnabled: boolean;
+  /** Bass EQ band gain in dB (-12 to +12). ~300 Hz lowshelf filter. */
+  eqBass: number;
+  /** Mid EQ band gain in dB (-12 to +12). ~1 kHz peaking filter. */
+  eqMid: number;
+  /** Treble EQ band gain in dB (-12 to +12). ~3 kHz highshelf filter. */
+  eqTreble: number;
+
+  /** Enable or disable the global audio EQ. */
+  setEqEnabled: (enabled: boolean) => void;
+  /** Set bass EQ gain (-12 to +12 dB). */
+  setEqBass: (gain: number) => void;
+  /** Set mid EQ gain (-12 to +12 dB). */
+  setEqMid: (gain: number) => void;
+  /** Set treble EQ gain (-12 to +12 dB). */
+  setEqTreble: (gain: number) => void;
+  /** Reset all EQ bands to 0 dB (flat). */
+  resetEq: () => void;
+
   /** Update the push-to-talk key binding. */
   setPttKey: (key: string) => void;
   /** Reset the push-to-talk key to the default (Space). */
@@ -101,8 +121,8 @@ export interface SettingsState {
   screenShareResolution: '720p' | '1080p' | '1440p' | 'source';
   /** Screen share frame rate. Default: 30 */
   screenShareFrameRate: 15 | 30 | 60;
-  /** Whether to capture system audio when screen sharing. Default: true */
-  screenShareAudio: boolean;
+  /** Audio source for screen sharing. 'system' = desktop audio, 'none' = no audio. Default: 'system' */
+  screenShareAudioSource: 'none' | 'system';
   /** Screen share content hint for encoding optimisation. Default: 'detail' */
   screenShareContentHint: 'detail' | 'motion';
   /** Preferred quality when viewing someone else's screen share. Default: 'Source' */
@@ -125,8 +145,8 @@ export interface SettingsState {
   setScreenShareResolution: (v: '720p' | '1080p' | '1440p' | 'source') => void;
   /** Set the screen share frame rate. */
   setScreenShareFrameRate: (v: 15 | 30 | 60) => void;
-  /** Enable or disable audio capture during screen share. */
-  setScreenShareAudio: (v: boolean) => void;
+  /** Set the screen share audio source. */
+  setScreenShareAudioSource: (v: 'none' | 'system') => void;
   /** Set the screen share content hint. */
   setScreenShareContentHint: (v: 'detail' | 'motion') => void;
   /** Set the preferred viewer quality for incoming screen shares. */
@@ -154,6 +174,17 @@ export const useSettingsStore = create<SettingsState>()(
       voiceNotificationSounds: true,
       userVolumes: {},
       isDeafened: false,
+
+      eqEnabled: false,
+      eqBass: 0,
+      eqMid: 0,
+      eqTreble: 0,
+
+      setEqEnabled: (enabled) => set({ eqEnabled: enabled }),
+      setEqBass: (gain) => set({ eqBass: Math.max(-12, Math.min(12, gain)) }),
+      setEqMid: (gain) => set({ eqMid: Math.max(-12, Math.min(12, gain)) }),
+      setEqTreble: (gain) => set({ eqTreble: Math.max(-12, Math.min(12, gain)) }),
+      resetEq: () => set({ eqBass: 0, eqMid: 0, eqTreble: 0 }),
 
       setPttKey: (key) => set({ pttKey: key }),
 
@@ -200,7 +231,7 @@ export const useSettingsStore = create<SettingsState>()(
 
       screenShareResolution: '1080p',
       screenShareFrameRate: 30,
-      screenShareAudio: true,
+      screenShareAudioSource: 'system',
       screenShareContentHint: 'detail',
       screenShareViewerQuality: 'Source',
 
@@ -213,7 +244,7 @@ export const useSettingsStore = create<SettingsState>()(
 
       setScreenShareResolution: (v) => set({ screenShareResolution: v }),
       setScreenShareFrameRate: (v) => set({ screenShareFrameRate: v }),
-      setScreenShareAudio: (v) => set({ screenShareAudio: v }),
+      setScreenShareAudioSource: (v) => set({ screenShareAudioSource: v }),
       setScreenShareContentHint: (v) => set({ screenShareContentHint: v }),
       setScreenShareViewerQuality: (v) => set({ screenShareViewerQuality: v }),
 
@@ -233,6 +264,10 @@ export const useSettingsStore = create<SettingsState>()(
         voiceNotificationSounds: state.voiceNotificationSounds,
         userVolumes: state.userVolumes,
         isDeafened: state.isDeafened,
+        eqEnabled: state.eqEnabled,
+        eqBass: state.eqBass,
+        eqMid: state.eqMid,
+        eqTreble: state.eqTreble,
         hideWhatsNew: state.hideWhatsNew,
         lastSeenVersion: state.lastSeenVersion,
         fontSize: state.fontSize,
@@ -243,7 +278,7 @@ export const useSettingsStore = create<SettingsState>()(
         compactMode: state.compactMode,
         screenShareResolution: state.screenShareResolution,
         screenShareFrameRate: state.screenShareFrameRate,
-        screenShareAudio: state.screenShareAudio,
+        screenShareAudioSource: state.screenShareAudioSource,
         screenShareContentHint: state.screenShareContentHint,
         screenShareViewerQuality: state.screenShareViewerQuality,
         channelSidebarWidth: state.channelSidebarWidth,

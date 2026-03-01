@@ -72,7 +72,7 @@ export function MemberList({ hubId }: { hubId: string }) {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-text-primary">
           Members{members.length > 0 ? ` (${members.length})` : ''}
@@ -85,7 +85,7 @@ export function MemberList({ hubId }: { hubId: string }) {
         </div>
       )}
 
-      <ScrollArea className="max-h-[500px]">
+      <ScrollArea className="min-h-0 flex-1 max-h-[calc(85vh-200px)]">
         <div className="space-y-1">
           {members.map((member) => (
             <div
