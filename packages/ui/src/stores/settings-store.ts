@@ -26,6 +26,11 @@ export interface SettingsState {
   /** Whether the right-side member list panel is visible. */
   memberListVisible: boolean;
 
+  /** Whether the hub sidebar is pinned open. When false, auto-collapses. */
+  hubSidebarPinned: boolean;
+  /** Toggle the hub sidebar pin state. */
+  toggleHubSidebarPin: () => void;
+
   /** Whether the noise-gate processor is active on the microphone. */
   noiseSuppressionEnabled: boolean;
 
@@ -154,6 +159,9 @@ export const useSettingsStore = create<SettingsState>()(
 
       resetPttKey: () => set({ pttKey: DEFAULT_PTT_KEY }),
 
+      hubSidebarPinned: true,
+      toggleHubSidebarPin: () => set((s) => ({ hubSidebarPinned: !s.hubSidebarPinned })),
+
       toggleMemberList: () =>
         set((s) => ({ memberListVisible: !s.memberListVisible })),
 
@@ -217,6 +225,7 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => ({
         pttKey: state.pttKey,
         memberListVisible: state.memberListVisible,
+        hubSidebarPinned: state.hubSidebarPinned,
         noiseSuppressionEnabled: state.noiseSuppressionEnabled,
         noiseSuppressionStrength: state.noiseSuppressionStrength,
         selectedMicDeviceId: state.selectedMicDeviceId,

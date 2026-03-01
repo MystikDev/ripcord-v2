@@ -10,6 +10,7 @@ import { useHubStore, type Hub } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useReadStateStore } from '../../stores/read-state-store';
 import { useMessageStore } from '../../stores/message-store';
+import { useSettingsStore } from '../../stores/settings-store';
 import { Tooltip } from '../ui/tooltip';
 import { ScrollArea } from '../ui/scroll-area';
 import { AddHubDialog } from '../hub/create-hub-dialog';
@@ -291,53 +292,103 @@ function HomeButton() {
 }
 
 // ---------------------------------------------------------------------------
+// Pin Button
+// ---------------------------------------------------------------------------
+
+function PinButton({ pinned, onToggle }: { pinned: boolean; onToggle: () => void }) {
+  return (
+    <Tooltip content={pinned ? 'Unpin sidebar' : 'Pin sidebar'} side="right">
+      <button
+        onClick={onToggle}
+        className={clsx(
+          'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
+          pinned
+            ? 'text-accent hover:text-accent/70'
+            : 'text-text-muted hover:text-text-primary',
+        )}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill={pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 17v5" />
+          <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 2-2H6a2 2 0 0 0 2 2 1 1 0 0 1 1 1z" />
+        </svg>
+      </button>
+    </Tooltip>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function HubSidebar() {
   const hubs = useHubStore((s) => s.hubs);
   const activeHubId = useHubStore((s) => s.activeHubId);
+  const hubPinned = useSettingsStore((s) => s.hubSidebarPinned);
+  const togglePin = useSettingsStore((s) => s.toggleHubSidebarPin);
+  const [hovered, setHovered] = useState(false);
+  const expanded = hubPinned || hovered;
+
   return (
-    <div className="flex h-full w-20 flex-col items-center border-r border-white/5 bg-surface-1/50 backdrop-blur-xl py-6 gap-6">
-      <HomeButton />
+    <div
+      className={clsx(
+        'relative flex h-full flex-col items-center border-r border-white/5 bg-surface-1/50 backdrop-blur-xl py-6 transition-all duration-200 overflow-hidden',
+        expanded ? 'w-20 gap-6' : 'w-4 gap-0',
+      )}
+      onMouseEnter={() => { if (!hubPinned) setHovered(true); }}
+      onMouseLeave={() => { if (!hubPinned) setHovered(false); }}
+    >
+      {/* Collapsed indicator — subtle vertical accent line */}
+      {!expanded && (
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 bg-accent/20 rounded-full my-8" />
+      )}
 
-      {/* Gradient divider */}
-      <div className="w-8 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+      {/* Content — fades when collapsed */}
+      <div
+        className={clsx(
+          'flex h-full w-20 flex-col items-center gap-6 transition-opacity duration-200',
+          expanded ? 'opacity-100' : 'opacity-0 pointer-events-none',
+        )}
+      >
+        <HomeButton />
 
-      <ScrollArea className="flex-1 w-full">
-        <div className="flex flex-col items-center gap-3 px-4">
-          {hubs.map((hub) => (
-            <HubIcon
-              key={hub.id}
-              hub={hub}
-              isActive={hub.id === activeHubId}
+        {/* Gradient divider */}
+        <div className="w-8 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+
+        <ScrollArea className="flex-1 w-full">
+          <div className="flex flex-col items-center gap-3 px-4">
+            {hubs.map((hub) => (
+              <HubIcon
+                key={hub.id}
+                hub={hub}
+                isActive={hub.id === activeHubId}
+              />
+            ))}
+
+            {/* Add Hub Button */}
+            <AddHubDialog
+              trigger={
+                <button
+                  className={clsx(
+                    'flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-success',
+                    'border border-white/10 transition-all duration-200',
+                    'hover:rounded-2xl hover:bg-success/20 hover:border-success/50 hover:text-success hover:shadow-lg hover:shadow-success/10',
+                  )}
+                  title="Add a Hub"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10 4v12M4 10h12" strokeLinecap="round" />
+                  </svg>
+                </button>
+              }
             />
-          ))}
+          </div>
+        </ScrollArea>
 
-          {/* Add Hub Button */}
-          <AddHubDialog
-            trigger={
-              <button
-                className={clsx(
-                  'flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-success',
-                  'border border-white/10 transition-all duration-200',
-                  'hover:rounded-2xl hover:bg-success/20 hover:border-success/50 hover:text-success hover:shadow-lg hover:shadow-success/10',
-                )}
-                title="Add a Hub"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M10 4v12M4 10h12" strokeLinecap="round" />
-                </svg>
-              </button>
-            }
-          />
+        {/* User Avatar + Pin button — bottom of rail */}
+        <div className="mt-auto flex flex-col items-center gap-2">
+          <UserAvatarButton />
+          <PinButton pinned={hubPinned} onToggle={togglePin} />
         </div>
-      </ScrollArea>
-
-      {/* User Avatar — bottom of rail, clickable for avatar change, bounces within border */}
-      <div className="mt-auto flex flex-col items-center gap-2">
-        <UserAvatarButton />
-        <div className="w-2 h-2 rounded-full bg-accent shadow-lg shadow-accent/50" />
       </div>
     </div>
   );
