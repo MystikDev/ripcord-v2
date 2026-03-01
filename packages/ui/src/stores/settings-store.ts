@@ -127,6 +127,8 @@ export interface SettingsState {
   screenShareContentHint: 'detail' | 'motion';
   /** Preferred quality when viewing someone else's screen share. Default: 'Source' */
   screenShareViewerQuality: 'Source' | '1080p' | '720p';
+  /** Preferred FPS when viewing someone else's screen share. Default: 60 */
+  screenShareViewerFps: 15 | 30 | 60;
 
   /** Set the base font size. */
   setFontSize: (size: number) => void;
@@ -151,6 +153,8 @@ export interface SettingsState {
   setScreenShareContentHint: (v: 'detail' | 'motion') => void;
   /** Set the preferred viewer quality for incoming screen shares. */
   setScreenShareViewerQuality: (v: 'Source' | '1080p' | '720p') => void;
+  /** Set the preferred viewer FPS for incoming screen shares. */
+  setScreenShareViewerFps: (v: 15 | 30 | 60) => void;
 
   /** Channel sidebar width in pixels. Default: 240 (w-60). */
   channelSidebarWidth: number;
@@ -234,6 +238,7 @@ export const useSettingsStore = create<SettingsState>()(
       screenShareAudioSource: 'system',
       screenShareContentHint: 'detail',
       screenShareViewerQuality: 'Source',
+      screenShareViewerFps: 60,
 
       setFontSize: (size) => set({ fontSize: Math.max(12, Math.min(20, size)) }),
       setFontColor: (color) => set({ fontColor: color }),
@@ -247,6 +252,7 @@ export const useSettingsStore = create<SettingsState>()(
       setScreenShareAudioSource: (v) => set({ screenShareAudioSource: v }),
       setScreenShareContentHint: (v) => set({ screenShareContentHint: v }),
       setScreenShareViewerQuality: (v) => set({ screenShareViewerQuality: v }),
+      setScreenShareViewerFps: (v) => set({ screenShareViewerFps: v }),
 
       channelSidebarWidth: 240,
       setChannelSidebarWidth: (width) => set({ channelSidebarWidth: Math.max(200, Math.min(480, width)) }),
@@ -281,6 +287,7 @@ export const useSettingsStore = create<SettingsState>()(
         screenShareAudioSource: state.screenShareAudioSource,
         screenShareContentHint: state.screenShareContentHint,
         screenShareViewerQuality: state.screenShareViewerQuality,
+        screenShareViewerFps: state.screenShareViewerFps,
         channelSidebarWidth: state.channelSidebarWidth,
       }),
     },

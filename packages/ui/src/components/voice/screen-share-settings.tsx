@@ -37,9 +37,9 @@ type FrameRate = 15 | 30 | 60;
 type ContentHint = 'detail' | 'motion';
 type AudioSource = 'none' | 'system';
 
-const AUDIO_SOURCES: { value: AudioSource; label: string }[] = [
+const AUDIO_SOURCES: { value: AudioSource; label: string; description?: string }[] = [
   { value: 'none', label: 'No Audio' },
-  { value: 'system', label: 'System Audio' },
+  { value: 'system', label: 'Share Audio', description: 'Captures audio from the shared window. Select a specific window (not "Entire Screen") for best results.' },
 ];
 
 const RESOLUTIONS: { value: Resolution; label: string }[] = [
@@ -238,6 +238,14 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
               </button>
             ))}
           </div>
+          {(() => {
+            const selected = AUDIO_SOURCES.find((a) => a.value === audioSource);
+            return selected?.description ? (
+              <p className="mt-1.5 text-xs italic text-text-tertiary">
+                {selected.description}
+              </p>
+            ) : null;
+          })()}
         </div>
 
         {/* ---- Actions ---- */}

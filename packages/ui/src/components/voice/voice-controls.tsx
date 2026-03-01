@@ -168,6 +168,8 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
         true,
         {
           audio: options.audioSource === 'system',
+          selfBrowserSurface: 'exclude',
+          systemAudio: 'include',
           resolution: options.resolution
             ? { ...options.resolution, frameRate: options.frameRate }
             : undefined,

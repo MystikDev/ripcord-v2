@@ -3,15 +3,14 @@
  * Renders the active screen-share track in a video element with a header
  * overlay. Supports multiple simultaneous streams via a switcher bar and
  * auto-fallback when the active stream ends. Includes audio routing through
- * the shared Web Audio graph, quality selector, custom pop-out panel (replaces
- * native PiP which breaks in WebView2), and live FPS overlay.
+ * the shared Web Audio graph, quality selector, Document PiP pop-out (true
+ * OS-level floating window), viewer FPS control, and live FPS overlay.
  */
 'use client';
 
 import { useTracks, useLocalParticipant } from '@livekit/components-react';
 import { Track, VideoQuality, RemoteTrackPublication, RemoteAudioTrack } from 'livekit-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useVoiceStateStore } from '../../stores/voice-state-store';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useMemberStore } from '../../stores/member-store';
@@ -23,6 +22,7 @@ import clsx from 'clsx';
 // ---------------------------------------------------------------------------
 
 type QualityOption = '720p' | '1080p' | 'Source';
+type ViewerFps = 15 | 30 | 60;
 
 const QUALITY_MAP: Record<QualityOption, VideoQuality> = {
   '720p': VideoQuality.MEDIUM,
@@ -52,213 +52,6 @@ function cleanupScreenShareAudio(entry: ScreenShareAudioEntry): void {
 }
 
 // ---------------------------------------------------------------------------
-// Pop-out panel defaults
-// ---------------------------------------------------------------------------
-
-const POP_OUT_MIN_W = 320;
-const POP_OUT_MIN_H = 200;
-const POP_OUT_DEFAULT_W = 640;
-const POP_OUT_DEFAULT_H = 400;
-
-// ---------------------------------------------------------------------------
-// PopOutPanel — draggable, resizable floating video panel
-// ---------------------------------------------------------------------------
-
-function PopOutPanel({
-  screenTrack,
-  sharerIdentity,
-  onClose,
-}: {
-  screenTrack: Track;
-  sharerIdentity: string;
-  onClose: () => void;
-}) {
-  const popVideoRef = useRef<HTMLVideoElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Position: offset from initial position (center-right of viewport)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const dragStartRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
-
-  // Size
-  const [size, setSize] = useState({ w: POP_OUT_DEFAULT_W, h: POP_OUT_DEFAULT_H });
-  const resizeStartRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
-
-  // Attach track to pop-out video element
-  useEffect(() => {
-    const el = popVideoRef.current;
-    if (!el || !screenTrack) return;
-    screenTrack.attach(el);
-    return () => {
-      screenTrack.detach(el);
-    };
-  }, [screenTrack]);
-
-  // Fullscreen from pop-out
-  const handleFullscreen = useCallback(() => {
-    const el = popVideoRef.current;
-    if (!el) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      el.requestFullscreen();
-    }
-  }, []);
-
-  // ---- Drag handlers (same pattern as DmCallPanel) ----
-  const handleDragStart = useCallback(
-    (e: React.PointerEvent) => {
-      e.preventDefault();
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      dragStartRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-        ox: dragOffset.x,
-        oy: dragOffset.y,
-      };
-    },
-    [dragOffset],
-  );
-
-  const handleDragMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragStartRef.current || !panelRef.current) return;
-      const dx = e.clientX - dragStartRef.current.x;
-      const dy = e.clientY - dragStartRef.current.y;
-
-      let newX = dragStartRef.current.ox + dx;
-      let newY = dragStartRef.current.oy + dy;
-
-      // Constrain to viewport
-      const rect = panelRef.current.getBoundingClientRect();
-      const baseLeft = rect.left - dragOffset.x;
-      const baseTop = rect.top - dragOffset.y;
-
-      const minX = -baseLeft;
-      const maxX = window.innerWidth - rect.width - baseLeft;
-      const minY = -baseTop;
-      const maxY = window.innerHeight - rect.height - baseTop;
-
-      newX = Math.max(minX, Math.min(maxX, newX));
-      newY = Math.max(minY, Math.min(maxY, newY));
-
-      setDragOffset({ x: newX, y: newY });
-    },
-    [dragOffset],
-  );
-
-  const handleDragEnd = useCallback(() => {
-    dragStartRef.current = null;
-  }, []);
-
-  // ---- Resize handlers ----
-  const handleResizeStart = useCallback(
-    (e: React.PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      resizeStartRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-        w: size.w,
-        h: size.h,
-      };
-    },
-    [size],
-  );
-
-  const handleResizeMove = useCallback((e: React.PointerEvent) => {
-    if (!resizeStartRef.current) return;
-    const dx = e.clientX - resizeStartRef.current.x;
-    const dy = e.clientY - resizeStartRef.current.y;
-
-    const newW = Math.max(POP_OUT_MIN_W, Math.min(window.innerWidth - 40, resizeStartRef.current.w + dx));
-    const newH = Math.max(POP_OUT_MIN_H, Math.min(window.innerHeight - 40, resizeStartRef.current.h + dy));
-
-    setSize({ w: newW, h: newH });
-  }, []);
-
-  const handleResizeEnd = useCallback(() => {
-    resizeStartRef.current = null;
-  }, []);
-
-  // Initial position: center-right of viewport
-  const initialLeft = Math.max(20, window.innerWidth - POP_OUT_DEFAULT_W - 40);
-  const initialTop = Math.max(20, (window.innerHeight - POP_OUT_DEFAULT_H) / 2);
-
-  return createPortal(
-    <div
-      ref={panelRef}
-      className="fixed z-[95] flex flex-col rounded-xl border-2 border-border bg-surface-2 shadow-2xl overflow-hidden"
-      style={{
-        left: initialLeft,
-        top: initialTop,
-        width: size.w,
-        height: size.h,
-        transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
-      }}
-    >
-      {/* Drag handle */}
-      <div
-        className="flex h-7 shrink-0 cursor-grab items-center justify-between rounded-t-xl bg-surface-3/60 px-2 active:cursor-grabbing"
-        onPointerDown={handleDragStart}
-        onPointerMove={handleDragMove}
-        onPointerUp={handleDragEnd}
-      >
-        <span className="text-[10px] font-medium text-text-muted truncate pointer-events-none select-none">
-          <SharerName identity={sharerIdentity} />&apos;s screen
-        </span>
-        <div className="flex items-center gap-1 pointer-events-auto">
-          {/* Fullscreen button */}
-          <button
-            onClick={handleFullscreen}
-            className="flex items-center justify-center rounded p-0.5 text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
-            title="Fullscreen"
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
-            </svg>
-          </button>
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center rounded p-0.5 text-text-muted hover:text-danger hover:bg-danger/10 transition-colors"
-            title="Pop back in"
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 4l8 8M12 4l-8 8" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Video */}
-      <video
-        ref={popVideoRef}
-        autoPlay
-        playsInline
-        onClick={handleFullscreen}
-        className="min-h-0 flex-1 w-full object-contain bg-black cursor-pointer"
-      />
-
-      {/* Resize handle (bottom-right corner) */}
-      <div
-        className="absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize"
-        onPointerDown={handleResizeStart}
-        onPointerMove={handleResizeMove}
-        onPointerUp={handleResizeEnd}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" className="text-text-muted/40">
-          <path d="M14 14L8 14M14 14L14 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M14 14L11 14M14 14L14 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -270,14 +63,19 @@ function PopOutPanel({
  *
  * Screen share audio is routed through the shared AudioContext (same as voice
  * audio) so it respects EQ, speaker selection, and deafen.
+ *
+ * Pop-out uses the Document Picture-in-Picture API to create a true OS-level
+ * floating window that can be dragged to a second monitor.
  */
 export function ScreenShareView() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioEntryRef = useRef<ScreenShareAudioEntry | null>(null);
   const { localParticipant } = useLocalParticipant();
 
-  // Pop-out state
+  // Pop-out state (Document PiP)
   const [isPoppedOut, setIsPoppedOut] = useState(false);
+  const pipWindowRef = useRef<Window | null>(null);
+  const pipVideoRef = useRef<HTMLVideoElement | null>(null);
 
   // Subscribe to both video and audio screen share tracks
   const videoTracks = useTracks([Track.Source.ScreenShare], {
@@ -291,9 +89,11 @@ export function ScreenShareView() {
   const activeScreenShareId = useVoiceStateStore((s) => s.activeScreenShareId);
   const setActiveScreenShareId = useVoiceStateStore((s) => s.setActiveScreenShareId);
 
-  // Quality selector state (persisted in settings store)
+  // Quality + FPS selector state (persisted in settings store)
   const quality = useSettingsStore((s) => s.screenShareViewerQuality);
   const setViewerQuality = useSettingsStore((s) => s.setScreenShareViewerQuality);
+  const viewerFps = useSettingsStore((s) => s.screenShareViewerFps);
+  const setViewerFps = useSettingsStore((s) => s.setScreenShareViewerFps);
   const isDeafened = useSettingsStore((s) => s.isDeafened);
 
   // FPS overlay state
@@ -318,6 +118,11 @@ export function ScreenShareView() {
     if (videoTracks.length === 0) {
       if (activeScreenShareId !== null) setActiveScreenShareId(null);
       // Close pop-out when no streams
+      if (pipWindowRef.current) {
+        pipWindowRef.current.close();
+        pipWindowRef.current = null;
+        pipVideoRef.current = null;
+      }
       setIsPoppedOut(false);
       return;
     }
@@ -328,15 +133,27 @@ export function ScreenShareView() {
     }
   }, [videoTracks, activeScreenShareId, setActiveScreenShareId]);
 
-  // Attach / detach the video track (only when NOT popped out)
+  // Attach / detach the video track to the INLINE element (only when NOT popped out)
   useEffect(() => {
-    if (isPoppedOut) return; // PopOutPanel manages its own video element
+    if (isPoppedOut) return; // PiP window manages its own video element
     const el = videoRef.current;
     if (!el || !screenTrack) return;
 
     screenTrack.attach(el);
     return () => {
       screenTrack.detach(el);
+    };
+  }, [screenTrack, isPoppedOut]);
+
+  // Reattach track to PiP video element when screenTrack changes while popped out
+  useEffect(() => {
+    if (!isPoppedOut || !pipVideoRef.current || !screenTrack) return;
+
+    screenTrack.attach(pipVideoRef.current);
+    return () => {
+      if (pipVideoRef.current) {
+        screenTrack.detach(pipVideoRef.current);
+      }
     };
   }, [screenTrack, isPoppedOut]);
 
@@ -415,7 +232,6 @@ export function ScreenShareView() {
   // Apply quality preference to the subscription
   useEffect(() => {
     if (!screenPublication) return;
-    // setVideoQuality is only available on RemoteTrackPublication
     if (screenPublication instanceof RemoteTrackPublication) {
       try {
         screenPublication.setVideoQuality(QUALITY_MAP[quality]);
@@ -424,6 +240,18 @@ export function ScreenShareView() {
       }
     }
   }, [quality, screenPublication]);
+
+  // Apply viewer FPS preference to the subscription
+  useEffect(() => {
+    if (!screenPublication) return;
+    if (screenPublication instanceof RemoteTrackPublication) {
+      try {
+        screenPublication.setVideoFPS(viewerFps);
+      } catch {
+        // Silently ignore — older servers may not support this
+      }
+    }
+  }, [viewerFps, screenPublication]);
 
   // FPS counter — poll WebRTC stats every second
   useEffect(() => {
@@ -448,8 +276,8 @@ export function ScreenShareView() {
           return;
         }
 
-        // Fallback: use requestVideoFrameCallback if available on the video element
-        const el = videoRef.current;
+        // Fallback: use getVideoPlaybackQuality if available on the video element
+        const el = isPoppedOut ? pipVideoRef.current : videoRef.current;
         if (el && 'getVideoPlaybackQuality' in el) {
           const quality = (el as HTMLVideoElement).getVideoPlaybackQuality();
           const now = performance.now();
@@ -467,7 +295,85 @@ export function ScreenShareView() {
     }, 1000);
 
     return () => clearInterval(interval);
+  }, [screenTrack, isPoppedOut]);
+
+  // ---- Document PiP pop-out ----
+  const handlePopOut = useCallback(async () => {
+    if (!screenTrack) return;
+
+    // If already popped out, close the PiP window
+    if (pipWindowRef.current) {
+      pipWindowRef.current.close();
+      pipWindowRef.current = null;
+      pipVideoRef.current = null;
+      setIsPoppedOut(false);
+      return;
+    }
+
+    // Check API availability
+    if (!('documentPictureInPicture' in window)) {
+      console.warn('[ScreenShareView] Document PiP not available');
+      return;
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pipWin = await (window as any).documentPictureInPicture.requestWindow({
+        width: 640,
+        height: 400,
+      });
+      pipWindowRef.current = pipWin;
+
+      // Inject styles into the PiP window
+      const style = pipWin.document.createElement('style');
+      style.textContent = `
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; }
+        video { width: 100%; height: 100vh; object-fit: contain; cursor: pointer; }
+      `;
+      pipWin.document.head.appendChild(style);
+
+      // Create and attach video element
+      const video = pipWin.document.createElement('video');
+      video.autoplay = true;
+      video.playsInline = true;
+      video.addEventListener('dblclick', () => {
+        if (pipWin.document.fullscreenElement) {
+          pipWin.document.exitFullscreen();
+        } else {
+          video.requestFullscreen();
+        }
+      });
+      pipWin.document.body.appendChild(video);
+      pipVideoRef.current = video;
+
+      screenTrack.attach(video);
+      setIsPoppedOut(true);
+
+      // Clean up when PiP window is closed (user closes it or via "Pop In")
+      pipWin.addEventListener('pagehide', () => {
+        if (pipVideoRef.current && screenTrack) {
+          try { screenTrack.detach(pipVideoRef.current); } catch { /* ignore */ }
+        }
+        pipWindowRef.current = null;
+        pipVideoRef.current = null;
+        setIsPoppedOut(false);
+      });
+    } catch (err) {
+      console.error('[ScreenShareView] Failed to open Document PiP:', err);
+    }
   }, [screenTrack]);
+
+  // Close PiP window on unmount (e.g. screen share ends, voice disconnect)
+  useEffect(() => {
+    return () => {
+      if (pipWindowRef.current) {
+        pipWindowRef.current.close();
+        pipWindowRef.current = null;
+        pipVideoRef.current = null;
+      }
+    };
+  }, []);
 
   const handleFullscreen = useCallback(() => {
     const el = videoRef.current;
@@ -479,10 +385,6 @@ export function ScreenShareView() {
     }
   }, []);
 
-  const handlePopOut = useCallback(() => {
-    setIsPoppedOut((prev) => !prev);
-  }, []);
-
   const handleStopSharing = useCallback(async () => {
     await localParticipant.setScreenShareEnabled(false);
   }, [localParticipant]);
@@ -492,59 +394,79 @@ export function ScreenShareView() {
   const multipleStreams = videoTracks.length > 1;
 
   return (
-    <>
-      {/* Pop-out panel (rendered via portal to document.body) */}
-      {isPoppedOut && screenTrack && (
-        <PopOutPanel
-          screenTrack={screenTrack}
-          sharerIdentity={sharerIdentity}
-          onClose={() => setIsPoppedOut(false)}
-        />
+    <div className="relative rounded-lg overflow-hidden bg-surface-1 border border-border">
+      {/* Stream switcher tabs (only shown when 2+ streams active) */}
+      {multipleStreams && (
+        <div className="flex items-center gap-1 bg-surface-2/80 px-2 py-1.5 border-b border-border">
+          {videoTracks.map((t) => {
+            const identity = t.participant.identity;
+            const isActive = identity === sharerIdentity;
+            return (
+              <StreamTab
+                key={identity}
+                identity={identity}
+                isActive={isActive}
+                onClick={() => setActiveScreenShareId(identity)}
+              />
+            );
+          })}
+        </div>
       )}
 
-      <div className="relative rounded-lg overflow-hidden bg-surface-1 border border-border">
-        {/* Stream switcher tabs (only shown when 2+ streams active) */}
-        {multipleStreams && (
-          <div className="flex items-center gap-1 bg-surface-2/80 px-2 py-1.5 border-b border-border">
-            {videoTracks.map((t) => {
-              const identity = t.participant.identity;
-              const isActive = identity === sharerIdentity;
-              return (
-                <StreamTab
-                  key={identity}
-                  identity={identity}
-                  isActive={isActive}
-                  onClick={() => setActiveScreenShareId(identity)}
-                />
-              );
-            })}
-          </div>
-        )}
-
-        {/* Header overlay */}
-        <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 via-black/40 to-transparent px-3 py-2"
-          style={multipleStreams ? { top: 0 } : undefined}
-        >
-          <span className="text-xs font-medium text-text-primary">
-            <SharerName identity={sharerIdentity} />&apos;s screen
-          </span>
-          <div className="flex items-center gap-1.5">
-            {/* Viewer controls: quality + pop out + fullscreen */}
-            {!isLocalSharing && (
-              <>
-                <select
-                  value={quality}
-                  onChange={(e) => setViewerQuality(e.target.value as QualityOption)}
-                  className="rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3"
+      {/* Header overlay */}
+      <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 via-black/40 to-transparent px-3 py-2"
+        style={multipleStreams ? { top: 0 } : undefined}
+      >
+        <span className="text-xs font-medium text-text-primary">
+          <SharerName identity={sharerIdentity} />&apos;s screen
+        </span>
+        <div className="flex items-center gap-1.5">
+          {/* Viewer controls: quality + fps + pop out + fullscreen */}
+          {!isLocalSharing && (
+            <>
+              <select
+                value={quality}
+                onChange={(e) => setViewerQuality(e.target.value as QualityOption)}
+                className="rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3"
+              >
+                <option value="720p">720p</option>
+                <option value="1080p">1080p</option>
+                <option value="Source">Source</option>
+              </select>
+              <select
+                value={viewerFps}
+                onChange={(e) => setViewerFps(Number(e.target.value) as ViewerFps)}
+                className="rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3"
+              >
+                <option value={15}>15 fps</option>
+                <option value={30}>30 fps</option>
+                <option value={60}>60 fps</option>
+              </select>
+              <button
+                onClick={handlePopOut}
+                className="flex items-center gap-1 rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3 hover:text-text-primary transition-colors"
+                title={isPoppedOut ? 'Pop back in' : 'Pop out to floating window'}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  <option value="720p">720p</option>
-                  <option value="1080p">1080p</option>
-                  <option value="Source">Source</option>
-                </select>
+                  <rect x="1" y="2" width="14" height="12" rx="1.5" />
+                  <rect x="8" y="7" width="6" height="5" rx="1" fill="currentColor" stroke="none" />
+                </svg>
+                {isPoppedOut ? 'Pop In' : 'Pop Out'}
+              </button>
+              {!isPoppedOut && (
                 <button
-                  onClick={handlePopOut}
+                  onClick={handleFullscreen}
                   className="flex items-center gap-1 rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3 hover:text-text-primary transition-colors"
-                  title={isPoppedOut ? 'Pop back in' : 'Pop out to floating window'}
+                  title="Toggle fullscreen"
                 >
                   <svg
                     width="12"
@@ -556,77 +478,55 @@ export function ScreenShareView() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <rect x="1" y="2" width="14" height="12" rx="1.5" />
-                    <rect x="8" y="7" width="6" height="5" rx="1" fill="currentColor" stroke="none" />
+                    <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
                   </svg>
-                  {isPoppedOut ? 'Pop In' : 'Pop Out'}
+                  Fullscreen
                 </button>
-                {!isPoppedOut && (
-                  <button
-                    onClick={handleFullscreen}
-                    className="flex items-center gap-1 rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3 hover:text-text-primary transition-colors"
-                    title="Toggle fullscreen"
-                  >
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
-                    </svg>
-                    Fullscreen
-                  </button>
-                )}
-              </>
-            )}
-            {/* Presenter controls: stop sharing */}
-            {isLocalSharing && (
-              <button
-                onClick={handleStopSharing}
-                className="flex items-center gap-1 rounded-md bg-danger/80 px-2 py-0.5 text-[10px] font-medium text-white transition-colors hover:bg-danger"
-                title="Stop sharing"
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                  <rect width="10" height="10" rx="1.5" />
-                </svg>
-                Stop
-              </button>
-            )}
-          </div>
+              )}
+            </>
+          )}
+          {/* Presenter controls: stop sharing */}
+          {isLocalSharing && (
+            <button
+              onClick={handleStopSharing}
+              className="flex items-center gap-1 rounded-md bg-danger/80 px-2 py-0.5 text-[10px] font-medium text-white transition-colors hover:bg-danger"
+              title="Stop sharing"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <rect width="10" height="10" rx="1.5" />
+              </svg>
+              Stop
+            </button>
+          )}
         </div>
-
-        {/* FPS overlay (only when inline) */}
-        {!isPoppedOut && fps !== null && (
-          <div className="absolute bottom-2 right-2 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-medium text-white/80 backdrop-blur-sm">
-            {fps} fps
-          </div>
-        )}
-
-        {/* Video — hidden when popped out, shown inline otherwise */}
-        {isPoppedOut ? (
-          <div className="flex items-center justify-center py-6 text-xs text-text-muted">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
-              <rect x="1" y="2" width="14" height="12" rx="1.5" />
-              <rect x="8" y="7" width="6" height="5" rx="1" fill="currentColor" stroke="none" />
-            </svg>
-            Popped out — click &quot;Pop In&quot; to return
-          </div>
-        ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            onClick={handleFullscreen}
-            className="w-full max-h-[70vh] object-contain bg-black cursor-pointer"
-          />
-        )}
       </div>
-    </>
+
+      {/* FPS overlay (only when inline) */}
+      {!isPoppedOut && fps !== null && (
+        <div className="absolute bottom-2 right-2 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-medium text-white/80 backdrop-blur-sm">
+          {fps} fps
+        </div>
+      )}
+
+      {/* Video — hidden when popped out, shown inline otherwise */}
+      {isPoppedOut ? (
+        <div className="flex items-center justify-center py-6 text-xs text-text-muted">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
+            <rect x="1" y="2" width="14" height="12" rx="1.5" />
+            <rect x="8" y="7" width="6" height="5" rx="1" fill="currentColor" stroke="none" />
+          </svg>
+          Popped out — click &quot;Pop In&quot; to return
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          onClick={handleFullscreen}
+          className="w-full max-h-[70vh] object-contain bg-black cursor-pointer"
+        />
+      )}
+    </div>
   );
 }
 
