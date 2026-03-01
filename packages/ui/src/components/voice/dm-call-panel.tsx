@@ -10,7 +10,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   LiveKitRoom,
-  RoomAudioRenderer,
   useTracks,
   useLocalParticipant,
 } from '@livekit/components-react';
@@ -18,6 +17,7 @@ import { Room, Track, type RoomOptions } from 'livekit-client';
 import { useCallStore, type CallStatus } from '../../stores/call-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { getDmVoiceToken } from '../../lib/voice-api';
+import { VoiceAudioRenderer } from './voice-audio-renderer';
 import { gateway } from '../../lib/gateway-client';
 import clsx from 'clsx';
 
@@ -433,7 +433,7 @@ export function DmCallPanel() {
           video={isVideoEnabled}
           onDisconnected={handleRoomDisconnected}
         >
-          <RoomAudioRenderer />
+          <VoiceAudioRenderer />
           <DmCallContent
             status={status}
             remoteHandle={callInfo.remoteHandle ?? 'User'}

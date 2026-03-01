@@ -20,6 +20,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.42',
+    date: '2026-03-01',
+    highlights: [
+      'Audio Effects Framework: pluggable effect chain between volume and EQ',
+      'Built-in effects: Compressor, Limiter, Low-Pass, High-Pass, Delay, Reverb, Gain',
+      'Effect chain UI in Audio Settings — add, remove, reorder, bypass, and tweak parameters',
+      'Effect presets: save and load named configurations',
+      'Fixed deafen not silencing audio — now mutes all audio paths including screen share and DM calls',
+      'Fixed member list scrollbar not appearing in Hub Settings',
+      'Fixed force logout on version update not clearing remember-me session',
+      'Fixed screen share fullscreen button invisible to viewers — now has visible styling and label',
+    ],
+  },
+  {
     version: '0.9.41',
     date: '2026-03-01',
     highlights: [

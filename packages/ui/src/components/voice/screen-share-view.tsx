@@ -112,6 +112,7 @@ export function ScreenShareView() {
   // Quality selector state (persisted in settings store)
   const quality = useSettingsStore((s) => s.screenShareViewerQuality);
   const setViewerQuality = useSettingsStore((s) => s.setScreenShareViewerQuality);
+  const isDeafened = useSettingsStore((s) => s.isDeafened);
 
   // FPS overlay state
   const [fps, setFps] = useState<number | null>(null);
@@ -164,6 +165,12 @@ export function ScreenShareView() {
       audioTrack.detach(el);
     };
   }, [audioTrack]);
+
+  // Mute screen-share audio when self-deafened
+  useEffect(() => {
+    const el = audioRef.current;
+    if (el) el.muted = isDeafened;
+  }, [isDeafened]);
 
   // Apply quality preference to the subscription
   useEffect(() => {
@@ -261,7 +268,7 @@ export function ScreenShareView() {
       )}
 
       {/* Header overlay */}
-      <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent px-3 py-2"
+      <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 via-black/40 to-transparent px-3 py-2"
         style={multipleStreams ? { top: 0 } : undefined}
       >
         <span className="text-xs font-medium text-text-primary">
@@ -283,12 +290,12 @@ export function ScreenShareView() {
               </select>
               <button
                 onClick={handleFullscreen}
-                className="rounded-md p-1 text-text-secondary hover:bg-surface-3/50 hover:text-text-primary transition-colors"
+                className="flex items-center gap-1 rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3 hover:text-text-primary transition-colors"
                 title="Toggle fullscreen"
               >
                 <svg
-                  width="14"
-                  height="14"
+                  width="12"
+                  height="12"
                   viewBox="0 0 16 16"
                   fill="none"
                   stroke="currentColor"
@@ -298,6 +305,7 @@ export function ScreenShareView() {
                 >
                   <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
                 </svg>
+                Fullscreen
               </button>
             </>
           )}

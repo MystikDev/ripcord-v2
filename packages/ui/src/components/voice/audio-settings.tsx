@@ -11,6 +11,7 @@ import { Dialog, DialogTrigger, DialogContent } from '../ui/dialog';
 import { Separator } from '../ui/separator';
 import { Tooltip } from '../ui/tooltip';
 import { useSettingsStore } from '../../stores/settings-store';
+import { EffectsPanel } from './effects-panel';
 import clsx from 'clsx';
 
 // ---------------------------------------------------------------------------
@@ -276,6 +277,8 @@ export function AudioSettings() {
           <NoiseSuppression />
           <Separator />
           <Equalizer />
+          <Separator />
+          <EffectsPanel />
         </div>
       </DialogContent>
     </Dialog>

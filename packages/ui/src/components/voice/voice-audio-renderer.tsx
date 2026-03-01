@@ -3,13 +3,15 @@
 /**
  * @module voice-audio-renderer
  * Custom audio renderer for hub voice channels with per-user volume control
- * (including boost beyond 100 %) and a global 3-band audio equalizer.
+ * (including boost beyond 100 %), a pluggable effects chain, and a global
+ * 3-band audio equalizer.
  *
  * All audio is routed through a shared Web Audio graph:
  *
  *   <audio> → MediaElementSource → GainNode (per-user volume)
- *             → BiquadFilter (bass) → BiquadFilter (mid) → BiquadFilter (treble)
- *             → AudioContext.destination
+ *           → EffectChain (compressor, reverb, etc.)
+ *           → BiquadFilter (bass) → BiquadFilter (mid) → BiquadFilter (treble)
+ *           → AudioContext.destination
  *
  * GainNode supports 0–2.0 range (200 % boost). EQ bypass = all filter gains
  * set to 0 dB (flat response). Must be rendered inside a <LiveKitRoom> provider.
@@ -19,17 +21,20 @@ import { useEffect, useRef } from 'react';
 import { useTracks } from '@livekit/components-react';
 import { Track, RemoteAudioTrack } from 'livekit-client';
 import { useSettingsStore } from '../../stores/settings-store';
+import { useEffectsStore } from '../../stores/effects-store';
+import { EffectChain } from '../../lib/audio-effects/effect-chain';
 
 // ---------------------------------------------------------------------------
-// Shared AudioContext + EQ chain (module-level singleton)
+// Shared AudioContext + EQ chain + EffectChain (module-level singletons)
 // ---------------------------------------------------------------------------
 
 let sharedCtx: AudioContext | null = null;
 let eqBassFilter: BiquadFilterNode | null = null;
 let eqMidFilter: BiquadFilterNode | null = null;
 let eqTrebleFilter: BiquadFilterNode | null = null;
+let effectChain: EffectChain | null = null;
 
-/** Lazily create the shared AudioContext and EQ filter chain. */
+/** Lazily create the shared AudioContext, EQ filter chain, and effect chain. */
 function ensureAudioContext(): AudioContext {
   if (!sharedCtx || sharedCtx.state === 'closed') {
     sharedCtx = new AudioContext();
@@ -53,10 +58,28 @@ function ensureAudioContext(): AudioContext {
     eqTrebleFilter.frequency.value = 3000;
     eqTrebleFilter.gain.value = 0;
 
-    // Chain: bass → mid → treble → destination
+    // Effect chain (sits between per-user gains and the EQ)
+    effectChain = new EffectChain(sharedCtx);
+
+    // Wire: effectChain.output → bass → mid → treble → destination
+    effectChain.output.connect(eqBassFilter);
     eqBassFilter.connect(eqMidFilter);
     eqMidFilter.connect(eqTrebleFilter);
     eqTrebleFilter.connect(sharedCtx.destination);
+
+    // Restore persisted chain config
+    const savedConfig = useEffectsStore.getState().chainConfig;
+    if (savedConfig.effects.length > 0) {
+      effectChain.loadConfig(savedConfig);
+    }
+
+    // Sync chain changes back to the store for persistence
+    effectChain.setOnChange(() => {
+      if (effectChain) {
+        useEffectsStore.getState().setChainConfig(effectChain.getConfig());
+        useEffectsStore.getState().bumpRevision();
+      }
+    });
   }
 
   // Resume if suspended (browser autoplay policy)
@@ -67,9 +90,22 @@ function ensureAudioContext(): AudioContext {
   return sharedCtx;
 }
 
-/** The entry point of the EQ chain (bass filter input). */
-function getEqInput(): AudioNode | null {
-  return eqBassFilter;
+/**
+ * Get the effect chain input node. Per-user GainNodes connect here.
+ * When the chain is empty, this passes through directly to the EQ.
+ */
+function getChainInput(): AudioNode | null {
+  return effectChain?.input ?? null;
+}
+
+/** Expose the shared effect chain for external use (e.g. effects panel UI). */
+export function getSharedEffectChain(): EffectChain | null {
+  return effectChain;
+}
+
+/** Expose the shared AudioContext for external use. */
+export function getSharedAudioContext(): AudioContext | null {
+  return sharedCtx;
 }
 
 // ---------------------------------------------------------------------------
@@ -133,8 +169,8 @@ export function VoiceAudioRenderer() {
   // ---- Manage audio elements, GainNodes, and apply volumes ----
   useEffect(() => {
     const ctx = ensureAudioContext();
-    const eqInput = getEqInput();
-    if (!eqInput) return;
+    const chainInput = getChainInput();
+    if (!chainInput) return;
 
     const activeKeys = new Set<string>();
 
@@ -171,14 +207,17 @@ export function VoiceAudioRenderer() {
           audioEl.srcObject = new MediaStream([mst]);
           // Volume is controlled exclusively by the GainNode
           audioEl.volume = 1.0;
+          // Belt-and-suspenders: also mute the element when deafened in case
+          // createMediaElementSource doesn't fully capture audio in WebView2
+          audioEl.muted = isDeafened;
 
           const sourceNode = ctx.createMediaElementSource(audioEl);
           const gainNode = ctx.createGain();
           gainNode.gain.value = targetVolume;
 
-          // Wire: source → gainNode → EQ chain input
+          // Wire: source → gainNode → effect chain input
           sourceNode.connect(gainNode);
-          gainNode.connect(eqInput);
+          gainNode.connect(chainInput);
 
           audioEl.play().catch((err) => {
             console.warn('[VoiceAudioRenderer] audio.play() failed for', entryKey, err);
@@ -194,6 +233,7 @@ export function VoiceAudioRenderer() {
 
       // Apply volume (O(1), no reconnection needed)
       entry.gainNode.gain.value = targetVolume;
+      entry.audioEl.muted = isDeafened;
     }
 
     // Remove entries for tracks that no longer exist (participant left, track unsubscribed)
@@ -212,8 +252,8 @@ export function VoiceAudioRenderer() {
         cleanupEntry(entry);
       }
       entriesRef.current.clear();
-      // Do NOT close sharedCtx — it's a module singleton that persists across
-      // voice reconnects. It will be GC'd on page unload.
+      // Do NOT close sharedCtx or dispose effectChain — they're module
+      // singletons that persist across voice reconnects.
     };
   }, []);
 

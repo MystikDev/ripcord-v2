@@ -24,7 +24,10 @@ if (localStorage.getItem('ripcord-force-logout') === 'true') {
 const currentVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
 const lastVersion = localStorage.getItem('ripcord-last-version');
 if (lastVersion && lastVersion !== currentVersion && currentVersion !== 'dev') {
+  console.info(`[clear-session] Version changed: ${lastVersion} → ${currentVersion}, forcing logout`);
   localStorage.removeItem('ripcord-auth');
+  // Also clear remember-me so the session check below doesn't re-hydrate
+  localStorage.removeItem('ripcord-remember-me');
 }
 localStorage.setItem('ripcord-last-version', currentVersion);
 
