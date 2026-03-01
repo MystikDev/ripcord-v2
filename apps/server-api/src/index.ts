@@ -18,6 +18,7 @@ import { invitesRouter } from './routes/invites.js';
 import { usersRouter } from './routes/users.js';
 import { dmRouter } from './routes/dm.js';
 import { relationshipRouter } from './routes/relationships.js';
+import { feedbackRouter } from './routes/feedback.js';
 import { redis } from './redis.js';
 import { logger } from './logger.js';
 import { rateLimit } from './middleware/rate-limit.js';
@@ -61,6 +62,8 @@ app.use(cors({
   },
   credentials: true,
 }));
+// Bug report endpoint needs a larger JSON body limit for base64 screenshots
+app.use('/v1/feedback', express.json({ limit: '10mb' }));
 // Parse raw binary bodies for image uploads (must come BEFORE express.json)
 app.use('/v1/hubs', express.raw({
   type: ['image/jpeg', 'image/png', 'image/gif'],
@@ -123,6 +126,7 @@ app.use('/v1', invitesRouter);
 app.use('/v1/users', usersRouter);
 app.use('/v1/dm', dmRouter);
 app.use('/v1/relationships', relationshipRouter);
+app.use('/v1/feedback', feedbackRouter);
 
 // ---------------------------------------------------------------------------
 // Error handler (must be last)

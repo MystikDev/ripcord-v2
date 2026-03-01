@@ -12,6 +12,7 @@ import { ChatArea } from './chat-area';
 import { MemberListPanel } from './member-list-panel';
 import { IncomingCall } from '../voice/incoming-call';
 import { DmCallPanel } from '../voice/dm-call-panel';
+import { BugReportButton } from '../ui/bug-report-dialog';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useHubStore } from '../../stores/server-store';
 import { useThemeOverrides } from '../../hooks/use-theme-overrides';
@@ -50,6 +51,9 @@ export function AppShell() {
         <IncomingCall />
         <DmCallPanel />
       </div>
+
+      {/* Floating bug report button (lower-right, above toasts) */}
+      <BugReportButton />
     </div>
   );
 }

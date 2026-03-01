@@ -307,3 +307,21 @@ export async function deleteHubBanner(hubId: string): Promise<void> {
 export function getHubBannerUrl(hubId: string): string {
   return `/v1/hubs/${hubId}/banner`;
 }
+
+// ---------------------------------------------------------------------------
+// Bug reports
+// ---------------------------------------------------------------------------
+
+/** Submit a bug report. Returns a unique bug ID for tracking. */
+export async function submitBugReport(data: {
+  component: string;
+  description: string;
+  screenshot?: string;
+}): Promise<{ bugId: string }> {
+  const res = await apiFetch<{ bugId: string }>('/v1/feedback', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to submit bug report');
+  return res.data;
+}

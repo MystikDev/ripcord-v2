@@ -22,6 +22,7 @@ export { InvitePage } from './components/invite/invite-page';
 // UI primitives
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs';
 export { WhatsNewDialog } from './components/ui/whats-new-dialog';
+export { BugReportButton } from './components/ui/bug-report-dialog';
 
 // Changelog
 export { getChangelogForVersion } from './lib/changelog';

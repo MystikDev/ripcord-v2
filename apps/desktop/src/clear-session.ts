@@ -20,6 +20,14 @@ if (localStorage.getItem('ripcord-force-logout') === 'true') {
   localStorage.removeItem('ripcord-force-logout');
 }
 
+// Force logout on version change (catches manual updates that bypass the in-app updater)
+const currentVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
+const lastVersion = localStorage.getItem('ripcord-last-version');
+if (lastVersion && lastVersion !== currentVersion && currentVersion !== 'dev') {
+  localStorage.removeItem('ripcord-auth');
+}
+localStorage.setItem('ripcord-last-version', currentVersion);
+
 if (!sessionStorage.getItem('ripcord-session')) {
   // Only wipe auth state if the user hasn't opted into "Remember me"
   if (localStorage.getItem('ripcord-remember-me') !== 'true') {

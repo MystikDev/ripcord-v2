@@ -20,6 +20,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.36',
+    date: '2026-02-28',
+    highlights: [
+      'Fixed voice channel ghosting — no more appearing in multiple channels when switching',
+      'Push-to-talk now works when app is minimized (polling fallback)',
+      'Auto-scroll to latest message when switching text channels',
+      'Avatar upload moved to sidebar bouncing icon',
+      'Admin roles now sort above members in member list',
+      'Desktop CSS synced with ORBIT design system (animations restored)',
+      'Bug report button — report issues directly from the app',
+    ],
+  },
+  {
     version: '0.9.23',
     date: '2026-02-27',
     highlights: [
