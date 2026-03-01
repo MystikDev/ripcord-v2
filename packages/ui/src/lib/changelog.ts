@@ -20,6 +20,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.39',
+    date: '2026-03-01',
+    highlights: [
+      'Collapsible hub sidebar with pin/unpin toggle',
+      'Scrollable role list in Manage Roles dialog — no more clipping',
+      'Patch notes and auto-update versioning fixed',
+      'Force re-login on version change (including manual MSI installs)',
+      'Bug report button in lower-right corner',
+    ],
+  },
+  {
     version: '0.9.36',
     date: '2026-02-28',
     highlights: [
