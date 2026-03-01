@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.40',
+    date: '2026-03-01',
+    highlights: [
+      'Screen share: removed VP9 lock — codec auto-negotiates for better compatibility',
+      'Screen share: enabled simulcast — viewers with slow connections get adaptive quality',
+      'Screen share: capped bitrate (6 Mbps detail, 8 Mbps motion) to prevent wifi choking',
+      'Screen share: speaker device selector — choose audio output while viewing',
+    ],
+  },
+  {
     version: '0.9.39',
     date: '2026-03-01',
     highlights: [

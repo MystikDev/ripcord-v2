@@ -28,6 +28,61 @@ const QUALITY_MAP: Record<QualityOption, VideoQuality> = {
 };
 
 // ---------------------------------------------------------------------------
+// Speaker Selector (inline for screen share audio output)
+// ---------------------------------------------------------------------------
+
+function SpeakerSelector({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | null> }) {
+  const speakerDeviceId = useSettingsStore((s) => s.selectedSpeakerDeviceId);
+  const setSpeakerId = useSettingsStore((s) => s.setSelectedSpeakerDeviceId);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+
+  // Enumerate audio output devices
+  useEffect(() => {
+    let cancelled = false;
+    const enumerate = async () => {
+      try {
+        const all = await navigator.mediaDevices.enumerateDevices();
+        if (!cancelled) setDevices(all.filter((d) => d.kind === 'audiooutput'));
+      } catch { /* ignore */ }
+    };
+    enumerate();
+    navigator.mediaDevices.addEventListener('devicechange', enumerate);
+    return () => {
+      cancelled = true;
+      navigator.mediaDevices.removeEventListener('devicechange', enumerate);
+    };
+  }, []);
+
+  // Apply setSinkId whenever speaker changes
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !speakerDeviceId) return;
+    if ('setSinkId' in el) {
+      (el as HTMLAudioElement & { setSinkId: (id: string) => Promise<void> })
+        .setSinkId(speakerDeviceId)
+        .catch(() => {});
+    }
+  }, [speakerDeviceId, audioRef]);
+
+  if (devices.length === 0) return null;
+
+  return (
+    <select
+      value={speakerDeviceId ?? ''}
+      onChange={(e) => setSpeakerId(e.target.value || null)}
+      className="rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3 max-w-[120px]"
+      title="Speaker device"
+    >
+      {devices.map((d) => (
+        <option key={d.deviceId} value={d.deviceId}>
+          {d.label || `Speaker ${d.deviceId.slice(0, 8)}`}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -213,17 +268,20 @@ export function ScreenShareView() {
           <SharerName identity={sharerIdentity} />&apos;s screen
         </span>
         <div className="flex items-center gap-1.5">
-          {/* Quality selector */}
+          {/* Speaker + Quality selectors (viewers only) */}
           {!isLocalSharing && (
-            <select
-              value={quality}
-              onChange={(e) => setViewerQuality(e.target.value as QualityOption)}
-              className="rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3"
-            >
-              <option value="720p">720p</option>
-              <option value="1080p">1080p</option>
-              <option value="Source">Source</option>
-            </select>
+            <>
+              <SpeakerSelector audioRef={audioRef} />
+              <select
+                value={quality}
+                onChange={(e) => setViewerQuality(e.target.value as QualityOption)}
+                className="rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3"
+              >
+                <option value="720p">720p</option>
+                <option value="1080p">1080p</option>
+                <option value="Source">Source</option>
+              </select>
+            </>
           )}
           {/* Stop sharing — always visible when LOCAL user is sharing */}
           {isLocalSharing && (

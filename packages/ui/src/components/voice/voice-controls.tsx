@@ -155,8 +155,13 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
       const motionMultiplier = options.contentHint === 'motion' ? 2.0 : 1.0;
       const fpsMultiplier = options.frameRate / 30;
       // Base: ~4 Mbps per megapixel at 30 fps for detail content
-      const maxBitrate = Math.round(
-        (pixels / 1_000_000) * 4_000_000 * fpsMultiplier * motionMultiplier,
+      // Hard caps prevent unsustainable bitrates on wifi
+      const BITRATE_CAP_DETAIL = 6_000_000;
+      const BITRATE_CAP_MOTION = 8_000_000;
+      const cap = options.contentHint === 'motion' ? BITRATE_CAP_MOTION : BITRATE_CAP_DETAIL;
+      const maxBitrate = Math.min(
+        Math.round((pixels / 1_000_000) * 4_000_000 * fpsMultiplier * motionMultiplier),
+        cap,
       );
 
       await localParticipantRef.current.setScreenShareEnabled(
@@ -173,8 +178,7 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
             maxBitrate,
             maxFramerate: options.frameRate,
           },
-          simulcast: false,
-          videoCodec: 'vp9',
+          simulcast: true,
         },
       );
     } catch (err) {
