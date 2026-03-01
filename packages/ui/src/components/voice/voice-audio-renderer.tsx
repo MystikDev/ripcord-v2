@@ -8,10 +8,14 @@
  *
  * All audio is routed through a shared Web Audio graph:
  *
- *   <audio> → MediaElementSource → GainNode (per-user volume)
- *           → EffectChain (compressor, reverb, etc.)
- *           → BiquadFilter (bass) → BiquadFilter (mid) → BiquadFilter (treble)
- *           → AudioContext.destination
+ *   MediaStream → MediaStreamSource → GainNode (per-user volume)
+ *               → EffectChain (compressor, reverb, etc.)
+ *               → BiquadFilter (bass) → BiquadFilter (mid) → BiquadFilter (treble)
+ *               → AudioContext.destination
+ *
+ * Uses createMediaStreamSource (NOT createMediaElementSource) to feed audio
+ * directly into the AudioContext — avoids WebView2 bug where <audio> elements
+ * bypass the Web Audio graph entirely.
  *
  * GainNode supports 0–2.0 range (200 % boost). EQ bypass = all filter gains
  * set to 0 dB (flat response). Must be rendered inside a <LiveKitRoom> provider.
@@ -108,13 +112,29 @@ export function getSharedAudioContext(): AudioContext | null {
   return sharedCtx;
 }
 
+/**
+ * Route AudioContext output to a specific speaker device.
+ * Uses the AudioContext.setSinkId API (Chromium 110+).
+ */
+export function setAudioOutputDevice(deviceId: string): void {
+  if (!sharedCtx) return;
+  if ('setSinkId' in sharedCtx) {
+    (sharedCtx as AudioContext & { setSinkId: (id: string) => Promise<void> })
+      .setSinkId(deviceId)
+      .catch((err) => {
+        console.warn('[VoiceAudioRenderer] Failed to set audio output device:', err);
+      });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Per-user audio entry
 // ---------------------------------------------------------------------------
 
 interface AudioEntry {
-  audioEl: HTMLAudioElement;
-  sourceNode: MediaElementAudioSourceNode;
+  /** Hold a reference to prevent the MediaStream from being garbage collected. */
+  stream: MediaStream;
+  sourceNode: MediaStreamAudioSourceNode;
   gainNode: GainNode;
   /** ID of the MediaStreamTrack this entry is playing. */
   trackId: string;
@@ -124,8 +144,6 @@ function cleanupEntry(entry: AudioEntry): void {
   try {
     entry.gainNode.disconnect();
     entry.sourceNode.disconnect();
-    entry.audioEl.pause();
-    entry.audioEl.srcObject = null;
   } catch {
     // Ignore cleanup errors
   }
@@ -203,15 +221,10 @@ export function VoiceAudioRenderer() {
 
       if (!entry) {
         try {
-          const audioEl = new Audio();
-          audioEl.srcObject = new MediaStream([mst]);
-          // Volume is controlled exclusively by the GainNode
-          audioEl.volume = 1.0;
-          // Belt-and-suspenders: also mute the element when deafened in case
-          // createMediaElementSource doesn't fully capture audio in WebView2
-          audioEl.muted = isDeafened;
-
-          const sourceNode = ctx.createMediaElementSource(audioEl);
+          // Feed the MediaStream directly into Web Audio — no intermediate
+          // <audio> element which can bypass the graph in WebView2.
+          const stream = new MediaStream([mst]);
+          const sourceNode = ctx.createMediaStreamSource(stream);
           const gainNode = ctx.createGain();
           gainNode.gain.value = targetVolume;
 
@@ -219,11 +232,7 @@ export function VoiceAudioRenderer() {
           sourceNode.connect(gainNode);
           gainNode.connect(chainInput);
 
-          audioEl.play().catch((err) => {
-            console.warn('[VoiceAudioRenderer] audio.play() failed for', entryKey, err);
-          });
-
-          entry = { audioEl, sourceNode, gainNode, trackId: mst.id };
+          entry = { stream, sourceNode, gainNode, trackId: mst.id };
           entriesRef.current.set(entryKey, entry);
         } catch (err) {
           console.warn('[VoiceAudioRenderer] Failed to create audio entry for', entryKey, err);
@@ -233,7 +242,6 @@ export function VoiceAudioRenderer() {
 
       // Apply volume (O(1), no reconnection needed)
       entry.gainNode.gain.value = targetVolume;
-      entry.audioEl.muted = isDeafened;
     }
 
     // Remove entries for tracks that no longer exist (participant left, track unsubscribed)

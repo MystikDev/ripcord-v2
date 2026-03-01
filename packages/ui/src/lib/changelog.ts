@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.9.43',
+    date: '2026-03-01',
+    highlights: [
+      'Fixed EQ, per-user volume, and deafen — replaced createMediaElementSource with createMediaStreamSource to bypass WebView2 audio routing bug',
+      'Audio now feeds directly into the Web Audio graph, ensuring all processing (volume, EQ, effects, deafen) takes effect',
+      'Speaker device selection now routes through AudioContext.setSinkId for the custom audio pipeline',
+    ],
+  },
+  {
     version: '0.9.42',
     date: '2026-03-01',
     highlights: [
