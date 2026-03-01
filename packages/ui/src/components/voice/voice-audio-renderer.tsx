@@ -15,7 +15,8 @@
  *
  * Uses createMediaStreamSource (NOT createMediaElementSource) to feed audio
  * directly into the AudioContext — avoids WebView2 bug where <audio> elements
- * bypass the Web Audio graph entirely.
+ * bypass the Web Audio graph entirely. A muted <audio> element is kept as a
+ * "keep-alive" to prevent Chromium from garbage-collecting the MediaStreamTrack.
  *
  * GainNode supports 0–2.0 range (200 % boost). EQ bypass = all filter gains
  * set to 0 dB (flat response). Must be rendered inside a <LiveKitRoom> provider.
@@ -134,6 +135,8 @@ export function setAudioOutputDevice(deviceId: string): void {
 interface AudioEntry {
   /** Hold a reference to prevent the MediaStream from being garbage collected. */
   stream: MediaStream;
+  /** Muted <audio> element — keeps the MediaStreamTrack alive in Chromium/WebView2. */
+  keepAlive: HTMLAudioElement;
   sourceNode: MediaStreamAudioSourceNode;
   gainNode: GainNode;
   /** ID of the MediaStreamTrack this entry is playing. */
@@ -142,6 +145,8 @@ interface AudioEntry {
 
 function cleanupEntry(entry: AudioEntry): void {
   try {
+    entry.keepAlive.pause();
+    entry.keepAlive.srcObject = null;
     entry.gainNode.disconnect();
     entry.sourceNode.disconnect();
   } catch {
@@ -155,7 +160,7 @@ function cleanupEntry(entry: AudioEntry): void {
 
 export function VoiceAudioRenderer() {
   const tracks = useTracks(
-    [Track.Source.Microphone, Track.Source.ScreenShareAudio, Track.Source.Unknown],
+    [Track.Source.Microphone, Track.Source.Unknown],
     { onlySubscribed: true },
   );
   const userVolumes = useSettingsStore((s) => s.userVolumes);
@@ -221,9 +226,16 @@ export function VoiceAudioRenderer() {
 
       if (!entry) {
         try {
-          // Feed the MediaStream directly into Web Audio — no intermediate
-          // <audio> element which can bypass the graph in WebView2.
           const stream = new MediaStream([mst]);
+
+          // Keep-alive: a muted <audio> element prevents Chromium/WebView2
+          // from garbage-collecting the MediaStreamTrack's audio data.
+          const keepAlive = new Audio();
+          keepAlive.srcObject = stream;
+          keepAlive.muted = true;
+          keepAlive.play().catch(() => {});
+
+          // Feed the MediaStream into Web Audio for volume/EQ/effects.
           const sourceNode = ctx.createMediaStreamSource(stream);
           const gainNode = ctx.createGain();
           gainNode.gain.value = targetVolume;
@@ -232,7 +244,7 @@ export function VoiceAudioRenderer() {
           sourceNode.connect(gainNode);
           gainNode.connect(chainInput);
 
-          entry = { stream, sourceNode, gainNode, trackId: mst.id };
+          entry = { stream, keepAlive, sourceNode, gainNode, trackId: mst.id };
           entriesRef.current.set(entryKey, entry);
         } catch (err) {
           console.warn('[VoiceAudioRenderer] Failed to create audio entry for', entryKey, err);

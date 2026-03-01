@@ -10,6 +10,9 @@ import { useEffect, useRef } from 'react';
 import { useTracks } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useVoiceStateStore } from '../stores/voice-state-store';
+import { useSettingsStore } from '../stores/settings-store';
+import { useAuthStore } from '../stores/auth-store';
+import { playScreenShareSound } from '../lib/notification-sounds';
 
 /** Stable empty array to avoid unnecessary store writes. */
 const EMPTY: string[] = [];
@@ -37,6 +40,17 @@ export function useSyncScreenSharing(): void {
       sharing.some((id, i) => id !== prev[i]);
 
     if (changed) {
+      // Play notification when someone NEW starts sharing (not local user)
+      if (sharing.length > prev.length) {
+        const soundsEnabled = useSettingsStore.getState().voiceNotificationSounds;
+        const localIdentity = useAuthStore.getState().userId;
+        const newSharers = sharing.filter((id) => !prev.includes(id));
+        const isOnlySelf = newSharers.length === 1 && newSharers[0] === localIdentity;
+        if (soundsEnabled && !isOnlySelf) {
+          playScreenShareSound();
+        }
+      }
+
       prevRef.current = sharing.length > 0 ? sharing : EMPTY;
       setScreenSharingUserIds(prevRef.current);
     }

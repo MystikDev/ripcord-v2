@@ -2,17 +2,18 @@
  * @module screen-share-view
  * Renders the active screen-share track in a video element with a header
  * overlay. Supports multiple simultaneous streams via a switcher bar and
- * auto-fallback when the active stream ends. Includes audio track
- * subscription, quality selector, and live FPS overlay.
+ * auto-fallback when the active stream ends. Includes audio routing through
+ * the shared Web Audio graph, quality selector, PiP pop-out, and live FPS overlay.
  */
 'use client';
 
 import { useTracks, useLocalParticipant } from '@livekit/components-react';
-import { Track, VideoQuality, RemoteTrackPublication } from 'livekit-client';
+import { Track, VideoQuality, RemoteTrackPublication, RemoteAudioTrack } from 'livekit-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVoiceStateStore } from '../../stores/voice-state-store';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useMemberStore } from '../../stores/member-store';
+import { getSharedAudioContext } from './voice-audio-renderer';
 import clsx from 'clsx';
 
 // ---------------------------------------------------------------------------
@@ -28,58 +29,24 @@ const QUALITY_MAP: Record<QualityOption, VideoQuality> = {
 };
 
 // ---------------------------------------------------------------------------
-// Speaker Selector (inline for screen share audio output)
+// Screen share audio entry (routed through shared Web Audio graph)
 // ---------------------------------------------------------------------------
 
-function SpeakerSelector({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | null> }) {
-  const speakerDeviceId = useSettingsStore((s) => s.selectedSpeakerDeviceId);
-  const setSpeakerId = useSettingsStore((s) => s.setSelectedSpeakerDeviceId);
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+interface ScreenShareAudioEntry {
+  stream: MediaStream;
+  keepAlive: HTMLAudioElement;
+  sourceNode: MediaStreamAudioSourceNode;
+  gainNode: GainNode;
+  trackId: string;
+}
 
-  // Enumerate audio output devices
-  useEffect(() => {
-    let cancelled = false;
-    const enumerate = async () => {
-      try {
-        const all = await navigator.mediaDevices.enumerateDevices();
-        if (!cancelled) setDevices(all.filter((d) => d.kind === 'audiooutput'));
-      } catch { /* ignore */ }
-    };
-    enumerate();
-    navigator.mediaDevices.addEventListener('devicechange', enumerate);
-    return () => {
-      cancelled = true;
-      navigator.mediaDevices.removeEventListener('devicechange', enumerate);
-    };
-  }, []);
-
-  // Apply setSinkId whenever speaker changes
-  useEffect(() => {
-    const el = audioRef.current;
-    if (!el || !speakerDeviceId) return;
-    if ('setSinkId' in el) {
-      (el as HTMLAudioElement & { setSinkId: (id: string) => Promise<void> })
-        .setSinkId(speakerDeviceId)
-        .catch(() => {});
-    }
-  }, [speakerDeviceId, audioRef]);
-
-  if (devices.length === 0) return null;
-
-  return (
-    <select
-      value={speakerDeviceId ?? ''}
-      onChange={(e) => setSpeakerId(e.target.value || null)}
-      className="rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3 max-w-[120px]"
-      title="Speaker device"
-    >
-      {devices.map((d) => (
-        <option key={d.deviceId} value={d.deviceId}>
-          {d.label || `Speaker ${d.deviceId.slice(0, 8)}`}
-        </option>
-      ))}
-    </select>
-  );
+function cleanupScreenShareAudio(entry: ScreenShareAudioEntry): void {
+  try {
+    entry.keepAlive.pause();
+    entry.keepAlive.srcObject = null;
+    entry.gainNode.disconnect();
+    entry.sourceNode.disconnect();
+  } catch { /* ignore */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -91,10 +58,13 @@ function SpeakerSelector({ audioRef }: { audioRef: React.RefObject<HTMLAudioElem
  * element. When multiple participants share simultaneously, renders a switcher
  * bar with tabs for each sharer. The local user always sees a "Stop Sharing"
  * button when they are sharing, regardless of which stream they're viewing.
+ *
+ * Screen share audio is routed through the shared AudioContext (same as voice
+ * audio) so it respects EQ, speaker selection, and deafen.
  */
 export function ScreenShareView() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioEntryRef = useRef<ScreenShareAudioEntry | null>(null);
   const { localParticipant } = useLocalParticipant();
 
   // Subscribe to both video and audio screen share tracks
@@ -155,21 +125,76 @@ export function ScreenShareView() {
     };
   }, [screenTrack]);
 
-  // Attach / detach the audio track
+  // Route screen share audio through the shared Web Audio graph.
+  // Uses the same keep-alive pattern as VoiceAudioRenderer: a muted <audio>
+  // element prevents Chromium from GC-ing the stream, while
+  // createMediaStreamSource feeds audio into the Web Audio pipeline.
   useEffect(() => {
-    const el = audioRef.current;
-    if (!el || !audioTrack) return;
+    if (!audioTrack || !(audioTrack instanceof RemoteAudioTrack)) {
+      // No audio track — clean up any existing entry
+      if (audioEntryRef.current) {
+        cleanupScreenShareAudio(audioEntryRef.current);
+        audioEntryRef.current = null;
+      }
+      return;
+    }
 
-    audioTrack.attach(el);
+    const mst = audioTrack.mediaStreamTrack;
+    if (!mst || mst.readyState === 'ended') return;
+
+    // Skip if already tracking the same underlying track
+    if (audioEntryRef.current?.trackId === mst.id) return;
+
+    // Clean up previous entry if track changed
+    if (audioEntryRef.current) {
+      cleanupScreenShareAudio(audioEntryRef.current);
+      audioEntryRef.current = null;
+    }
+
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
+
+    // Resume if suspended
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    try {
+      const stream = new MediaStream([mst]);
+
+      // Keep-alive: muted <audio> prevents Chromium from GC-ing the stream
+      const keepAlive = new Audio();
+      keepAlive.srcObject = stream;
+      keepAlive.muted = true;
+      keepAlive.play().catch(() => {});
+
+      const sourceNode = ctx.createMediaStreamSource(stream);
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = isDeafened ? 0 : 1;
+
+      // Connect directly to destination (bypasses per-user volume/effects
+      // chain — screen share audio should play at normal volume)
+      sourceNode.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      audioEntryRef.current = { stream, keepAlive, sourceNode, gainNode, trackId: mst.id };
+    } catch (err) {
+      console.warn('[ScreenShareView] Failed to create audio entry:', err);
+    }
+
     return () => {
-      audioTrack.detach(el);
+      if (audioEntryRef.current) {
+        cleanupScreenShareAudio(audioEntryRef.current);
+        audioEntryRef.current = null;
+      }
     };
-  }, [audioTrack]);
+  }, [audioTrack]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mute screen-share audio when self-deafened
+  // Mute/unmute screen-share audio when self-deafened
   useEffect(() => {
-    const el = audioRef.current;
-    if (el) el.muted = isDeafened;
+    if (audioEntryRef.current) {
+      audioEntryRef.current.gainNode.gain.value = isDeafened ? 0 : 1;
+    }
   }, [isDeafened]);
 
   // Apply quality preference to the subscription
@@ -239,6 +264,16 @@ export function ScreenShareView() {
     }
   }, []);
 
+  const handlePip = useCallback(async () => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture();
+    } else if (document.pictureInPictureEnabled) {
+      el.requestPictureInPicture();
+    }
+  }, []);
+
   const handleStopSharing = useCallback(async () => {
     await localParticipant.setScreenShareEnabled(false);
   }, [localParticipant]);
@@ -275,10 +310,9 @@ export function ScreenShareView() {
           <SharerName identity={sharerIdentity} />&apos;s screen
         </span>
         <div className="flex items-center gap-1.5">
-          {/* Viewer controls: speaker + quality + fullscreen */}
+          {/* Viewer controls: quality + pip + fullscreen */}
           {!isLocalSharing && (
             <>
-              <SpeakerSelector audioRef={audioRef} />
               <select
                 value={quality}
                 onChange={(e) => setViewerQuality(e.target.value as QualityOption)}
@@ -288,6 +322,26 @@ export function ScreenShareView() {
                 <option value="1080p">1080p</option>
                 <option value="Source">Source</option>
               </select>
+              <button
+                onClick={handlePip}
+                className="flex items-center gap-1 rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3 hover:text-text-primary transition-colors"
+                title="Picture-in-Picture"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="1" y="2" width="14" height="12" rx="1.5" />
+                  <rect x="8" y="7" width="6" height="5" rx="1" fill="currentColor" stroke="none" />
+                </svg>
+                Pop Out
+              </button>
               <button
                 onClick={handleFullscreen}
                 className="flex items-center gap-1 rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border/50 outline-none cursor-pointer hover:bg-surface-3 hover:text-text-primary transition-colors"
@@ -332,16 +386,14 @@ export function ScreenShareView() {
         </div>
       )}
 
-      {/* Video */}
+      {/* Video — click to fullscreen */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        className="w-full max-h-64 object-contain bg-black"
+        onClick={handleFullscreen}
+        className="w-full max-h-[70vh] object-contain bg-black cursor-pointer"
       />
-
-      {/* Hidden audio element for screen share audio */}
-      <audio ref={audioRef} autoPlay />
     </div>
   );
 }
