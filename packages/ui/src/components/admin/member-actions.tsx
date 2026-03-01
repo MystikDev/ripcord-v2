@@ -9,6 +9,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogClose } from '../ui/dialog';
+import { ScrollArea } from '../ui/scroll-area';
 import { Input } from '../ui/input';
 import { useToast } from '../ui/toast';
 import { kickMember, banMember, assignRole, removeRole } from '../../lib/admin-api';
@@ -183,35 +184,37 @@ export function MemberActions({ hubId, member, onKicked, onBanned, onRolesChange
               No roles created yet. Create roles in the Roles tab first.
             </p>
           ) : (
-            <div className="space-y-1">
-              {allRoles.map((role) => {
-                const checked = memberRoleIds.has(role.id);
-                const isToggling = togglingRoleId === role.id;
-                return (
-                  <label
-                    key={role.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 hover:bg-surface-2/50"
-                  >
-                    {isToggling ? (
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-                    ) : (
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => handleToggleRole(role)}
-                        className="h-4 w-4 rounded border-border bg-surface-2 accent-accent"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm text-text-primary">{role.name}</span>
-                      <span className="ml-2 text-[10px] text-text-muted">
-                        Priority: {role.priority}
-                      </span>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
+            <ScrollArea className="max-h-[300px]">
+              <div className="space-y-1">
+                {allRoles.map((role) => {
+                  const checked = memberRoleIds.has(role.id);
+                  const isToggling = togglingRoleId === role.id;
+                  return (
+                    <label
+                      key={role.id}
+                      className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 hover:bg-surface-2/50"
+                    >
+                      {isToggling ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                      ) : (
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleToggleRole(role)}
+                          className="h-4 w-4 rounded border-border bg-surface-2 accent-accent"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-text-primary">{role.name}</span>
+                        <span className="ml-2 text-[10px] text-text-muted">
+                          Priority: {role.priority}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </ScrollArea>
           )}
           <div className="mt-4 flex justify-end">
             <DialogClose asChild>
