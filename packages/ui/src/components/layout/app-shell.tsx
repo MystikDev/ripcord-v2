@@ -106,8 +106,9 @@ export function AppShell() {
         <div className="fixed inset-0 z-50 warp-overlay" />
       )}
 
-      {/* Floating bug report button (lower-right, above toasts) */}
-      <BugReportButton />
+      {/* Floating bug report button (lower-right, above toasts).
+          Hidden in orbital / cosmos views — the HUD has its own inline bug icon. */}
+      {!showSystemView && !showCosmosView && <BugReportButton />}
     </div>
   );
 }

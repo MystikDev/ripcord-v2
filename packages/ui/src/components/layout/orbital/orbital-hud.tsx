@@ -10,6 +10,7 @@
 import { useState, useCallback } from 'react';
 import clsx from 'clsx';
 import { CommsPopover } from './comms-popover';
+import { BugReportButton } from '../../ui/bug-report-dialog';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -207,44 +208,10 @@ export function OrbitalHud({
         </div>
       )}
 
-      {/* ── 3. Spacer ── */}
+      {/* ── 3. Left Spacer ── */}
       <div className="flex-1" />
 
-      {/* ── 4. Comms Center Toggle (chat) ── */}
-      <button
-        type="button"
-        onClick={onCommsCenterToggle}
-        className={clsx(
-          'flex items-center gap-1.5 px-3 py-1 rounded-full shrink-0',
-          'font-mono text-[11px] transition-all duration-150',
-          'border cursor-pointer',
-          commsCenterOpen
-            ? 'border-cyan/40 bg-cyan/10 text-cyan'
-            : 'border-border bg-white/3 text-text-secondary hover:text-text-primary hover:border-white/15',
-        )}
-      >
-        {/* Chat icon */}
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          className="text-current shrink-0"
-        >
-          <path
-            d="M2 2h8a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5l-2 2V9H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span className="whitespace-nowrap">
-          {activeTextChannelName ? `# ${activeTextChannelName}` : 'Comms Center'}
-        </span>
-      </button>
-
-      {/* ── 5. COMMS Button (audio controls popover) ── */}
+      {/* ── 4. COMMS Button — centered (audio controls popover) ── */}
       <div className="relative shrink-0">
         <button
           type="button"
@@ -316,7 +283,44 @@ export function OrbitalHud({
         />
       </div>
 
-      {/* ── 6. User Pill ── */}
+      {/* ── 5. Right Spacer ── */}
+      <div className="flex-1" />
+
+      {/* ── 6. Comms Center Toggle (chat) ── */}
+      <button
+        type="button"
+        onClick={onCommsCenterToggle}
+        className={clsx(
+          'flex items-center gap-1.5 px-3 py-1 rounded-full shrink-0',
+          'font-mono text-[11px] transition-all duration-150',
+          'border cursor-pointer',
+          commsCenterOpen
+            ? 'border-cyan/40 bg-cyan/10 text-cyan'
+            : 'border-border bg-white/3 text-text-secondary hover:text-text-primary hover:border-white/15',
+        )}
+      >
+        {/* Chat icon */}
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          className="text-current shrink-0"
+        >
+          <path
+            d="M2 2h8a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5l-2 2V9H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="whitespace-nowrap">
+          {activeTextChannelName ? `# ${activeTextChannelName}` : 'Comms Center'}
+        </span>
+      </button>
+
+      {/* ── 7. User Pill ── */}
       <div
         className={clsx(
           'flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full shrink-0',
@@ -341,6 +345,9 @@ export function OrbitalHud({
           {currentUser.handle}
         </span>
       </div>
+
+      {/* ── 8. Bug Report Icon ── */}
+      <BugReportButton inline />
     </div>
   );
 }

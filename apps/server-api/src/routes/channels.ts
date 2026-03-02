@@ -144,3 +144,145 @@ channelsRouter.get(
     }
   },
 );
+
+/**
+ * DELETE /v1/hubs/:hubId/channels/:channelId
+ *
+ * Delete a channel. Requires MANAGE_CHANNELS permission.
+ *
+ * Response: { ok: true }
+ */
+channelsRouter.delete(
+  '/:channelId',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = req.auth!;
+      const hubId = req.params['hubId'] as string | undefined;
+      const channelId = req.params['channelId'] as string | undefined;
+
+      if (!hubId) throw ApiError.badRequest('Hub ID is required');
+      if (!channelId) throw ApiError.badRequest('Channel ID is required');
+
+      // Verify hub exists
+      const hub = await hubRepo.findById(hubId);
+      if (!hub) throw ApiError.notFound('Hub not found');
+
+      // Verify membership
+      const membership = await memberRepo.findOne(hubId, auth.sub);
+      if (!membership) throw ApiError.forbidden('You are not a member of this hub');
+
+      // Verify channel exists and belongs to this hub
+      const channel = await channelRepo.findById(channelId);
+      if (!channel || channel.hubId !== hubId) {
+        throw ApiError.notFound('Channel not found');
+      }
+
+      // Check MANAGE_CHANNELS permission
+      const hasPerm = await permissionService.checkPermission(
+        hubId,
+        channelId,
+        auth.sub,
+        Permission.MANAGE_CHANNELS,
+      );
+      if (!hasPerm) throw ApiError.forbidden('Missing MANAGE_CHANNELS permission');
+
+      await channelRepo.deleteById(channelId);
+
+      // Invalidate permission cache
+      await permissionService.invalidatePermissions(hubId);
+
+      // Audit event
+      auditRepo.create(
+        auth.sub,
+        auth.did,
+        AuditAction.CHANNEL_DELETED,
+        'channel',
+        channelId,
+        { name: channel.name, type: channel.type, hubId },
+        hubId,
+      ).catch((err: unknown) => {
+        logger.error({ err }, 'Failed to create channel deletion audit event');
+      });
+
+      logger.info({ channelId, hubId }, 'Channel deleted');
+
+      res.json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/**
+ * PATCH /v1/hubs/:hubId/channels/:channelId
+ *
+ * Rename a channel. Requires MANAGE_CHANNELS permission.
+ *
+ * Body: { name: string }
+ * Response: { ok: true, data: Channel }
+ */
+channelsRouter.patch(
+  '/:channelId',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const auth = req.auth!;
+      const hubId = req.params['hubId'] as string | undefined;
+      const channelId = req.params['channelId'] as string | undefined;
+      const { name } = req.body as { name?: string };
+
+      if (!hubId) throw ApiError.badRequest('Hub ID is required');
+      if (!channelId) throw ApiError.badRequest('Channel ID is required');
+      if (!name || typeof name !== 'string' || name.trim().length < 1) {
+        throw ApiError.badRequest('Channel name is required');
+      }
+
+      // Verify hub exists
+      const hub = await hubRepo.findById(hubId);
+      if (!hub) throw ApiError.notFound('Hub not found');
+
+      // Verify membership
+      const membership = await memberRepo.findOne(hubId, auth.sub);
+      if (!membership) throw ApiError.forbidden('You are not a member of this hub');
+
+      // Verify channel exists and belongs to this hub
+      const existing = await channelRepo.findById(channelId);
+      if (!existing || existing.hubId !== hubId) {
+        throw ApiError.notFound('Channel not found');
+      }
+
+      // Check MANAGE_CHANNELS permission
+      const hasPerm = await permissionService.checkPermission(
+        hubId,
+        channelId,
+        auth.sub,
+        Permission.MANAGE_CHANNELS,
+      );
+      if (!hasPerm) throw ApiError.forbidden('Missing MANAGE_CHANNELS permission');
+
+      const updated = await channelRepo.rename(channelId, name.trim());
+      if (!updated) throw ApiError.notFound('Channel not found');
+
+      // Audit event
+      auditRepo.create(
+        auth.sub,
+        auth.did,
+        AuditAction.CHANNEL_UPDATED,
+        'channel',
+        channelId,
+        { oldName: existing.name, newName: name.trim(), hubId },
+        hubId,
+      ).catch((err: unknown) => {
+        logger.error({ err }, 'Failed to create channel rename audit event');
+      });
+
+      logger.info({ channelId, hubId, newName: name.trim() }, 'Channel renamed');
+
+      const body: ApiResponse<Channel> = { ok: true, data: updated };
+      res.json(body);
+    } catch (err) {
+      next(err);
+    }
+  },
+);

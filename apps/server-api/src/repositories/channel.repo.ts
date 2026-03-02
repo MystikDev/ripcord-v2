@@ -77,3 +77,33 @@ export async function findByHubId(hubId: string): Promise<Channel[]> {
   );
   return rows.map(toChannel);
 }
+
+/**
+ * Delete a channel by its primary key.
+ *
+ * @param id - Channel UUID.
+ * @returns True if a row was deleted, false if not found.
+ */
+export async function deleteById(id: string): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    `DELETE FROM channels WHERE id = $1 RETURNING id`,
+    [id],
+  );
+  return rows.length > 0;
+}
+
+/**
+ * Rename a channel.
+ *
+ * @param id - Channel UUID.
+ * @param name - New display name.
+ * @returns The updated channel, or null if not found.
+ */
+export async function rename(id: string, name: string): Promise<Channel | null> {
+  const row = await queryOne<ChannelRow>(
+    `UPDATE channels SET name = $1 WHERE id = $2
+     RETURNING id, hub_id, type, name, is_private, created_at`,
+    [name, id],
+  );
+  return row ? toChannel(row) : null;
+}

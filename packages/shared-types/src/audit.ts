@@ -51,6 +51,8 @@ export const AuditAction = {
   HUB_UPDATED: "HUB_UPDATED",
   /** A channel was deleted from a hub. */
   CHANNEL_DELETED: "CHANNEL_DELETED",
+  /** A channel was renamed. */
+  CHANNEL_UPDATED: "CHANNEL_UPDATED",
   /** A new role was created in a hub. */
   ROLE_CREATED: "ROLE_CREATED",
   /** A role was updated in a hub. */
