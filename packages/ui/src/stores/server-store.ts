@@ -63,6 +63,9 @@ export interface HubState {
   /** Whether the user is viewing the DM list (home screen). */
   isDmView: boolean;
 
+  /** Whether the full-screen solar system view is active (true = immersive, false = 3-column chat). */
+  systemViewActive: boolean;
+
   /** Replace the hub list. */
   setHubs: (hubs: Hub[]) => void;
   /** Switch the active hub, clearing channels and selection. Exits DM view. */
@@ -81,6 +84,9 @@ export interface HubState {
   /** Enter DM view (home screen), clearing hub selection. */
   enterDmView: () => void;
 
+  /** Set the solar system immersive view active state. */
+  setSystemViewActive: (active: boolean) => void;
+
   /** Reset all hub/channel state. */
   reset: () => void;
 }
@@ -98,24 +104,30 @@ export const useHubStore = create<HubState>()((set, get) => ({
   dmChannels: [],
   activeDmChannelId: null,
   isDmView: false,
+  systemViewActive: true,
 
   setHubs: (hubs) => set({ hubs }),
 
   setActiveHub: (id) => {
     // No-op when clicking the already-active hub to avoid wiping channels
-    if (get().activeHubId === id) return;
+    if (get().activeHubId === id) {
+      // Still allow returning to system view if already on this hub
+      set({ systemViewActive: true });
+      return;
+    }
     set({
       activeHubId: id,
       activeChannelId: null,
       channels: [],
       isDmView: false,
       activeDmChannelId: null,
+      systemViewActive: true,
     });
   },
 
   setChannels: (channels) => set({ channels }),
 
-  setActiveChannel: (id) => set({ activeChannelId: id }),
+  setActiveChannel: (id) => set({ activeChannelId: id, systemViewActive: false }),
 
   setPendingVoiceJoin: (channelId) => set({ pendingVoiceJoin: channelId }),
 
@@ -138,8 +150,11 @@ export const useHubStore = create<HubState>()((set, get) => ({
       activeChannelId: null,
       activeDmChannelId: null,
       channels: [],
+      systemViewActive: false,
     });
   },
+
+  setSystemViewActive: (active) => set({ systemViewActive: active }),
 
   reset: () =>
     set({
@@ -151,5 +166,6 @@ export const useHubStore = create<HubState>()((set, get) => ({
       dmChannels: [],
       activeDmChannelId: null,
       isDmView: false,
+      systemViewActive: true,
     }),
 }));

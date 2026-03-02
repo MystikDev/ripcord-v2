@@ -64,7 +64,7 @@ export function OnboardingFlow({ open, onComplete }: OnboardingFlowProps) {
           body: JSON.stringify({ name: trimmed }),
         },
       );
-      if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to create hub');
+      if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to create solar system');
 
       const hubData = (res.data as unknown as { data?: { id: string; name: string; ownerUserId: string } })?.data ?? res.data;
       const newHub = {
@@ -74,10 +74,10 @@ export function OnboardingFlow({ open, onComplete }: OnboardingFlowProps) {
       };
       setHubs([...hubs, newHub]);
       setActiveHub(newHub.id);
-      toast.success(`Hub "${newHub.name}" created!`);
+      toast.success(`Solar system "${newHub.name}" created!`);
       onComplete();
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to create hub');
+      setCreateError(err instanceof Error ? err.message : 'Failed to create solar system');
     } finally {
       setCreating(false);
     }
@@ -108,7 +108,7 @@ export function OnboardingFlow({ open, onComplete }: OnboardingFlowProps) {
       toast.success(`Joined "${result.hubName}"!`);
       onComplete();
     } catch (err) {
-      setJoinError(err instanceof Error ? err.message : 'Failed to join hub');
+      setJoinError(err instanceof Error ? err.message : 'Failed to join solar system');
     } finally {
       setJoining(false);
     }
@@ -120,19 +120,19 @@ export function OnboardingFlow({ open, onComplete }: OnboardingFlowProps) {
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl bg-surface-1 p-6 shadow-xl">
           <Dialog.Title className="sr-only">Onboarding</Dialog.Title>
-          <Dialog.Description className="sr-only">Get started by creating or joining a hub</Dialog.Description>
+          <Dialog.Description className="sr-only">Get started by creating or joining a solar system</Dialog.Description>
           {step === 'choice' && (
             <div className="space-y-6 text-center">
               <div>
                 <h2 className="text-xl font-bold text-text-primary">Welcome to Ripcord!</h2>
                 <p className="mt-2 text-sm text-text-muted">
-                  Get started by creating a hub or joining one with an invite code.
+                  Get started by creating a solar system or joining one with an invite code.
                 </p>
               </div>
 
               <div className="flex flex-col gap-3">
                 <Button onClick={() => setStep('create')} className="w-full">
-                  Create a Hub
+                  Create a Solar System
                 </Button>
                 <Button variant="secondary" onClick={() => setStep('join')} className="w-full">
                   Join with Invite Code
@@ -144,15 +144,15 @@ export function OnboardingFlow({ open, onComplete }: OnboardingFlowProps) {
           {step === 'create' && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-xl font-bold text-text-primary">Create a Hub</h2>
+                <h2 className="text-xl font-bold text-text-primary">Create a Solar System</h2>
                 <p className="mt-1 text-sm text-text-muted">
-                  Give your hub a name. You can always change it later.
+                  Give your solar system a name. You can always change it later.
                 </p>
               </div>
 
               <Input
-                label="Hub name"
-                placeholder="My Awesome Hub"
+                label="Solar system name"
+                placeholder="My Awesome Solar System"
                 value={hubName}
                 onChange={(e) => setHubName(e.target.value)}
                 error={createError}
@@ -170,7 +170,7 @@ export function OnboardingFlow({ open, onComplete }: OnboardingFlowProps) {
                   onClick={handleCreate}
                   disabled={!hubName.trim()}
                 >
-                  Create Hub
+                  Create Solar System
                 </Button>
               </div>
             </div>
@@ -179,7 +179,7 @@ export function OnboardingFlow({ open, onComplete }: OnboardingFlowProps) {
           {step === 'join' && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-xl font-bold text-text-primary">Join a Hub</h2>
+                <h2 className="text-xl font-bold text-text-primary">Join a Solar System</h2>
                 <p className="mt-1 text-sm text-text-muted">
                   Enter an invite code or paste an invite link.
                 </p>
@@ -204,7 +204,7 @@ export function OnboardingFlow({ open, onComplete }: OnboardingFlowProps) {
                   onClick={handleJoin}
                   disabled={!inviteCode.trim()}
                 >
-                  Join Hub
+                  Join Solar System
                 </Button>
               </div>
             </div>

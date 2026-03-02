@@ -59,7 +59,7 @@ export function CreateChannelDialog({ hubId, trigger }: { hubId: string; trigger
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent title="Create Channel" description="Add a new channel to this hub.">
+      <DialogContent title="Create Channel" description="Add a new channel to this solar system.">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Channel name"

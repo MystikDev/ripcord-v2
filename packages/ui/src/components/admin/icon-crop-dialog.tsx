@@ -48,7 +48,7 @@ export function IconCropDialog({
   imageType,
   onCropConfirm,
   aspect = 1,
-  title = 'Crop Hub Icon',
+  title = 'Crop Solar System Icon',
   outputWidth,
   outputHeight,
   fileName,

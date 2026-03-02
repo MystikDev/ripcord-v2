@@ -73,7 +73,7 @@ export function AddHubDialog({ trigger }: { trigger: ReactNode }) {
       setActiveHub(hub.id);
       handleOpenChange(false);
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to create hub');
+      setCreateError(err instanceof Error ? err.message : 'Failed to create solar system');
     } finally {
       setCreating(false);
     }
@@ -100,7 +100,7 @@ export function AddHubDialog({ trigger }: { trigger: ReactNode }) {
       setActiveHub(result.hubId);
       handleOpenChange(false);
     } catch (err) {
-      setJoinError(err instanceof Error ? err.message : 'Failed to join hub');
+      setJoinError(err instanceof Error ? err.message : 'Failed to join solar system');
     } finally {
       setJoining(false);
     }
@@ -108,12 +108,12 @@ export function AddHubDialog({ trigger }: { trigger: ReactNode }) {
 
   // ---- Dialog title / description per mode ----
   const titles: Record<Mode, string> = {
-    choose: 'Add a Hub',
-    create: 'Create a Hub',
-    join: 'Join a Hub',
+    choose: 'Add a Solar System',
+    create: 'Create a Solar System',
+    join: 'Join a Solar System',
   };
   const descriptions: Record<Mode, string> = {
-    choose: 'Create your own hub or join one with an invite.',
+    choose: 'Create your own solar system or join one with an invite.',
     create: 'Give your new community a name.',
     join: 'Enter an invite code or paste an invite link.',
   };
@@ -126,7 +126,7 @@ export function AddHubDialog({ trigger }: { trigger: ReactNode }) {
         {mode === 'choose' && (
           <div className="flex flex-col gap-3">
             <Button onClick={() => setMode('create')} className="w-full">
-              Create a Hub
+              Create a Solar System
             </Button>
             <Button variant="secondary" onClick={() => setMode('join')} className="w-full">
               Join with Invite Code
@@ -138,8 +138,8 @@ export function AddHubDialog({ trigger }: { trigger: ReactNode }) {
         {mode === 'create' && (
           <form onSubmit={handleCreate} className="space-y-4">
             <Input
-              label="Hub name"
-              placeholder="My Awesome Hub"
+              label="Solar system name"
+              placeholder="My Awesome Solar System"
               value={name}
               onChange={(e) => setName(e.target.value)}
               error={createError}
@@ -151,7 +151,7 @@ export function AddHubDialog({ trigger }: { trigger: ReactNode }) {
                 Back
               </Button>
               <Button type="submit" loading={creating} disabled={!name.trim()}>
-                Create Hub
+                Create Solar System
               </Button>
             </div>
           </form>
@@ -173,7 +173,7 @@ export function AddHubDialog({ trigger }: { trigger: ReactNode }) {
                 Back
               </Button>
               <Button type="submit" loading={joining} disabled={!inviteCode.trim()}>
-                Join Hub
+                Join Solar System
               </Button>
             </div>
           </form>

@@ -17,7 +17,7 @@ interface SwitcherItem {
   id: string;
   label: string;
   sublabel?: string;
-  group: 'Hubs' | 'Channels' | 'Direct Messages';
+  group: 'Solar Systems' | 'Channels' | 'Direct Messages';
   onSelect: () => void;
 }
 
@@ -44,7 +44,7 @@ function buildItems(
     items.push({
       id: `hub:${hub.id}`,
       label: hub.name,
-      group: 'Hubs',
+      group: 'Solar Systems',
       onSelect: () => setActiveHub(hub.id),
     });
   }

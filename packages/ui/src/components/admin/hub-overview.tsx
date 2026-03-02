@@ -26,13 +26,13 @@ export function HubOverview({ hubId }: { hubId: string }) {
   if (!hub) {
     return (
       <div className="py-8 text-center text-sm text-text-muted">
-        Hub not found.
+        Solar system not found.
       </div>
     );
   }
 
   const stats = [
-    { label: 'Hub Name', value: hub.name },
+    { label: 'Solar System Name', value: hub.name },
     { label: 'Owner', value: hub.ownerId ? hub.ownerId.slice(0, 8) + '…' : '—' },
     { label: 'Channels', value: String(channelCount) },
     { label: 'Members', value: memberCount },
@@ -60,7 +60,7 @@ export function HubOverview({ hubId }: { hubId: string }) {
 
       <div className="rounded-lg bg-surface-2/50 px-4 py-3">
         <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
-          Hub ID
+          Solar System ID
         </p>
         <p className="mt-1 font-mono text-xs text-text-secondary">
           {hubId}

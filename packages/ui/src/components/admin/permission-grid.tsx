@@ -24,7 +24,7 @@ const PERMISSION_GROUPS: { label: string; perms: PermDef[] }[] = [
     perms: [
       { name: 'View Channels', bit: 1 << 0, description: 'View channels and read message history' },
       { name: 'Manage Channels', bit: 1 << 3, description: 'Create, edit, or delete channels' },
-      { name: 'Manage Hub', bit: 1 << 5, description: 'Edit hub name, icon, and settings' },
+      { name: 'Manage Solar System', bit: 1 << 5, description: 'Edit solar system name, icon, and settings' },
     ],
   },
   {
@@ -49,7 +49,7 @@ const PERMISSION_GROUPS: { label: string; perms: PermDef[] }[] = [
     label: 'Admin',
     perms: [
       { name: 'Manage Roles', bit: 1 << 4, description: 'Create, edit, or delete roles' },
-      { name: 'Kick Members', bit: 1 << 6, description: 'Remove members from the hub' },
+      { name: 'Kick Members', bit: 1 << 6, description: 'Remove members from the solar system' },
       { name: 'Ban Members', bit: 1 << 7, description: 'Permanently ban members' },
       { name: 'Administrator', bit: (1 << 31) >>> 0, description: 'Bypasses ALL permission checks' },
     ],

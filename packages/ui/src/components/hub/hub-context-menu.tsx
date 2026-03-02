@@ -89,7 +89,7 @@ export function HubContextMenu({
       toast.success(`Left ${hubName}`);
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to leave hub');
+      toast.error(err instanceof Error ? err.message : 'Failed to leave solar system');
       setConfirmLeave(false);
       setLeaving(false);
     }
@@ -97,7 +97,7 @@ export function HubContextMenu({
 
   const handleCopyId = useCallback(() => {
     navigator.clipboard.writeText(hubId);
-    toast.success('Hub ID copied');
+    toast.success('Solar system ID copied');
     onClose();
   }, [hubId, onClose, toast]);
 
@@ -146,7 +146,7 @@ export function HubContextMenu({
         className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-3 hover:text-text-primary"
       >
         <span className="shrink-0 text-text-muted"><CopyIcon /></span>
-        Copy Hub ID
+        Copy Solar System ID
       </button>
 
       <div className="mx-2 my-1 border-t border-border" />
@@ -179,10 +179,10 @@ export function HubContextMenu({
           onClick={handleLeaveHub}
           disabled={isOwner}
           className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-danger transition-colors hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40"
-          title={isOwner ? 'Hub owner cannot leave' : undefined}
+          title={isOwner ? 'Solar system owner cannot leave' : undefined}
         >
           <span className="shrink-0"><LeaveIcon /></span>
-          Leave Hub
+          Leave Solar System
         </button>
       )}
     </div>,

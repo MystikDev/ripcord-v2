@@ -236,3 +236,45 @@ body {
   border-radius: 50%;
   pointer-events: none;
 }
+
+/* ─── Solar System Animations ─── */
+
+/* Planet orbiting around SVG center */
+@keyframes planet-orbit {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Unread planet pulse (magenta glow) */
+@keyframes planet-unread {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(255, 0, 110, 0.3)); opacity: 0.7; }
+  50%      { filter: drop-shadow(0 0 14px rgba(255, 0, 110, 0.8)); opacity: 1; }
+}
+
+.planet-unread {
+  animation: planet-unread 2s ease-in-out infinite;
+}
+
+/* Warp transition overlay */
+@keyframes warp-in {
+  0% {
+    opacity: 1;
+    transform: scale(0.8);
+    background: radial-gradient(ellipse at center, rgba(0, 240, 255, 0.4) 0%, rgba(131, 56, 236, 0.2) 30%, transparent 70%);
+  }
+  40% {
+    opacity: 0.8;
+    transform: scale(1.2);
+    background: radial-gradient(ellipse at center, rgba(0, 240, 255, 0.6) 0%, rgba(131, 56, 236, 0.3) 40%, transparent 80%);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+    background: radial-gradient(ellipse at center, transparent 0%, transparent 100%);
+  }
+}
+
+.warp-overlay {
+  animation: warp-in 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}

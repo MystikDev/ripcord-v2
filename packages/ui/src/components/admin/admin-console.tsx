@@ -34,7 +34,7 @@ export function AdminConsole({ hubId, hubName, trigger }: AdminConsoleProps) {
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-surface-1 shadow-xl">
           <div className="flex items-center justify-between border-b border-border px-6 py-4">
             <Dialog.Title className="text-lg font-semibold text-text-primary">
-              {hubName} &mdash; Settings
+              {hubName} &mdash; Solar System Settings
             </Dialog.Title>
             <Dialog.Close className="rounded-md p-1 text-text-muted hover:bg-surface-2 hover:text-text-primary">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

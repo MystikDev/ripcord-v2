@@ -44,12 +44,12 @@ export function HubSettingsDialog({
         method: 'PATCH',
         body: JSON.stringify({ name: trimmed }),
       });
-      if (!res.ok) throw new Error(res.error ?? 'Failed to update hub');
+      if (!res.ok) throw new Error(res.error ?? 'Failed to update solar system');
       // Update in store
       setHubs(hubs.map((h) => (h.id === hub.id ? { ...h, name: trimmed } : h)));
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update hub');
+      setError(err instanceof Error ? err.message : 'Failed to update solar system');
     } finally {
       setLoading(false);
     }
@@ -58,10 +58,10 @@ export function HubSettingsDialog({
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setName(hub.name); }}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent title="Hub Settings" description="Manage your hub settings.">
+      <DialogContent title="Solar System Settings" description="Manage your solar system settings.">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            label="Hub name"
+            label="Solar system name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             error={error}

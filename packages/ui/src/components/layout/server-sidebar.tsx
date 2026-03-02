@@ -373,7 +373,7 @@ export function HubSidebar() {
                     'border border-white/10 transition-all duration-200',
                     'hover:rounded-2xl hover:bg-success/20 hover:border-success/50 hover:text-success hover:shadow-lg hover:shadow-success/10',
                   )}
-                  title="Add a Hub"
+                  title="Add a Solar System"
                 >
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M10 4v12M4 10h12" strokeLinecap="round" />

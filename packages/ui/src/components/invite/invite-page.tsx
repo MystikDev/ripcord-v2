@@ -75,7 +75,7 @@ export function InvitePage({ code }: { code: string }) {
       // Redirect to app after short delay
       setTimeout(() => router.push('/'), 1000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join hub');
+      setError(err instanceof Error ? err.message : 'Failed to join solar system');
     } finally {
       setJoining(false);
     }
@@ -137,7 +137,7 @@ export function InvitePage({ code }: { code: string }) {
                 onClick={handleJoin}
                 disabled={preview.isExpired || preview.isExhausted}
               >
-                Join Hub
+                Join Solar System
               </Button>
               <Button variant="ghost" onClick={() => router.push('/')}>
                 No Thanks
@@ -150,7 +150,7 @@ export function InvitePage({ code }: { code: string }) {
           <div className="text-center">
             <div className="mb-3 text-4xl">&#9989;</div>
             <h2 className="text-lg font-bold text-text-primary">Joined!</h2>
-            <p className="mt-2 text-sm text-text-muted">Redirecting you to your hub...</p>
+            <p className="mt-2 text-sm text-text-muted">Redirecting you to your solar system...</p>
           </div>
         )}
       </div>

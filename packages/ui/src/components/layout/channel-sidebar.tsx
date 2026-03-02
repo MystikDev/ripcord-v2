@@ -501,12 +501,29 @@ export function ChannelSidebar() {
         <h2 className="truncate text-base font-semibold display-text text-text-primary">
           {isDmView ? 'Direct Messages' : (activeHub?.name ?? 'Ripcord')}
         </h2>
+        <div className="flex items-center gap-1">
+        {activeHub && !isDmView && (
+          <Tooltip content="Solar System View" side="bottom">
+            <button
+              onClick={() => useHubStore.getState().setSystemViewActive(true)}
+              className="rounded-lg p-1.5 text-text-muted hover:text-accent hover:bg-white/5 transition-colors"
+              title="Solar System View"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8" cy="8" r="2" />
+                <circle cx="8" cy="8" r="5" opacity="0.4" />
+                <circle cx="8" cy="8" r="7" opacity="0.2" />
+                <circle cx="13" cy="5" r="1" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+          </Tooltip>
+        )}
         {activeHub && !isDmView && (
           <AdminConsole
             hubId={activeHub.id}
             hubName={activeHub.name}
             trigger={
-              <button className="rounded-lg p-1.5 text-text-muted hover:text-accent hover:bg-white/5 transition-colors" title="Hub Settings">
+              <button className="rounded-lg p-1.5 text-text-muted hover:text-accent hover:bg-white/5 transition-colors" title="Solar System Settings">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M8 10a2 2 0 100-4 2 2 0 000 4z" />
                   <path d="M13.5 8a5.5 5.5 0 01-.15 1.28l1.26.73a.5.5 0 01.12.64l-1.2 2.08a.5.5 0 01-.61.22l-1.49-.6a5.5 5.5 0 01-1.1.64l-.23 1.58a.5.5 0 01-.49.43H6.4a.5.5 0 01-.49-.42l-.23-1.59a5.5 5.5 0 01-1.1-.64l-1.49.6a.5.5 0 01-.61-.22l-1.2-2.08a.5.5 0 01.12-.64l1.26-.73A5.5 5.5 0 012.5 8c0-.44.05-.87.15-1.28l-1.26-.73a.5.5 0 01-.12-.64l1.2-2.08a.5.5 0 01.61-.22l1.49.6a5.5 5.5 0 011.1-.64l.23-1.58A.5.5 0 016.4 1h2.2a.5.5 0 01.49.42l.23 1.59a5.5 5.5 0 011.1.64l1.49-.6a.5.5 0 01.61.22l1.2 2.08a.5.5 0 01-.12.64l-1.26.73c.1.41.16.84.16 1.28z" />
@@ -515,6 +532,7 @@ export function ChannelSidebar() {
             }
           />
         )}
+        </div>
       </div>
 
       {/* Hub banner */}

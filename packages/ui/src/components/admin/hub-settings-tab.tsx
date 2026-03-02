@@ -101,7 +101,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
       await uploadHubIcon(hubId, croppedFile);
       const newIconUrl = `${getApiBaseUrl()}/v1/hubs/${hubId}/icon?t=${Date.now()}`;
       setHubs(hubs.map((h) => (h.id === hubId ? { ...h, iconUrl: newIconUrl } : h)));
-      toast.success('Hub icon updated');
+      toast.success('Solar system icon updated');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to upload icon');
     } finally {
@@ -122,7 +122,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
     try {
       await deleteHubIcon(hubId);
       setHubs(hubs.map((h) => (h.id === hubId ? { ...h, iconUrl: undefined } : h)));
-      toast.success('Hub icon removed');
+      toast.success('Solar system icon removed');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to remove icon');
     } finally {
@@ -163,7 +163,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
       await uploadHubBanner(hubId, croppedFile);
       const newBannerUrl = `${getApiBaseUrl()}/v1/hubs/${hubId}/banner?t=${Date.now()}`;
       setHubs(hubs.map((h) => (h.id === hubId ? { ...h, bannerUrl: newBannerUrl } : h)));
-      toast.success('Hub banner updated');
+      toast.success('Solar system banner updated');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to upload banner');
     } finally {
@@ -184,7 +184,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
     try {
       await deleteHubBanner(hubId);
       setHubs(hubs.map((h) => (h.id === hubId ? { ...h, bannerUrl: undefined } : h)));
-      toast.success('Hub banner removed');
+      toast.success('Solar system banner removed');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to remove banner');
     } finally {
@@ -212,9 +212,9 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
         method: 'PATCH',
         body: JSON.stringify({ name: trimmed }),
       });
-      if (!res.ok) throw new Error(res.error ?? 'Failed to update hub');
+      if (!res.ok) throw new Error(res.error ?? 'Failed to update solar system');
       setHubs(hubs.map((h) => (h.id === hubId ? { ...h, name: trimmed } : h)));
-      toast.success('Hub name updated');
+      toast.success('Solar system name updated');
     } catch (err) {
       setRenameError(err instanceof Error ? err.message : 'Failed to update');
     } finally {
@@ -229,14 +229,14 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
     setDeleteLoading(true);
     try {
       await deleteHub(hubId);
-      toast.success('Hub deleted');
+      toast.success('Solar system deleted');
       const remaining = hubs.filter((h) => h.id !== hubId);
       setHubs(remaining);
       if (remaining.length > 0) {
         setActiveHub(remaining[0]!.id);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete hub');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete solar system');
     } finally {
       setDeleteLoading(false);
     }
@@ -246,7 +246,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
     <div className="space-y-8">
       {/* Hub Icon section */}
       <section>
-        <h3 className="mb-3 text-base font-semibold text-text-primary">Hub Icon</h3>
+        <h3 className="mb-3 text-base font-semibold text-text-primary">Solar System Icon</h3>
         <div className="flex items-center gap-4">
           {/* Preview */}
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-surface-2 overflow-hidden">
@@ -311,7 +311,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
 
       {/* Hub Banner section */}
       <section>
-        <h3 className="mb-3 text-base font-semibold text-text-primary">Hub Banner</h3>
+        <h3 className="mb-3 text-base font-semibold text-text-primary">Solar System Banner</h3>
         <div className="flex flex-col gap-3">
           {/* Banner preview */}
           <div className="h-24 w-full max-w-md overflow-hidden rounded-lg bg-surface-2">
@@ -369,7 +369,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
             imageType={bannerCropType}
             onCropConfirm={handleBannerCropConfirm}
             aspect={5 / 2}
-            title="Crop Hub Banner"
+            title="Crop Solar System Banner"
             outputWidth={960}
             outputHeight={384}
             fileName="hub-banner"
@@ -379,7 +379,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
 
       {/* Rename section */}
       <section>
-        <h3 className="mb-3 text-base font-semibold text-text-primary">Hub Name</h3>
+        <h3 className="mb-3 text-base font-semibold text-text-primary">Solar System Name</h3>
         <form onSubmit={handleRename} className="max-w-md space-y-3">
           <Input
             value={name}
@@ -398,7 +398,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
         <section className="rounded-lg border border-danger/30 p-4">
           <h3 className="mb-1 text-base font-semibold text-danger">Danger Zone</h3>
           <p className="mb-4 text-sm text-text-muted">
-            Deleting a hub is permanent. All channels, messages, members, and roles will be removed.
+            Deleting a solar system is permanent. All channels, messages, members, and roles will be removed.
           </p>
 
           <div className="max-w-md space-y-3">
@@ -414,7 +414,7 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
               disabled={deleteConfirm !== hubName}
               onClick={handleDelete}
             >
-              Delete Hub
+              Delete Solar System
             </Button>
           </div>
         </section>
