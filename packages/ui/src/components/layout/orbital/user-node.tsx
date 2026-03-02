@@ -42,6 +42,10 @@ export interface UserNodeProps {
   isSpeaking: boolean;
   /** Whether this is the current user */
   isCurrentUser: boolean;
+  /** Whether this user is typing in a chat channel */
+  isTyping?: boolean;
+  /** Whether this user is screen sharing */
+  isScreenSharing?: boolean;
   /** Orbit color for the pulsing rings */
   orbitColor: string;
   /** Called on mouse enter with the event */
@@ -68,6 +72,8 @@ export function UserNode({
   isMuted,
   isSpeaking,
   isCurrentUser,
+  isTyping = false,
+  isScreenSharing = false,
   orbitColor,
   onMouseEnter,
   onMouseMove,
@@ -76,9 +82,6 @@ export function UserNode({
   const isOffline = status === 'offline';
   const statusColor = STATUS_COLOR[status];
 
-  // Speaking overrides the "you" cyan border — both use cyan but speaking adds
-  // a stronger glow and pulsing rings at a faster cadence.
-  const showCyanBorder = isSpeaking || isCurrentUser;
   const showRings = !isOffline;
 
   return (
@@ -114,6 +117,27 @@ export function UserNode({
     >
       {/* ── Avatar wrapper (relative for badges) ── */}
       <div className="relative">
+        {/* Typing indicator bubble */}
+        {isTyping && (
+          <div
+            className="absolute left-1/2 -translate-x-1/2 flex items-center gap-[3px] rounded-full px-[6px] py-[3px] z-30"
+            style={{
+              bottom: 'calc(100% + 6px)',
+              background: 'rgba(7, 9, 13, 0.92)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            {[0, 160, 320].map((delay) => (
+              <span
+                key={delay}
+                className="inline-block w-[4px] h-[4px] rounded-full bg-white/60"
+                style={{ animation: 'typing-dot 1.4s infinite', animationDelay: `${delay}ms` }}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Pulsing rings */}
         {showRings && (
           <>
@@ -129,7 +153,7 @@ export function UserNode({
                 height: '54px',
                 borderWidth: '1.5px',
                 borderStyle: 'solid',
-                borderColor: isSpeaking ? '#00e5ff' : orbitColor,
+                borderColor: isSpeaking ? '#34d399' : orbitColor,
               }}
             />
             <div
@@ -144,7 +168,7 @@ export function UserNode({
                 height: '68px',
                 borderWidth: '1.5px',
                 borderStyle: 'solid',
-                borderColor: isSpeaking ? '#00e5ff' : orbitColor,
+                borderColor: isSpeaking ? '#34d399' : orbitColor,
                 opacity: 0.5,
                 animationDelay: '0.4s',
               }}
@@ -166,11 +190,13 @@ export function UserNode({
               : `linear-gradient(135deg, ${gradientColors[0]}, ${gradientColors[1]})`,
             borderWidth: '2px',
             borderStyle: 'solid',
-            borderColor: showCyanBorder
-              ? '#00e5ff'
-              : 'rgba(255, 255, 255, 0.1)',
+            borderColor: isSpeaking
+              ? '#34d399'
+              : isCurrentUser
+                ? '#00e5ff'
+                : 'rgba(255, 255, 255, 0.1)',
             boxShadow: isSpeaking
-              ? '0 0 22px rgba(0, 229, 255, 0.5)'
+              ? '0 0 22px rgba(52, 211, 153, 0.5)'
               : isCurrentUser
                 ? '0 0 20px rgba(0, 229, 255, 0.4)'
                 : '0 4px 18px rgba(0, 0, 0, 0.5)',
@@ -216,6 +242,25 @@ export function UserNode({
                   strokeWidth="1.5"
                   strokeLinecap="round"
                 />
+              </svg>
+            </span>
+          )}
+
+          {/* Screen share badge — top-left */}
+          {isScreenSharing && (
+            <span
+              className="absolute -top-[3px] -left-[3px] w-[14px] h-[14px] rounded-full flex items-center justify-center"
+              style={{ backgroundColor: '#3b82f6' }}
+            >
+              <svg
+                width="8"
+                height="8"
+                viewBox="0 0 8 8"
+                fill="none"
+                className="text-white"
+              >
+                <rect x="1" y="1" width="6" height="4" rx="0.5" stroke="currentColor" strokeWidth="1" />
+                <line x1="3" y1="6" x2="5" y2="6" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" />
               </svg>
             </span>
           )}

@@ -23,6 +23,8 @@ import { usePresenceStore, type PresenceStatus } from '../../stores/presence-sto
 import { useMemberStore, type MemberInfo } from '../../stores/member-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useSettingsStore } from '../../stores/settings-store';
+import { useTypingStore } from '../../stores/typing-store';
+import { useOrbitLayoutStore } from '../../stores/orbit-layout-store';
 
 // ---------------------------------------------------------------------------
 // Orbit positioning presets (center as 0-1 fractions of viewport)
@@ -155,6 +157,10 @@ interface PositionedUser {
   orbitColor: string;
   /** Channel name the user is in, or 'NONE' */
   orbitName: string;
+  /** Whether the user is currently typing in any channel */
+  isTyping: boolean;
+  /** Whether the user is screen sharing */
+  isScreenSharing: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,8 +180,10 @@ export function SolarSystemView() {
   const voiceStates = useVoiceStateStore((s) => s.voiceStates);
   const speakingUserIds = useVoiceStateStore((s) => s.speakingUserIds);
   const connectedChannelId = useVoiceStateStore((s) => s.connectedChannelId);
+  const latencyMs = useVoiceStateStore((s) => s.latencyMs);
   const localMicMuted = useVoiceStateStore((s) => s.localMicMuted);
   const toggleMicFn = useVoiceStateStore((s) => s.toggleMicFn);
+  const toggleScreenShareFn = useVoiceStateStore((s) => s.toggleScreenShareFn);
   const setConnectedChannelId = useVoiceStateStore((s) => s.setConnectedChannelId);
 
   const presence = usePresenceStore((s) => s.presence);
@@ -193,7 +201,17 @@ export function SolarSystemView() {
   const isDeafened = useSettingsStore((s) => s.isDeafened);
   const toggleDeafen = useSettingsStore((s) => s.toggleDeafen);
 
+  const screenSharingUserIds = useVoiceStateStore((s) => s.screenSharingUserIds);
+  const typingData = useTypingStore((s) => s.typing);
+
+  const orbitOverrides = useOrbitLayoutStore((s) => s.overrides);
+  const setOrbitOverride = useOrbitLayoutStore((s) => s.setOverride);
+  const panOffset = useOrbitLayoutStore((s) => s.panOffset);
+  const setPanOffset = useOrbitLayoutStore((s) => s.setPanOffset);
+  const resetLayout = useOrbitLayoutStore((s) => s.resetAll);
+
   const canManageChannels = useHasPermission(1 << 3); // Permission.MANAGE_CHANNELS
+  const canCreateOrbit = useHasPermission(1 << 14); // Permission.CREATE_ORBIT
   const setChannels = useHubStore((s) => s.setChannels);
 
   const activeHub = hubs.find((h) => h.id === activeHubId);
@@ -238,6 +256,23 @@ export function SolarSystemView() {
     return () => ro.disconnect();
   }, []);
 
+  // -- Reset layout on hub switch -------------------------------------------
+  const prevHubIdRef = useRef(activeHubId);
+  useEffect(() => {
+    if (prevHubIdRef.current !== activeHubId) {
+      resetLayout();
+      prevHubIdRef.current = activeHubId;
+    }
+  }, [activeHubId, resetLayout]);
+
+  // -- Canvas pan drag refs --------------------------------------------------
+  const panDragRef = useRef<{
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+  } | null>(null);
+
   // -- Derived: voice channels and text channels -----------------------------
   const voiceChannels = useMemo(
     () => channels.filter((ch) => ch.type === 'voice'),
@@ -254,6 +289,26 @@ export function SolarSystemView() {
     () => new Set(speakingUserIds),
     [speakingUserIds],
   );
+
+  // -- Derived: screen sharing set for O(1) lookup ---------------------------
+  const screenSharingSet = useMemo(
+    () => new Set(screenSharingUserIds),
+    [screenSharingUserIds],
+  );
+
+  // -- Derived: typing user IDs (across all channels, exclude self) ----------
+  const typingUserIds = useMemo(() => {
+    const set = new Set<string>();
+    const now = Date.now();
+    for (const entries of Object.values(typingData)) {
+      for (const entry of entries) {
+        if (entry.expiresAt > now && entry.userId !== currentUserId) {
+          set.add(entry.userId);
+        }
+      }
+    }
+    return set;
+  }, [typingData, currentUserId]);
 
   // -- Derived: set of all user IDs in any voice channel ---------------------
   const usersInVoice = useMemo(() => {
@@ -281,7 +336,9 @@ export function SolarSystemView() {
       const memberCount = participants.length;
       const radius = Math.min(160, 80 + 15 * memberCount);
       const color = ORBIT_COLORS[i % ORBIT_COLORS.length]!;
-      const pos = presets[i] ?? { cx: 0.5, cy: 0.5 };
+      const preset = presets[i] ?? { cx: 0.5, cy: 0.5 };
+      // Apply user-dragged override if available
+      const pos = orbitOverrides[ch.id] ?? preset;
 
       return {
         channel: ch,
@@ -292,7 +349,7 @@ export function SolarSystemView() {
         memberIds: participants.map((p) => p.userId),
       };
     });
-  }, [voiceChannels, voiceStates]);
+  }, [voiceChannels, voiceStates, orbitOverrides]);
 
   // -- Derived: map channelId -> orbit color for quick lookup ----------------
   const orbitColorByChannel = useMemo(() => {
@@ -345,6 +402,8 @@ export function SolarSystemView() {
           isCurrentUser: p.userId === currentUserId,
           orbitColor: od.color,
           orbitName: od.channel.name,
+          isTyping: typingUserIds.has(p.userId),
+          isScreenSharing: screenSharingSet.has(p.userId),
         });
       });
     }
@@ -373,13 +432,15 @@ export function SolarSystemView() {
         isCurrentUser: m.userId === currentUserId,
         orbitColor: '#888',
         orbitName: 'NONE',
+        isTyping: typingUserIds.has(m.userId),
+        isScreenSharing: screenSharingSet.has(m.userId),
       });
     }
 
     return result;
   }, [
     orbitData, voiceStates, members, presence, speakingSet,
-    usersInVoice, currentUserId, viewSize,
+    usersInVoice, currentUserId, viewSize, typingUserIds, screenSharingSet,
   ]);
 
   // -- Derived: user positions map (for canvas bg) ---------------------------
@@ -516,6 +577,10 @@ export function SolarSystemView() {
     toggleMicFn?.();
   }, [toggleMicFn]);
 
+  const handleScreenShareToggle = useCallback(() => {
+    toggleScreenShareFn?.();
+  }, [toggleScreenShareFn]);
+
   const handleDisconnect = useCallback(() => {
     setPendingVoiceJoin(null);
     setConnectedChannelId(null);
@@ -530,10 +595,10 @@ export function SolarSystemView() {
         name: user.handle,
         status: tooltipStatus(user.status, user.isMuted, user.isCurrentUser),
         orbitName: user.orbitName,
-        ping: '\u2014',
+        ping: latencyMs !== null ? `${latencyMs}ms` : '\u2014',
       });
     },
-    [],
+    [latencyMs],
   );
 
   const handleUserMouseMove = useCallback((e: React.MouseEvent) => {
@@ -551,6 +616,53 @@ export function SolarSystemView() {
     [channels, setChannels],
   );
 
+  // -- Orbit drag handler (stores position override) -------------------------
+  const handleOrbitDrag = useCallback(
+    (channelId: string, newCx: number, newCy: number) => {
+      setOrbitOverride(channelId, { cx: newCx, cy: newCy });
+    },
+    [setOrbitOverride],
+  );
+
+  // -- Canvas pan handlers (drag on empty space) -----------------------------
+  const handleCanvasPanDown = useCallback(
+    (e: React.PointerEvent) => {
+      // Only pan when clicking the container itself, not children
+      if (e.target !== e.currentTarget) return;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      panDragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startPanX: panOffset.x,
+        startPanY: panOffset.y,
+      };
+    },
+    [panOffset],
+  );
+
+  const handleCanvasPanMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!panDragRef.current) return;
+      const dx = e.clientX - panDragRef.current.startX;
+      const dy = e.clientY - panDragRef.current.startY;
+      setPanOffset({
+        x: panDragRef.current.startPanX + dx,
+        y: panDragRef.current.startPanY + dy,
+      });
+    },
+    [setPanOffset],
+  );
+
+  const handleCanvasPanUp = useCallback(() => {
+    panDragRef.current = null;
+  }, []);
+
+  // -- Back to cosmos: also reset layout -------------------------------------
+  const handleBackToCosmos = useCallback(() => {
+    resetLayout();
+    clearActiveHub();
+  }, [resetLayout, clearActiveHub]);
+
   // -- Empty state (cosmos view now handles hub selection) -------------------
   if (!activeHub) return null;
 
@@ -560,59 +672,76 @@ export function SolarSystemView() {
       ref={containerRef}
       className="flex-1 relative overflow-hidden"
     >
-      {/* Layer 0: Canvas animated background */}
-      <OrbitalCanvasBg
-        orbits={canvasOrbits}
-        userPositions={userPositionsMap}
-        onlineUserIds={onlineUserIds}
-      />
-
-      {/* Layer 1: Grid overlay */}
+      {/* ── Pannable content layer ── */}
+      {/* Captures pointer events on empty space for canvas panning. */}
       <div
-        className="absolute inset-0 z-[1] pointer-events-none"
+        className="absolute inset-0 z-[2] cursor-grab active:cursor-grabbing"
         style={{
-          backgroundImage:
-            'linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px)',
-          backgroundSize: '70px 70px',
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
         }}
-      />
-
-      {/* Layer 2: Orbit zones */}
-      {orbitData.map((od) => (
-        <OrbitZone
-          key={od.channel.id}
-          id={od.channel.id}
-          name={od.channel.name}
-          cx={od.cx}
-          cy={od.cy}
-          radius={od.radius}
-          color={od.color}
-          memberCount={od.memberIds.length}
-          onDoubleClick={() => handleOrbitDoubleClick(od.channel.id)}
+        onPointerDown={handleCanvasPanDown}
+        onPointerMove={handleCanvasPanMove}
+        onPointerUp={handleCanvasPanUp}
+      >
+        {/* Layer 0: Canvas animated background */}
+        <OrbitalCanvasBg
+          orbits={canvasOrbits}
+          userPositions={userPositionsMap}
+          onlineUserIds={onlineUserIds}
         />
-      ))}
 
-      {/* Layer 3: User nodes */}
-      {positionedUsers.map((user) => (
-        <UserNode
-          key={user.userId}
-          userId={user.userId}
-          handle={user.handle}
-          avatarUrl={user.avatarUrl}
-          initials={user.initials}
-          gradientColors={user.gradientColors}
-          x={user.x}
-          y={user.y}
-          status={user.status}
-          isMuted={user.isMuted}
-          isSpeaking={user.isSpeaking}
-          isCurrentUser={user.isCurrentUser}
-          orbitColor={user.orbitColor}
-          onMouseEnter={handleUserMouseEnter(user)}
-          onMouseMove={handleUserMouseMove}
-          onMouseLeave={handleUserMouseLeave}
+        {/* Layer 1: Grid overlay */}
+        <div
+          className="absolute inset-0 z-[1] pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px)',
+            backgroundSize: '70px 70px',
+          }}
         />
-      ))}
+
+        {/* Layer 2: Orbit zones */}
+        {orbitData.map((od) => (
+          <OrbitZone
+            key={od.channel.id}
+            id={od.channel.id}
+            name={od.channel.name}
+            cx={od.cx}
+            cy={od.cy}
+            radius={od.radius}
+            color={od.color}
+            memberCount={od.memberIds.length}
+            onDoubleClick={() => handleOrbitDoubleClick(od.channel.id)}
+            onDragMove={handleOrbitDrag}
+          />
+        ))}
+
+        {/* Layer 3: User nodes */}
+        {positionedUsers.map((user) => (
+          <UserNode
+            key={user.userId}
+            userId={user.userId}
+            handle={user.handle}
+            avatarUrl={user.avatarUrl}
+            initials={user.initials}
+            gradientColors={user.gradientColors}
+            x={user.x}
+            y={user.y}
+            status={user.status}
+            isMuted={user.isMuted}
+            isSpeaking={user.isSpeaking}
+            isCurrentUser={user.isCurrentUser}
+            orbitColor={user.orbitColor}
+            isTyping={user.isTyping}
+            isScreenSharing={user.isScreenSharing}
+            onMouseEnter={handleUserMouseEnter(user)}
+            onMouseMove={handleUserMouseMove}
+            onMouseLeave={handleUserMouseLeave}
+          />
+        ))}
+      </div>
+
+      {/* ── Fixed UI overlays (not affected by pan) ── */}
 
       {/* Layer 4: Topbar */}
       <OrbitalTopbar
@@ -620,7 +749,7 @@ export function SolarSystemView() {
         hubIconUrl={activeHub.iconUrl}
         activeOrbitCount={activeOrbitCount}
         onChannelListToggle={handleChannelListToggle}
-        onBackToCosmos={clearActiveHub}
+        onBackToCosmos={handleBackToCosmos}
       />
 
       {/* Layer 5: Channel list */}
@@ -638,13 +767,15 @@ export function SolarSystemView() {
       <OrbitalHud
         voiceChannelName={connectedVoiceChannel?.name ?? null}
         voiceParticipants={hudVoiceParticipants}
-        latencyMs={null}
+        latencyMs={latencyMs}
         currentUser={currentUserInfo}
         isMicMuted={localMicMuted}
         isDeafened={isDeafened}
+        isScreenSharing={currentUserId ? screenSharingSet.has(currentUserId) : false}
         onMicToggle={handleMicToggle}
         onDeafenToggle={toggleDeafen}
         onDisconnect={handleDisconnect}
+        onScreenShareToggle={handleScreenShareToggle}
         commsCenterOpen={commsCenterOpen}
         onCommsCenterToggle={toggleCommsCenter}
         activeTextChannelName={activeTextChannelName}
@@ -653,7 +784,7 @@ export function SolarSystemView() {
       {/* Layer 7: Splinter New Orbit button */}
       <SplinterButton
         hubId={activeHub.id}
-        canCreate={canManageChannels}
+        canCreate={canManageChannels || canCreateOrbit}
         onChannelCreated={handleChannelCreated}
         existingVoiceCount={voiceChannels.length}
       />

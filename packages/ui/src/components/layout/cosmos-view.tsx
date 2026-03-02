@@ -12,6 +12,16 @@ import { HubNebula } from './cosmos/hub-nebula';
 import { useHubStore, type Hub } from '../../stores/server-store';
 
 // ---------------------------------------------------------------------------
+// Pan drag ref type
+// ---------------------------------------------------------------------------
+interface PanDragState {
+  startX: number;
+  startY: number;
+  startPanX: number;
+  startPanY: number;
+}
+
+// ---------------------------------------------------------------------------
 // Position presets for small hub counts (x/y as 0-1 viewport fractions)
 // ---------------------------------------------------------------------------
 
@@ -93,6 +103,41 @@ export function CosmosView() {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // -- Canvas pan (local, not persisted) ------------------------------------
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const panDragRef = useRef<PanDragState | null>(null);
+
+  const handlePanDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.target !== e.currentTarget) return;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      panDragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startPanX: panOffset.x,
+        startPanY: panOffset.y,
+      };
+    },
+    [panOffset],
+  );
+
+  const handlePanMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!panDragRef.current) return;
+      const dx = e.clientX - panDragRef.current.startX;
+      const dy = e.clientY - panDragRef.current.startY;
+      setPanOffset({
+        x: panDragRef.current.startPanX + dx,
+        y: panDragRef.current.startPanY + dy,
+      });
+    },
+    [],
+  );
+
+  const handlePanUp = useCallback(() => {
+    panDragRef.current = null;
+  }, []);
+
   // -----------------------------------------------------------------------
   // Hub select handler — kicks off zoom animation then transitions view
   // -----------------------------------------------------------------------
@@ -158,22 +203,52 @@ export function CosmosView() {
           : {}),
       }}
     >
-      {/* Canvas deep-space background */}
-      <CosmosCanvasBg />
-
-      {/* Subtle grid overlay */}
+      {/* ── Pannable content layer ── */}
       <div
-        className="absolute inset-0 z-[1] pointer-events-none"
+        className="absolute inset-0 z-[2] cursor-grab active:cursor-grabbing"
         style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)',
-          backgroundSize: '70px 70px',
-          maskImage:
-            'radial-gradient(circle at center, black 30%, transparent 70%)',
-          WebkitMaskImage:
-            'radial-gradient(circle at center, black 30%, transparent 70%)',
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
         }}
-      />
+        onPointerDown={handlePanDown}
+        onPointerMove={handlePanMove}
+        onPointerUp={handlePanUp}
+      >
+        {/* Canvas deep-space background */}
+        <CosmosCanvasBg />
+
+        {/* Subtle grid overlay */}
+        <div
+          className="absolute inset-0 z-[1] pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)',
+            backgroundSize: '70px 70px',
+            maskImage:
+              'radial-gradient(circle at center, black 30%, transparent 70%)',
+            WebkitMaskImage:
+              'radial-gradient(circle at center, black 30%, transparent 70%)',
+          }}
+        />
+
+        {/* Hub nebulae */}
+        <div className="absolute inset-0 z-[5]">
+          {positions.map((pos) => {
+            const hub = hubs.find((h) => h.id === pos.hubId);
+            if (!hub) return null;
+            return (
+              <HubNebula
+                key={hub.id}
+                hub={hub}
+                x={pos.x}
+                y={pos.y}
+                onSelect={handleSelect}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Fixed UI overlays (not affected by pan) ── */}
 
       {/* Title */}
       <div className="absolute top-0 left-0 right-0 z-[10] flex justify-center pt-8 pointer-events-none">
@@ -183,23 +258,6 @@ export function CosmosView() {
         >
           YOUR COSMOS
         </h1>
-      </div>
-
-      {/* Hub nebulae */}
-      <div className="absolute inset-0 z-[5]">
-        {positions.map((pos) => {
-          const hub = hubs.find((h) => h.id === pos.hubId);
-          if (!hub) return null;
-          return (
-            <HubNebula
-              key={hub.id}
-              hub={hub}
-              x={pos.x}
-              y={pos.y}
-              onSelect={handleSelect}
-            />
-          );
-        })}
       </div>
 
       {/* Bottom hint text */}

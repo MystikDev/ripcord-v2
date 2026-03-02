@@ -5,12 +5,15 @@
  * bar that doubles as a drag handle, pin/close controls, and resize handles
  * on the right edge, bottom edge, and bottom-right corner.
  *
- * Chat content (MessageList / MessageComposer) will be wired up in a later
- * pass — for now the content area renders a styled placeholder.
+ * Chat content (MessageList / MessageComposer / TypingIndicator) is wired to
+ * the active text channel, enabling full chat within the orbital view.
  */
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { MessageList } from '../../chat/message-list';
+import { MessageComposer } from '../../chat/message-composer';
+import { TypingIndicator } from '../../chat/typing-indicator';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,8 +103,7 @@ export function FloatingChatPanel({
   savedSize,
   onSizeChange,
 }: FloatingChatPanelProps) {
-  // channelId will be used when MessageList/MessageComposer are wired up
-  void channelId;
+  // channelId drives MessageList, MessageComposer, and TypingIndicator below
   // -- Size state -----------------------------------------------------------
   const [size, setSize] = useState(savedSize);
 
@@ -389,49 +391,19 @@ export function FloatingChatPanel({
         </button>
       </div>
 
-      {/* ── Content area (placeholder) ─────────────────────────────────── */}
+      {/* ── Chat content ────────────────────────────────────────────── */}
       <div
         style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          padding: 24,
           overflow: 'hidden',
           userSelect: 'text',
         }}
       >
-        {/* Chat icon */}
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 32 32"
-          fill="none"
-          style={{ opacity: 0.25 }}
-        >
-          <path
-            d="M6 6h20a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H14l-5 5v-5H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
-            stroke="rgba(0, 229, 255, 0.6)"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <line x1="10" y1="13" x2="22" y2="13" stroke="rgba(0, 229, 255, 0.4)" strokeWidth="1.2" strokeLinecap="round" />
-          <line x1="10" y1="17" x2="18" y2="17" stroke="rgba(0, 229, 255, 0.3)" strokeWidth="1.2" strokeLinecap="round" />
-        </svg>
-        <span
-          style={{
-            fontFamily: 'var(--font-mono, monospace)',
-            fontSize: 12,
-            color: 'rgba(255, 255, 255, 0.3)',
-            textAlign: 'center',
-            lineHeight: 1.5,
-          }}
-        >
-          Chat content for #{channelName}
-        </span>
+        <MessageList channelId={channelId} />
+        <TypingIndicator channelId={channelId} />
+        <MessageComposer channelId={channelId} channelName={channelName} />
       </div>
 
       {/* ── Resize handles ─────────────────────────────────────────────── */}

@@ -137,14 +137,14 @@ export function OrbitalTopbar({
           border: '1px solid rgba(255, 255, 255, 0.08)',
         }}
       >
-        {/* Cyan dot */}
+        {/* Pulsating green dot */}
         <span
-          className="flex-shrink-0 rounded-full"
+          className="flex-shrink-0 rounded-full animate-pulse"
           style={{
             width: '6px',
             height: '6px',
-            background: '#00e5ff',
-            boxShadow: '0 0 6px rgba(0, 229, 255, 0.5)',
+            background: '#34d399',
+            boxShadow: '0 0 6px rgba(52, 211, 153, 0.5)',
           }}
         />
         {activeOrbitCount} ACTIVE ORBIT{activeOrbitCount !== 1 ? 'S' : ''}

@@ -109,12 +109,13 @@ export async function createChannel(
   hubId: string,
   name: string,
   type: 'text' | 'voice',
+  options?: { temporary?: boolean },
 ): Promise<ChannelResponse> {
   const res = await apiFetch<ChannelResponse>(
     `/v1/hubs/${hubId}/channels`,
     {
       method: 'POST',
-      body: JSON.stringify({ name, type }),
+      body: JSON.stringify({ name, type, ...(options?.temporary ? { temporary: true } : {}) }),
     },
   );
   if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to create channel');

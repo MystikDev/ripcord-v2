@@ -44,11 +44,17 @@ export interface VoiceStateStore {
   /** Anchor position for the hover preview popover. */
   hoveredScreenShareAnchor: { x: number; y: number } | null;
 
+  /** Current WebRTC round-trip latency in milliseconds (null when not in voice). */
+  latencyMs: number | null;
+
   /** Whether the local mic is muted (bridged from LiveKit for UserPanel). */
   localMicMuted: boolean;
 
   /** Callback to toggle mic (set by VoiceControls inside LiveKitRoom). */
   toggleMicFn: (() => void) | null;
+
+  /** Callback to toggle screen share (set by VoiceControls inside LiveKitRoom). */
+  toggleScreenShareFn: (() => void) | null;
 
   /** Add a participant to a voice channel. */
   addParticipant: (channelId: string, participant: VoiceParticipant) => void;
@@ -74,8 +80,11 @@ export interface VoiceStateStore {
   setConnectedChannelId: (id: string | null) => void;
   setActiveScreenShareId: (id: string | null) => void;
   setHoveredScreenShare: (userId: string | null, anchor?: { x: number; y: number }) => void;
+  /** Update latency from within the LiveKitRoom context. */
+  setLatencyMs: (ms: number | null) => void;
   setLocalMicMuted: (muted: boolean) => void;
   setToggleMicFn: (fn: (() => void) | null) => void;
+  setToggleScreenShareFn: (fn: (() => void) | null) => void;
 
   /** Reset all voice state data. */
   reset: () => void;
@@ -99,8 +108,10 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
   activeScreenShareId: null,
   hoveredScreenShareUserId: null,
   hoveredScreenShareAnchor: null,
+  latencyMs: null,
   localMicMuted: false,
   toggleMicFn: null,
+  toggleScreenShareFn: null,
 
   addParticipant: (channelId, participant) =>
     set((state) => {
@@ -235,8 +246,10 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
       hoveredScreenShareUserId: userId,
       hoveredScreenShareAnchor: anchor ?? null,
     }),
+  setLatencyMs: (ms) => set({ latencyMs: ms }),
   setLocalMicMuted: (muted) => set({ localMicMuted: muted }),
   setToggleMicFn: (fn) => set({ toggleMicFn: fn }),
+  setToggleScreenShareFn: (fn) => set({ toggleScreenShareFn: fn }),
 
   reset: () => set({
     voiceStates: {},
@@ -246,7 +259,9 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
     activeScreenShareId: null,
     hoveredScreenShareUserId: null,
     hoveredScreenShareAnchor: null,
+    latencyMs: null,
     localMicMuted: false,
     toggleMicFn: null,
+    toggleScreenShareFn: null,
   }),
 }));

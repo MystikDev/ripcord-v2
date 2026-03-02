@@ -38,6 +38,8 @@ export const Permission = {
   MOVE_MEMBERS: 1 << 12,
   /** Server-mute or unmute members in voice channels. */
   MUTE_MEMBERS: 1 << 13,
+  /** Create temporary or permanent orbit (voice channel) in the orbital view. */
+  CREATE_ORBIT: 1 << 14,
   /** Bypasses all permission checks. Use with care. */
   ADMINISTRATOR: 1 << 31,
 } as const;

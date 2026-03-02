@@ -58,6 +58,7 @@ export function OrbitalCanvasBg({
 
   // Lazy-init star field — created once, never recreated.
   const starsRef = useRef<Star[] | null>(null);
+  const dustRef = useRef<Array<{ x: number; y: number; vx: number; vy: number; r: number; a: number }> | null>(null);
   if (starsRef.current === null) {
     starsRef.current = Array.from({ length: STAR_COUNT }, (): Star => ({
       x: Math.random(),
@@ -125,8 +126,8 @@ export function OrbitalCanvasBg({
           ctx.moveTo(ua.x * W, ua.y * H);
           ctx.lineTo(ub.x * W, ub.y * H);
           ctx.strokeStyle =
-            orb.color +
-            Math.round((0.05 + p * 0.07) * 255)
+            '#34d399' +
+            Math.round((0.08 + p * 0.12) * 255)
               .toString(16)
               .padStart(2, '0');
           ctx.lineWidth = 1;
@@ -141,16 +142,19 @@ export function OrbitalCanvasBg({
           ctx.arc(
             (ua.x + (ub.x - ua.x) * t) * W,
             (ua.y + (ub.y - ua.y) * t) * H,
-            2,
+            3,
             0,
             Math.PI * 2,
           );
           ctx.fillStyle =
-            orb.color +
-            Math.round((0.4 + p * 0.4) * 255)
+            '#34d399' +
+            Math.round((0.6 + p * 0.4) * 255)
               .toString(16)
               .padStart(2, '0');
+          ctx.shadowColor = '#34d399';
+          ctx.shadowBlur = 6;
           ctx.fill();
+          ctx.shadowBlur = 0;
         }
       }
     }
@@ -161,6 +165,34 @@ export function OrbitalCanvasBg({
       ctx.beginPath();
       ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(180,220,255,${Math.abs(Math.sin(s.a)) * 0.35 + 0.04})`;
+      ctx.fill();
+    }
+
+    // --- Dust particles (alive ambient motion) ---
+    if (!dustRef.current) {
+      dustRef.current = Array.from({ length: 25 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.00004,
+        vy: (Math.random() - 0.5) * 0.00004,
+        r: 0.5 + Math.random() * 1,
+        a: Math.random() * Math.PI * 2,
+      }));
+    }
+    const dust = dustRef.current;
+
+    for (const d of dust) {
+      d.x += d.vx;
+      d.y += d.vy;
+      d.a += 0.003;
+      // Wrap around viewport edges
+      if (d.x < 0) d.x = 1;
+      if (d.x > 1) d.x = 0;
+      if (d.y < 0) d.y = 1;
+      if (d.y > 1) d.y = 0;
+      ctx.beginPath();
+      ctx.arc(d.x * W, d.y * H, d.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200,230,255,${Math.abs(Math.sin(d.a)) * 0.15 + 0.03})`;
       ctx.fill();
     }
 

@@ -95,6 +95,11 @@ function VoicePanelContent({
   // Poll WebRTC stats for voice latency
   const { latencyMs, quality } = useVoiceLatency();
 
+  // Bridge latency from LiveKitRoom context to global store for orbital HUD
+  useEffect(() => {
+    useVoiceStateStore.getState().setLatencyMs(latencyMs);
+  }, [latencyMs]);
+
   // Server-mute enforcement: disable mic when server-muted by an admin
   const room = useRoomContext();
   const currentUserId = useAuthStore((s) => s.userId);
@@ -264,6 +269,7 @@ export function VoicePanel() {
     setError(null);
     setPttEnabled(false);
     useVoiceStateStore.getState().setConnectedChannelId(null);
+    useVoiceStateStore.getState().setLatencyMs(null);
   }, [voiceChannelId]);
 
   // ----- Room callbacks -----

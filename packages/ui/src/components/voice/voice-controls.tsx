@@ -136,6 +136,19 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
 
   // ----- Screen share -----
 
+  // Bridge screen share toggle to global store for orbital HUD access
+  useEffect(() => {
+    const fn = async () => {
+      if (localParticipantRef.current.isScreenShareEnabled) {
+        await localParticipantRef.current.setScreenShareEnabled(false);
+      } else {
+        setShowShareSettings(true);
+      }
+    };
+    useVoiceStateStore.getState().setToggleScreenShareFn(fn);
+    return () => useVoiceStateStore.getState().setToggleScreenShareFn(null);
+  }, [localParticipant]);
+
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {
       await localParticipantRef.current.setScreenShareEnabled(false);
