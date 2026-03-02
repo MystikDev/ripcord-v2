@@ -89,6 +89,17 @@ export async function apiFetch<T>(
   const store = await getAuthStore();
   const { accessToken } = store.getState();
 
+  // If we have no access token but do have a refresh token, proactively
+  // refresh before making the request to avoid a guaranteed 401.
+  // (accessToken is kept in memory only and is lost on page reload.)
+  let token = accessToken;
+  if (!token) {
+    const { refreshToken } = store.getState();
+    if (refreshToken) {
+      token = await refreshAccessToken();
+    }
+  }
+
   const headers = new Headers(init.headers);
   // Always set Content-Type for mutation methods — the server rejects
   // POST/PUT/DELETE/PATCH without application/json even when bodyless.
@@ -98,8 +109,8 @@ export async function apiFetch<T>(
   if (!headers.has('Content-Type') && (init.body || isMutation)) {
     headers.set('Content-Type', 'application/json');
   }
-  if (accessToken) {
-    headers.set('Authorization', `Bearer ${accessToken}`);
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
   let res: Response;
@@ -110,7 +121,7 @@ export async function apiFetch<T>(
   }
 
   // Auto-refresh on 401 and retry once
-  if (res.status === 401 && accessToken) {
+  if (res.status === 401 && token) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       headers.set('Authorization', `Bearer ${newToken}`);
