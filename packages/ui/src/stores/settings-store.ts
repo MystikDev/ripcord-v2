@@ -160,6 +160,23 @@ export interface SettingsState {
   channelSidebarWidth: number;
   /** Set the channel sidebar width (clamped 200–480). */
   setChannelSidebarWidth: (width: number) => void;
+
+  /** Whether the Comms Center floating chat panel is open. */
+  commsCenterOpen: boolean;
+  /** Toggle the Comms Center open/closed. */
+  toggleCommsCenter: () => void;
+  /** Whether the Comms Center position is pinned (persists across toggle). */
+  commsCenterPinned: boolean;
+  /** Toggle the Comms Center pin state. */
+  toggleCommsCenterPin: () => void;
+  /** Saved Comms Center position, null = default. */
+  commsCenterPosition: { x: number; y: number } | null;
+  /** Set the Comms Center position. */
+  setCommsCenterPosition: (pos: { x: number; y: number }) => void;
+  /** Comms Center size in pixels. Default: 480×600. */
+  commsCenterSize: { width: number; height: number };
+  /** Set the Comms Center size. */
+  setCommsCenterSize: (size: { width: number; height: number }) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -256,6 +273,15 @@ export const useSettingsStore = create<SettingsState>()(
 
       channelSidebarWidth: 240,
       setChannelSidebarWidth: (width) => set({ channelSidebarWidth: Math.max(200, Math.min(480, width)) }),
+
+      commsCenterOpen: false,
+      toggleCommsCenter: () => set((s) => ({ commsCenterOpen: !s.commsCenterOpen })),
+      commsCenterPinned: false,
+      toggleCommsCenterPin: () => set((s) => ({ commsCenterPinned: !s.commsCenterPinned })),
+      commsCenterPosition: null,
+      setCommsCenterPosition: (pos) => set({ commsCenterPosition: pos }),
+      commsCenterSize: { width: 480, height: 600 },
+      setCommsCenterSize: (size) => set({ commsCenterSize: size }),
     }),
     {
       name: 'ripcord-settings',
@@ -289,6 +315,9 @@ export const useSettingsStore = create<SettingsState>()(
         screenShareViewerQuality: state.screenShareViewerQuality,
         screenShareViewerFps: state.screenShareViewerFps,
         channelSidebarWidth: state.channelSidebarWidth,
+        commsCenterPinned: state.commsCenterPinned,
+        commsCenterPosition: state.commsCenterPosition,
+        commsCenterSize: state.commsCenterSize,
       }),
     },
   ),

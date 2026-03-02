@@ -1,0 +1,418 @@
+/**
+ * @module orbital-hud
+ * Bottom HUD bar for the orbital view. Displays (left to right): voice pill
+ * with blinking dot and mini participant avatars, latency readout, spacer,
+ * Comms Center toggle pill, mic/deafen/disconnect controls, and user pill.
+ * Fixed to the bottom edge with a gradient fade background.
+ */
+'use client';
+
+import { useState } from 'react';
+import clsx from 'clsx';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface OrbitalHudProps {
+  /** Currently connected voice channel name, null if not in voice */
+  voiceChannelName: string | null;
+  /** Mini avatars for voice participants */
+  voiceParticipants: Array<{
+    userId: string;
+    initials: string;
+    gradientColors: [string, string];
+    isCurrentUser: boolean;
+  }>;
+  /** Latency in ms or null */
+  latencyMs: number | null;
+  /** Current user info */
+  currentUser: {
+    handle: string;
+    initials: string;
+    gradientColors: [string, string];
+  };
+  /** Mic muted state */
+  isMicMuted: boolean;
+  /** Deafened state */
+  isDeafened: boolean;
+  /** Callbacks */
+  onMicToggle: () => void;
+  onDeafenToggle: () => void;
+  onDisconnect: () => void;
+  /** Comms Center */
+  commsCenterOpen: boolean;
+  onCommsCenterToggle: () => void;
+  /** Active text channel name for Comms Center label */
+  activeTextChannelName: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Returns a color string for latency: green (<80), yellow (<150), red (>=150) */
+function latencyColor(ms: number): string {
+  if (ms < 80) return '#34d399';
+  if (ms < 150) return '#fbbf24';
+  return '#f87171';
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+/** Blinking green dot for active voice connection */
+function BlinkDot() {
+  return (
+    <span className="relative flex items-center justify-center w-[8px] h-[8px] shrink-0">
+      <span
+        className="absolute inset-0 rounded-full animate-ping"
+        style={{ backgroundColor: '#34d399', opacity: 0.6 }}
+      />
+      <span
+        className="relative w-[6px] h-[6px] rounded-full"
+        style={{ backgroundColor: '#34d399' }}
+      />
+    </span>
+  );
+}
+
+/** Mini avatar circle (20px) used in the voice pill participant row */
+function MiniAvatar({
+  initials,
+  gradientColors,
+  isCurrentUser,
+  style,
+}: {
+  initials: string;
+  gradientColors: [string, string];
+  isCurrentUser: boolean;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      className={clsx(
+        'w-[20px] h-[20px] rounded-full flex items-center justify-center',
+        'text-[8px] font-mono font-bold select-none shrink-0',
+      )}
+      style={{
+        background: `linear-gradient(135deg, ${gradientColors[0]}, ${gradientColors[1]})`,
+        border: isCurrentUser ? '1.5px solid #00f0ff' : '1.5px solid rgba(255,255,255,0.15)',
+        ...style,
+      }}
+    >
+      <span className="text-white/90">{initials}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function OrbitalHud({
+  voiceChannelName,
+  voiceParticipants,
+  latencyMs,
+  currentUser,
+  isMicMuted,
+  isDeafened,
+  onMicToggle,
+  onDeafenToggle,
+  onDisconnect,
+  commsCenterOpen,
+  onCommsCenterToggle,
+  activeTextChannelName,
+}: OrbitalHudProps) {
+  // Track hover for disconnect button red styling
+  const [disconnectHover, setDisconnectHover] = useState(false);
+
+  const isInVoice = voiceChannelName !== null;
+
+  return (
+    <div
+      className="fixed bottom-0 left-0 right-0 z-[200] flex items-center"
+      style={{
+        height: '54px',
+        padding: '0 16px 0 100px',
+        gap: '10px',
+        background: 'linear-gradient(to top, rgba(7, 9, 13, 0.98), rgba(7, 9, 13, 0))',
+      }}
+    >
+      {/* ── 1. Voice Pill ── */}
+      {isInVoice && (
+        <div
+          className={clsx(
+            'flex items-center gap-2 px-2.5 py-1 rounded-full shrink-0',
+            'border border-border',
+          )}
+          style={{ background: 'rgba(7, 9, 13, 0.85)' }}
+        >
+          <BlinkDot />
+          <span className="font-mono text-[11px] text-success whitespace-nowrap">
+            {voiceChannelName}
+          </span>
+
+          {/* Mini avatar stack */}
+          {voiceParticipants.length > 0 && (
+            <div className="flex items-center ml-1">
+              {voiceParticipants.slice(0, 5).map((p, i) => (
+                <MiniAvatar
+                  key={p.userId}
+                  initials={p.initials}
+                  gradientColors={p.gradientColors}
+                  isCurrentUser={p.isCurrentUser}
+                  style={{
+                    marginLeft: i === 0 ? 0 : '-5px',
+                    zIndex: voiceParticipants.length - i,
+                  }}
+                />
+              ))}
+              {voiceParticipants.length > 5 && (
+                <span className="ml-1 font-mono text-[9px] text-text-muted">
+                  +{voiceParticipants.length - 5}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 2. Latency ── */}
+      {latencyMs !== null && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-text-muted">
+            Latency:
+          </span>
+          <span
+            className="font-mono text-[10px] font-bold"
+            style={{ color: latencyColor(latencyMs) }}
+          >
+            {latencyMs}ms
+          </span>
+        </div>
+      )}
+
+      {/* ── 3. Spacer ── */}
+      <div className="flex-1" />
+
+      {/* ── 4. Comms Center Toggle ── */}
+      <button
+        type="button"
+        onClick={onCommsCenterToggle}
+        className={clsx(
+          'flex items-center gap-1.5 px-3 py-1 rounded-full shrink-0',
+          'font-mono text-[11px] transition-all duration-150',
+          'border',
+          commsCenterOpen
+            ? 'border-cyan/40 bg-cyan/10 text-cyan'
+            : 'border-border bg-white/3 text-text-secondary hover:text-text-primary hover:border-white/15',
+        )}
+      >
+        {/* Chat icon */}
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          className="text-current shrink-0"
+        >
+          <path
+            d="M2 2h8a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5l-2 2V9H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="whitespace-nowrap">
+          {activeTextChannelName ? `# ${activeTextChannelName}` : 'Comms Center'}
+        </span>
+      </button>
+
+      {/* ── 5. Control Buttons ── */}
+      <div className="flex items-center gap-1 shrink-0">
+        {/* Mic toggle */}
+        <button
+          type="button"
+          onClick={onMicToggle}
+          className={clsx(
+            'flex items-center justify-center w-[30px] h-[30px] rounded-full',
+            'transition-all duration-150',
+            isMicMuted
+              ? 'bg-danger/15 text-danger hover:bg-danger/25'
+              : 'bg-white/5 text-text-secondary hover:text-text-primary hover:bg-white/10',
+          )}
+          aria-label={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}
+          title={isMicMuted ? 'Unmute' : 'Mute'}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            className="text-current"
+          >
+            <rect
+              x="5"
+              y="1"
+              width="4"
+              height="8"
+              rx="2"
+              stroke="currentColor"
+              strokeWidth="1.3"
+            />
+            <path
+              d="M3 6.5a4 4 0 0 0 8 0"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+            />
+            <line
+              x1="7"
+              y1="11"
+              x2="7"
+              y2="13"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+            />
+            {isMicMuted && (
+              <line
+                x1="2"
+                y1="12"
+                x2="12"
+                y2="2"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            )}
+          </svg>
+        </button>
+
+        {/* Deafen toggle */}
+        <button
+          type="button"
+          onClick={onDeafenToggle}
+          className={clsx(
+            'flex items-center justify-center w-[30px] h-[30px] rounded-full',
+            'transition-all duration-150',
+            isDeafened
+              ? 'bg-danger/15 text-danger hover:bg-danger/25'
+              : 'bg-white/5 text-text-secondary hover:text-text-primary hover:bg-white/10',
+          )}
+          aria-label={isDeafened ? 'Undeafen' : 'Deafen'}
+          title={isDeafened ? 'Undeafen' : 'Deafen'}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            className="text-current"
+          >
+            <path
+              d="M3 5.5v3a1 1 0 0 0 1 1h1l3 2.5V3L5 5.5H4a1 1 0 0 0-1 1Z"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinejoin="round"
+            />
+            {!isDeafened && (
+              <>
+                <path
+                  d="M10 5c.6.5 1 1.2 1 2s-.4 1.5-1 2"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M11.5 3.5c1 .8 1.5 2 1.5 3.5s-.5 2.7-1.5 3.5"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+              </>
+            )}
+            {isDeafened && (
+              <line
+                x1="2"
+                y1="12"
+                x2="12"
+                y2="2"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            )}
+          </svg>
+        </button>
+
+        {/* Disconnect */}
+        {isInVoice && (
+          <button
+            type="button"
+            onClick={onDisconnect}
+            onMouseEnter={() => setDisconnectHover(true)}
+            onMouseLeave={() => setDisconnectHover(false)}
+            className={clsx(
+              'flex items-center justify-center w-[30px] h-[30px] rounded-full',
+              'transition-all duration-150',
+              'bg-white/5 text-text-secondary',
+            )}
+            style={{
+              backgroundColor: disconnectHover ? 'rgba(248, 113, 113, 0.2)' : undefined,
+              color: disconnectHover ? '#f87171' : undefined,
+            }}
+            aria-label="Disconnect from voice"
+            title="Disconnect"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              className="text-current"
+            >
+              {/* Phone-down / disconnect icon */}
+              <path
+                d="M1.5 6c1-2.5 3.5-4 5.5-4s4.5 1.5 5.5 4l-1.5 1.5c-.3.3-.7.3-1 .1L8.5 6.5a.5.5 0 0 1-.2-.4V4.5a6.3 6.3 0 0 0-2.6 0v1.6c0 .15-.07.3-.2.4L4 7.6c-.3.2-.7.2-1-.1L1.5 6Z"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* ── 6. User Pill ── */}
+      <div
+        className={clsx(
+          'flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full shrink-0',
+          'border border-border',
+        )}
+        style={{ background: 'rgba(7, 9, 13, 0.85)' }}
+      >
+        {/* Avatar (26px) */}
+        <div
+          className={clsx(
+            'w-[26px] h-[26px] rounded-full flex items-center justify-center',
+            'text-[10px] font-mono font-bold select-none shrink-0',
+          )}
+          style={{
+            background: `linear-gradient(135deg, ${currentUser.gradientColors[0]}, ${currentUser.gradientColors[1]})`,
+            border: '1.5px solid rgba(255, 255, 255, 0.15)',
+          }}
+        >
+          <span className="text-white/90">{currentUser.initials}</span>
+        </div>
+        <span className="font-mono text-[11px] text-text-primary whitespace-nowrap">
+          {currentUser.handle}
+        </span>
+      </div>
+    </div>
+  );
+}

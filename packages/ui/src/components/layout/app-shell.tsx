@@ -50,10 +50,14 @@ export function AppShell() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-void">
-      {/* ORBIT ambient background layers */}
-      <div className="orbit-ambient" />
-      <div className="orbit-grid" />
-      <div className="orbit-scanline" />
+      {/* ORBIT ambient background layers — hidden during orbital view (it has its own canvas bg) */}
+      {!showSystemView && (
+        <>
+          <div className="orbit-ambient" />
+          <div className="orbit-grid" />
+          <div className="orbit-scanline" />
+        </>
+      )}
 
       {/* Main layout — sits above ambient */}
       <div className="relative z-10 flex h-full w-full">

@@ -1,6 +1,6 @@
 /**
  * @module server-sidebar
- * ORBIT-styled far-left icon rail (80px). Hub icons, Home button (DM toggle),
+ * ORBIT-styled far-left icon rail (88px). Hub icons, Home button (DM toggle),
  * and AddHubDialog button. Glass morphism over the ambient background.
  */
 'use client';
@@ -129,7 +129,7 @@ function UserAvatarButton() {
               src={userAvatarUrl ?? undefined}
               fallback={userHandle ?? '?'}
               size="sm"
-              style={{ width: '32px', height: '32px', fontSize: '11px' }}
+              style={{ width: '36px', height: '36px', fontSize: '12px' }}
             />
           </div>
           {/* Camera overlay on hover */}
@@ -183,7 +183,7 @@ function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
             setContextMenu({ x: e.clientX, y: e.clientY });
           }}
           className={clsx(
-            'group relative flex h-12 w-12 items-center justify-center transition-all duration-200',
+            'group relative flex h-14 w-14 items-center justify-center transition-all duration-200',
             isActive
               ? 'rounded-2xl bg-accent text-black shadow-lg shadow-accent/20'
               : 'rounded-xl bg-white/5 text-text-secondary border border-white/10 hover:rounded-2xl hover:bg-white/10 hover:border-accent/50 hover:text-accent',
@@ -193,7 +193,7 @@ function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
           <span
             className={clsx(
               'absolute -left-3 w-1 rounded-r-full transition-all duration-200',
-              isActive ? 'h-10 bg-accent shadow-[0_0_8px_rgba(0,240,255,0.5)]' : 'h-0 group-hover:h-5 bg-accent',
+              isActive ? 'h-12 bg-accent shadow-[0_0_8px_rgba(0,240,255,0.5)]' : 'h-0 group-hover:h-5 bg-accent',
             )}
           />
 
@@ -262,7 +262,7 @@ function HomeButton() {
       <button
         onClick={enterDmView}
         className={clsx(
-          'group relative flex h-12 w-12 items-center justify-center transition-all duration-200',
+          'group relative flex h-14 w-14 items-center justify-center transition-all duration-200',
           isDmView
             ? 'rounded-2xl bg-gradient-to-br from-accent to-accent-violet text-black shadow-lg shadow-accent/20 animate-pulse-glow'
             : 'rounded-xl bg-white/5 text-text-secondary border border-white/10 hover:rounded-2xl hover:bg-white/10 hover:border-accent/50 hover:text-accent',
@@ -272,7 +272,7 @@ function HomeButton() {
         <span
           className={clsx(
             'absolute -left-3 w-1 rounded-r-full transition-all duration-200',
-            isDmView ? 'h-10 bg-accent shadow-[0_0_8px_rgba(0,240,255,0.5)]' : 'h-0 group-hover:h-5 bg-accent',
+            isDmView ? 'h-12 bg-accent shadow-[0_0_8px_rgba(0,240,255,0.5)]' : 'h-0 group-hover:h-5 bg-accent',
           )}
         />
         <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -332,7 +332,7 @@ export function HubSidebar() {
     <div
       className={clsx(
         'relative flex h-full flex-col items-center border-r border-white/5 bg-surface-1/50 backdrop-blur-xl py-6 transition-all duration-200 overflow-hidden',
-        expanded ? 'w-20 gap-6' : 'w-4 gap-0',
+        expanded ? 'w-[88px] gap-6' : 'w-4 gap-0',
       )}
       onMouseEnter={() => { if (!hubPinned) setHovered(true); }}
       onMouseLeave={() => { if (!hubPinned) setHovered(false); }}
@@ -345,17 +345,17 @@ export function HubSidebar() {
       {/* Content — fades when collapsed */}
       <div
         className={clsx(
-          'flex h-full w-20 flex-col items-center gap-6 transition-opacity duration-200',
+          'flex h-full w-[88px] flex-col items-center gap-6 transition-opacity duration-200',
           expanded ? 'opacity-100' : 'opacity-0 pointer-events-none',
         )}
       >
         <HomeButton />
 
         {/* Gradient divider */}
-        <div className="w-8 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+        <div className="w-10 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
 
         <ScrollArea className="flex-1 w-full">
-          <div className="flex flex-col items-center gap-3 px-4">
+          <div className="flex flex-col items-center gap-4 px-4">
             {hubs.map((hub) => (
               <HubIcon
                 key={hub.id}
@@ -369,7 +369,7 @@ export function HubSidebar() {
               trigger={
                 <button
                   className={clsx(
-                    'flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-success',
+                    'flex h-14 w-14 items-center justify-center rounded-xl bg-white/5 text-success',
                     'border border-white/10 transition-all duration-200',
                     'hover:rounded-2xl hover:bg-success/20 hover:border-success/50 hover:text-success hover:shadow-lg hover:shadow-success/10',
                   )}

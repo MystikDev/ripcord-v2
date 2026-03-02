@@ -84,6 +84,9 @@ export interface HubState {
   /** Enter DM view (home screen), clearing hub selection. */
   enterDmView: () => void;
 
+  /** Set active channel without leaving orbital view (for Comms Center). */
+  setActiveChannelOrbital: (id: string) => void;
+
   /** Set the solar system immersive view active state. */
   setSystemViewActive: (active: boolean) => void;
 
@@ -153,6 +156,8 @@ export const useHubStore = create<HubState>()((set, get) => ({
       systemViewActive: false,
     });
   },
+
+  setActiveChannelOrbital: (id) => set({ activeChannelId: id }),
 
   setSystemViewActive: (active) => set({ systemViewActive: active }),
 

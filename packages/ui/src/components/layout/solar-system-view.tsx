@@ -1,105 +1,160 @@
 /**
  * @module solar-system-view
- * Full-screen immersive solar system visualization. Each hub is a solar system
- * with a central star (hub identity) and orbiting planets (channels). Users
- * appear as tiny dots orbiting each planet. Click a planet to navigate to that
- * channel and transition to the 3-column chat layout.
+ * Orbital view orchestrator. Composes the canvas background, orbit zones,
+ * user nodes, topbar, channel list, HUD, and tooltip into a full-screen
+ * immersive visualization of the active hub's voice channels and members.
  */
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
+import { OrbitalCanvasBg } from './orbital/orbital-canvas-bg';
+import { OrbitZone } from './orbital/orbit-zone';
+import { UserNode } from './orbital/user-node';
+import { UserTooltip } from './orbital/user-tooltip';
+import { OrbitalTopbar } from './orbital/orbital-topbar';
+import { OrbitalChannelList } from './orbital/orbital-channel-list';
+import { OrbitalHud } from './orbital/orbital-hud';
+import { SplinterButton } from './orbital/splinter-button';
+import { FloatingChatPanel } from './orbital/floating-chat-panel';
 import { useHubStore, type Channel } from '../../stores/server-store';
-import { useMessageStore } from '../../stores/message-store';
+import { useHasPermission } from '../../hooks/use-has-permission';
 import { useVoiceStateStore, EMPTY_PARTICIPANTS } from '../../stores/voice-state-store';
 import { usePresenceStore, type PresenceStatus } from '../../stores/presence-store';
-import { useMemberStore } from '../../stores/member-store';
-import { useReadStateStore } from '../../stores/read-state-store';
-import { Tooltip } from '../ui/tooltip';
-import clsx from 'clsx';
+import { useMemberStore, type MemberInfo } from '../../stores/member-store';
+import { useAuthStore } from '../../stores/auth-store';
+import { useSettingsStore } from '../../stores/settings-store';
 
 // ---------------------------------------------------------------------------
-// Constants
+// Orbit positioning presets (center as 0-1 fractions of viewport)
 // ---------------------------------------------------------------------------
 
-const SVG_SIZE = 1000;
-const CENTER = SVG_SIZE / 2;
-const MIN_ORBIT = 120;
-const ORBIT_SPACING = 55;
-const MAX_VISIBLE_PLANETS = 15;
-const BASE_ORBIT_DURATION = 20; // seconds for innermost orbit
-const ORBIT_DURATION_STEP = 8;  // seconds added per ring
-
-// Planet radii
-const TEXT_PLANET_RADIUS = 8;
-const VOICE_PLANET_RADIUS = 12;
-
-// Star sizing
-const STAR_MIN_RADIUS = 28;
-const STAR_MAX_RADIUS = 45;
-
-// User dot constants
-const DOT_RADIUS = 3.5;
-const DOT_ORBIT_OFFSET = 8;
-const MAX_DOTS_PER_PLANET = 8;
-const DOT_ORBIT_DURATION_BASE = 5; // seconds
-
-// ---------------------------------------------------------------------------
-// Status colors for user dots (matching member-list-panel.tsx)
-// ---------------------------------------------------------------------------
-
-const STATUS_DOT_COLOR: Record<PresenceStatus, string> = {
-  online: '#00f0ff',
-  idle: '#ffbe0b',
-  dnd: '#ff006e',
-  offline: 'rgba(255,255,255,0.2)',
+const ORBIT_PRESETS: Record<number, Array<{ cx: number; cy: number }>> = {
+  1: [{ cx: 0.5, cy: 0.45 }],
+  2: [{ cx: 0.38, cy: 0.42 }, { cx: 0.65, cy: 0.35 }],
+  3: [{ cx: 0.35, cy: 0.40 }, { cx: 0.65, cy: 0.32 }, { cx: 0.50, cy: 0.62 }],
+  4: [
+    { cx: 0.30, cy: 0.38 },
+    { cx: 0.65, cy: 0.30 },
+    { cx: 0.55, cy: 0.62 },
+    { cx: 0.25, cy: 0.60 },
+  ],
 };
+
+/** For 5+ voice channels, distribute in a circle from center. */
+function generateCircularPresets(count: number): Array<{ cx: number; cy: number }> {
+  const out: Array<{ cx: number; cy: number }> = [];
+  const centerX = 0.5;
+  const centerY = 0.45;
+  const radiusFrac = 0.22;
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+    out.push({
+      cx: centerX + Math.cos(angle) * radiusFrac,
+      cy: centerY + Math.sin(angle) * radiusFrac,
+    });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Color palette for orbit zones
+// ---------------------------------------------------------------------------
+
+const ORBIT_COLORS = [
+  '#00e5ff', '#b060ff', '#00ff9d', '#ff9030',
+  '#ff4060', '#ffeb3b', '#ff69b4',
+];
+
+// ---------------------------------------------------------------------------
+// Floating positions for offline / non-voice members
+// ---------------------------------------------------------------------------
+
+const FLOATING_POSITIONS = [
+  { x: 0.08, y: 0.18 }, { x: 0.92, y: 0.22 }, { x: 0.06, y: 0.72 },
+  { x: 0.93, y: 0.68 }, { x: 0.15, y: 0.90 }, { x: 0.85, y: 0.88 },
+  { x: 0.12, y: 0.45 }, { x: 0.88, y: 0.48 }, { x: 0.20, y: 0.12 },
+  { x: 0.80, y: 0.14 }, { x: 0.50, y: 0.92 }, { x: 0.72, y: 0.82 },
+  { x: 0.28, y: 0.78 }, { x: 0.42, y: 0.10 }, { x: 0.60, y: 0.88 },
+  { x: 0.04, y: 0.55 }, { x: 0.96, y: 0.40 }, { x: 0.18, y: 0.32 },
+  { x: 0.82, y: 0.58 }, { x: 0.35, y: 0.85 },
+];
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Derive a deterministic HSL hue from a hub ID string. */
-function hubIdToHue(hubId: string): number {
-  let sum = 0;
-  for (let i = 0; i < hubId.length; i++) {
-    sum += hubId.charCodeAt(i);
+/** Deterministic hue from a user ID string. */
+function userIdToHue(userId: string): number {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = (hash * 31 + userId.charCodeAt(i)) | 0;
   }
-  return sum % 360;
+  return Math.abs(hash) % 360;
 }
 
-/** Compute activity score for a channel. Higher = more active. */
-function channelActivityScore(
-  channelId: string,
-  messageCount: number,
-  voiceParticipantCount: number,
-): number {
-  return messageCount + voiceParticipantCount * 10;
+/** Derive gradient pair from userId hash. */
+function userGradient(userId: string): [string, string] {
+  const h = userIdToHue(userId);
+  return [`hsl(${h}, 70%, 45%)`, `hsl(${(h + 30) % 360}, 60%, 55%)`];
 }
 
-/** Check if a channel has unread messages. */
-function hasUnread(
-  channelId: string,
-  messages: { id: string }[],
-  lastReadMessageId: string | null | undefined,
-): boolean {
-  if (!messages.length) return false;
-  if (!lastReadMessageId) return messages.length > 0;
-  const idx = messages.findIndex((m) => m.id === lastReadMessageId);
-  if (idx < 0) return messages.length > 0;
-  return idx < messages.length - 1;
+/** First 2 characters of handle, uppercased. */
+function toInitials(handle: string): string {
+  return handle.slice(0, 2).toUpperCase();
+}
+
+/** Map PresenceStatus to UserTooltip status format. */
+function tooltipStatus(
+  status: PresenceStatus,
+  isMuted: boolean,
+  isCurrentUser: boolean,
+): 'ONLINE' | 'YOU' | 'MUTED' | 'IDLE' | 'DND' | 'OFFLINE' {
+  if (isCurrentUser) return 'YOU';
+  if (isMuted) return 'MUTED';
+  switch (status) {
+    case 'online':
+      return 'ONLINE';
+    case 'idle':
+      return 'IDLE';
+    case 'dnd':
+      return 'DND';
+    case 'offline':
+      return 'OFFLINE';
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Ranked channel type
+// Computed orbit data type
 // ---------------------------------------------------------------------------
 
-interface RankedChannel {
+interface OrbitData {
   channel: Channel;
-  score: number;
-  orbitRadius: number;
-  orbitDuration: number;
-  voiceCount: number;
-  unread: boolean;
+  cx: number;
+  cy: number;
+  radius: number;
+  color: string;
+  memberIds: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Computed user position type
+// ---------------------------------------------------------------------------
+
+interface PositionedUser {
+  userId: string;
+  handle: string;
+  avatarUrl?: string;
+  initials: string;
+  gradientColors: [string, string];
+  x: number;
+  y: number;
+  status: PresenceStatus;
+  isMuted: boolean;
+  isSpeaking: boolean;
+  isCurrentUser: boolean;
+  orbitColor: string;
+  /** Channel name the user is in, or 'NONE' */
+  orbitName: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,74 +162,395 @@ interface RankedChannel {
 // ---------------------------------------------------------------------------
 
 export function SolarSystemView() {
+  // -- Store selectors -------------------------------------------------------
   const hubs = useHubStore((s) => s.hubs);
   const activeHubId = useHubStore((s) => s.activeHubId);
   const channels = useHubStore((s) => s.channels);
   const activeChannelId = useHubStore((s) => s.activeChannelId);
-  const setActiveChannel = useHubStore((s) => s.setActiveChannel);
+  const setActiveChannelOrbital = useHubStore((s) => s.setActiveChannelOrbital);
+  const setPendingVoiceJoin = useHubStore((s) => s.setPendingVoiceJoin);
 
-  const allMessages = useMessageStore((s) => s.messages);
   const voiceStates = useVoiceStateStore((s) => s.voiceStates);
-  const readStates = useReadStateStore((s) => s.readStates);
-  const members = useMemberStore((s) => s.members);
+  const speakingUserIds = useVoiceStateStore((s) => s.speakingUserIds);
+  const connectedChannelId = useVoiceStateStore((s) => s.connectedChannelId);
+  const localMicMuted = useVoiceStateStore((s) => s.localMicMuted);
+  const toggleMicFn = useVoiceStateStore((s) => s.toggleMicFn);
+  const setConnectedChannelId = useVoiceStateStore((s) => s.setConnectedChannelId);
+
   const presence = usePresenceStore((s) => s.presence);
+  const members = useMemberStore((s) => s.members);
+  const currentUserId = useAuthStore((s) => s.userId);
+
+  const commsCenterOpen = useSettingsStore((s) => s.commsCenterOpen);
+  const toggleCommsCenter = useSettingsStore((s) => s.toggleCommsCenter);
+  const commsCenterPinned = useSettingsStore((s) => s.commsCenterPinned);
+  const toggleCommsCenterPin = useSettingsStore((s) => s.toggleCommsCenterPin);
+  const commsCenterPosition = useSettingsStore((s) => s.commsCenterPosition);
+  const setCommsCenterPosition = useSettingsStore((s) => s.setCommsCenterPosition);
+  const commsCenterSize = useSettingsStore((s) => s.commsCenterSize);
+  const setCommsCenterSize = useSettingsStore((s) => s.setCommsCenterSize);
+  const isDeafened = useSettingsStore((s) => s.isDeafened);
+  const toggleDeafen = useSettingsStore((s) => s.toggleDeafen);
+
+  const canManageChannels = useHasPermission(1 << 3); // Permission.MANAGE_CHANNELS
+  const setChannels = useHubStore((s) => s.setChannels);
 
   const activeHub = hubs.find((h) => h.id === activeHubId);
-  const memberCount = Object.keys(members).length;
 
-  // Star color from hub ID
-  const starHue = activeHub ? hubIdToHue(activeHub.id) : 200;
-  const starColor = `hsl(${starHue}, 80%, 60%)`;
-  const starColorDim = `hsl(${starHue}, 60%, 30%)`;
-  const starRadius = Math.min(STAR_MAX_RADIUS, STAR_MIN_RADIUS + Math.min(17, memberCount / 8));
+  // -- Local state -----------------------------------------------------------
+  const [channelListOpen, setChannelListOpen] = useState(false);
+  const [tooltip, setTooltip] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    name: string;
+    status: 'ONLINE' | 'YOU' | 'MUTED' | 'IDLE' | 'DND' | 'OFFLINE';
+    orbitName: string;
+    ping: string;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    name: '',
+    status: 'OFFLINE',
+    orbitName: 'NONE',
+    ping: '\u2014',
+  });
 
-  // Rank channels by activity and compute orbit parameters
-  const rankedChannels = useMemo((): RankedChannel[] => {
-    const ranked = channels.map((ch) => {
-      const msgs = allMessages[ch.id] ?? [];
-      const voiceCount = (voiceStates[ch.id] ?? EMPTY_PARTICIPANTS).length;
-      const score = channelActivityScore(ch.id, msgs.length, voiceCount);
-      const lastReadId = readStates[ch.id]?.lastReadMessageId;
-      const unread = hasUnread(ch.id, msgs, lastReadId);
-      return { channel: ch, score, voiceCount, unread, orbitRadius: 0, orbitDuration: 0 };
-    });
+  // -- Viewport size tracking ------------------------------------------------
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [viewSize, setViewSize] = useState({ width: 1920, height: 1080 });
 
-    // Sort by score descending (most active first = closest orbit)
-    ranked.sort((a, b) => b.score - a.score);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
-    // Cap visible planets
-    const visible = ranked.slice(0, MAX_VISIBLE_PLANETS);
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setViewSize({ width: rect.width || 1920, height: rect.height || 1080 });
+    };
 
-    // Assign orbit radii and durations
-    visible.forEach((r, i) => {
-      r.orbitRadius = MIN_ORBIT + i * ORBIT_SPACING;
-      r.orbitDuration = BASE_ORBIT_DURATION + i * ORBIT_DURATION_STEP;
-    });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    update();
 
-    return visible;
-  }, [channels, allMessages, voiceStates, readStates]);
+    return () => ro.disconnect();
+  }, []);
 
-  // Gather voice participants per channel for user dots
-  const voiceParticipantsByChannel = useMemo(() => {
-    const map: Record<string, { userId: string; handle: string; status: PresenceStatus }[]> = {};
-    for (const rc of rankedChannels) {
-      const participants = voiceStates[rc.channel.id] ?? EMPTY_PARTICIPANTS;
-      map[rc.channel.id] = participants.slice(0, MAX_DOTS_PER_PLANET).map((p) => ({
-        userId: p.userId,
-        handle: p.handle ?? p.userId.slice(0, 8),
-        status: presence[p.userId] ?? 'online',
-      }));
-    }
-    return map;
-  }, [rankedChannels, voiceStates, presence]);
-
-  const handlePlanetClick = useCallback(
-    (channelId: string) => {
-      setActiveChannel(channelId);
-    },
-    [setActiveChannel],
+  // -- Derived: voice channels and text channels -----------------------------
+  const voiceChannels = useMemo(
+    () => channels.filter((ch) => ch.type === 'voice'),
+    [channels],
   );
 
+  const textChannels = useMemo(
+    () => channels.filter((ch) => ch.type === 'text'),
+    [channels],
+  );
+
+  // -- Derived: speaking set for O(1) lookup ---------------------------------
+  const speakingSet = useMemo(
+    () => new Set(speakingUserIds),
+    [speakingUserIds],
+  );
+
+  // -- Derived: set of all user IDs in any voice channel ---------------------
+  const usersInVoice = useMemo(() => {
+    const set = new Set<string>();
+    for (const ch of voiceChannels) {
+      const participants = voiceStates[ch.id] ?? EMPTY_PARTICIPANTS;
+      for (const p of participants) {
+        set.add(p.userId);
+      }
+    }
+    return set;
+  }, [voiceChannels, voiceStates]);
+
+  // -- Derived: orbit data for each voice channel ----------------------------
+  const orbitData = useMemo((): OrbitData[] => {
+    const count = voiceChannels.length;
+    if (count === 0) return [];
+
+    const presets = count <= 4
+      ? ORBIT_PRESETS[count]!
+      : generateCircularPresets(count);
+
+    return voiceChannels.map((ch, i) => {
+      const participants = voiceStates[ch.id] ?? EMPTY_PARTICIPANTS;
+      const memberCount = participants.length;
+      const radius = Math.min(160, 80 + 15 * memberCount);
+      const color = ORBIT_COLORS[i % ORBIT_COLORS.length]!;
+      const pos = presets[i] ?? { cx: 0.5, cy: 0.5 };
+
+      return {
+        channel: ch,
+        cx: pos.cx,
+        cy: pos.cy,
+        radius,
+        color,
+        memberIds: participants.map((p) => p.userId),
+      };
+    });
+  }, [voiceChannels, voiceStates]);
+
+  // -- Derived: map channelId -> orbit color for quick lookup ----------------
+  const orbitColorByChannel = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const od of orbitData) {
+      map[od.channel.id] = od.color;
+    }
+    return map;
+  }, [orbitData]);
+
+  // -- Derived: map channelId -> orbit data for quick lookup -----------------
+  const orbitByChannel = useMemo(() => {
+    const map: Record<string, OrbitData> = {};
+    for (const od of orbitData) {
+      map[od.channel.id] = od;
+    }
+    return map;
+  }, [orbitData]);
+
+  // -- Derived: all positioned users -----------------------------------------
+  const positionedUsers = useMemo((): PositionedUser[] => {
+    const result: PositionedUser[] = [];
+    const { width: vw, height: vh } = viewSize;
+
+    // 1. Users in voice channels — position around orbit center
+    for (const od of orbitData) {
+      const participants = voiceStates[od.channel.id] ?? EMPTY_PARTICIPANTS;
+      const memberCount = participants.length;
+
+      participants.forEach((p, index) => {
+        const member = members[p.userId];
+        const handle = member?.handle ?? p.handle ?? p.userId.slice(0, 8);
+        const angle = (index / Math.max(memberCount, 1)) * Math.PI * 2 - Math.PI / 2;
+        const spread = Math.min(od.radius * 0.45, 70);
+        const userX = od.cx + (Math.cos(angle) * spread) / vw;
+        const userY = od.cy + (Math.sin(angle) * spread) / vh;
+        const status: PresenceStatus = presence[p.userId] ?? 'online';
+
+        result.push({
+          userId: p.userId,
+          handle,
+          avatarUrl: member?.avatarUrl,
+          initials: toInitials(handle),
+          gradientColors: userGradient(p.userId),
+          x: userX,
+          y: userY,
+          status,
+          isMuted: p.selfMute,
+          isSpeaking: speakingSet.has(p.userId),
+          isCurrentUser: p.userId === currentUserId,
+          orbitColor: od.color,
+          orbitName: od.channel.name,
+        });
+      });
+    }
+
+    // 2. Offline / non-voice members — scatter at floating positions
+    let floatIdx = 0;
+    const memberList = Object.values(members);
+    for (const m of memberList) {
+      if (usersInVoice.has(m.userId)) continue;
+
+      const pos = FLOATING_POSITIONS[floatIdx % FLOATING_POSITIONS.length]!;
+      floatIdx++;
+      const status: PresenceStatus = presence[m.userId] ?? 'offline';
+
+      result.push({
+        userId: m.userId,
+        handle: m.handle,
+        avatarUrl: m.avatarUrl,
+        initials: toInitials(m.handle),
+        gradientColors: userGradient(m.userId),
+        x: pos.x,
+        y: pos.y,
+        status,
+        isMuted: false,
+        isSpeaking: false,
+        isCurrentUser: m.userId === currentUserId,
+        orbitColor: '#888',
+        orbitName: 'NONE',
+      });
+    }
+
+    return result;
+  }, [
+    orbitData, voiceStates, members, presence, speakingSet,
+    usersInVoice, currentUserId, viewSize,
+  ]);
+
+  // -- Derived: user positions map (for canvas bg) ---------------------------
+  const userPositionsMap = useMemo(() => {
+    const map: Record<string, { x: number; y: number }> = {};
+    for (const u of positionedUsers) {
+      map[u.userId] = { x: u.x, y: u.y };
+    }
+    return map;
+  }, [positionedUsers]);
+
+  // -- Derived: online user IDs set (for canvas bg) --------------------------
+  const onlineUserIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const u of positionedUsers) {
+      if (u.status !== 'offline') {
+        set.add(u.userId);
+      }
+    }
+    return set;
+  }, [positionedUsers]);
+
+  // -- Derived: canvas bg orbits prop ----------------------------------------
+  const canvasOrbits = useMemo(
+    () =>
+      orbitData.map((od) => ({
+        id: od.channel.id,
+        cx: od.cx,
+        cy: od.cy,
+        radius: od.radius,
+        color: od.color,
+        memberIds: od.memberIds,
+      })),
+    [orbitData],
+  );
+
+  // -- Derived: active orbit count (voice channels with participants) --------
+  const activeOrbitCount = useMemo(
+    () => orbitData.filter((od) => od.memberIds.length > 0).length,
+    [orbitData],
+  );
+
+  // -- Derived: connected voice channel name ---------------------------------
+  const connectedVoiceChannel = useMemo(
+    () => (connectedChannelId ? channels.find((ch) => ch.id === connectedChannelId) : null),
+    [connectedChannelId, channels],
+  );
+
+  // -- Derived: HUD voice participants ---------------------------------------
+  const hudVoiceParticipants = useMemo(() => {
+    if (!connectedChannelId) return [];
+    const participants = voiceStates[connectedChannelId] ?? EMPTY_PARTICIPANTS;
+    return participants.map((p) => {
+      const member = members[p.userId];
+      const handle = member?.handle ?? p.handle ?? p.userId.slice(0, 8);
+      return {
+        userId: p.userId,
+        initials: toInitials(handle),
+        gradientColors: userGradient(p.userId),
+        isCurrentUser: p.userId === currentUserId,
+      };
+    });
+  }, [connectedChannelId, voiceStates, members, currentUserId]);
+
+  // -- Derived: current user info for HUD ------------------------------------
+  const currentUserInfo = useMemo(() => {
+    const member = currentUserId ? members[currentUserId] : null;
+    const handle = member?.handle ?? 'User';
+    return {
+      handle,
+      initials: toInitials(handle),
+      gradientColors: userGradient(currentUserId ?? 'unknown'),
+    };
+  }, [currentUserId, members]);
+
+  // -- Derived: active text channel name for Comms Center label --------------
+  const activeTextChannelName = useMemo(() => {
+    if (!activeChannelId) return null;
+    const ch = textChannels.find((c) => c.id === activeChannelId);
+    return ch?.name ?? null;
+  }, [activeChannelId, textChannels]);
+
+  // -- Derived: channel list props -------------------------------------------
+  const channelListTextChannels = useMemo(
+    () => textChannels.map((ch) => ({ id: ch.id, name: ch.name, unreadCount: 0 })),
+    [textChannels],
+  );
+
+  const channelListVoiceOrbits = useMemo(
+    () =>
+      voiceChannels.map((ch, i) => {
+        const participants = voiceStates[ch.id] ?? EMPTY_PARTICIPANTS;
+        return {
+          id: ch.id,
+          name: ch.name,
+          color: ORBIT_COLORS[i % ORBIT_COLORS.length]!,
+          onlineCount: participants.length,
+        };
+      }),
+    [voiceChannels, voiceStates],
+  );
+
+  // -- Callbacks -------------------------------------------------------------
+  const handleChannelListToggle = useCallback(() => {
+    setChannelListOpen((prev) => !prev);
+  }, []);
+
+  const handleChannelListClose = useCallback(() => {
+    setChannelListOpen(false);
+  }, []);
+
+  const handleTextChannelSelect = useCallback(
+    (id: string) => {
+      setActiveChannelOrbital(id);
+    },
+    [setActiveChannelOrbital],
+  );
+
+  const handleVoiceOrbitSelect = useCallback(
+    (id: string) => {
+      setPendingVoiceJoin(id);
+    },
+    [setPendingVoiceJoin],
+  );
+
+  const handleOrbitDoubleClick = useCallback(
+    (channelId: string) => {
+      setPendingVoiceJoin(channelId);
+    },
+    [setPendingVoiceJoin],
+  );
+
+  const handleMicToggle = useCallback(() => {
+    toggleMicFn?.();
+  }, [toggleMicFn]);
+
+  const handleDisconnect = useCallback(() => {
+    setPendingVoiceJoin(null);
+    setConnectedChannelId(null);
+  }, [setPendingVoiceJoin, setConnectedChannelId]);
+
+  const handleUserMouseEnter = useCallback(
+    (user: PositionedUser) => (e: React.MouseEvent) => {
+      setTooltip({
+        visible: true,
+        x: e.clientX,
+        y: e.clientY,
+        name: user.handle,
+        status: tooltipStatus(user.status, user.isMuted, user.isCurrentUser),
+        orbitName: user.orbitName,
+        ping: '\u2014',
+      });
+    },
+    [],
+  );
+
+  const handleUserMouseMove = useCallback((e: React.MouseEvent) => {
+    setTooltip((prev) => ({ ...prev, x: e.clientX, y: e.clientY }));
+  }, []);
+
+  const handleUserMouseLeave = useCallback(() => {
+    setTooltip((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const handleChannelCreated = useCallback(
+    (channel: { id: string; hubId: string; name: string; type: 'voice'; position: number }) => {
+      setChannels([...channels, channel]);
+    },
+    [channels, setChannels],
+  );
+
+  // -- Empty state -----------------------------------------------------------
   if (!activeHub) {
     return (
       <div className="flex flex-1 items-center justify-center text-text-muted text-sm">
@@ -183,354 +559,135 @@ export function SolarSystemView() {
     );
   }
 
-  const overflowCount = Math.max(0, channels.length - MAX_VISIBLE_PLANETS);
-
+  // -- Render ----------------------------------------------------------------
   return (
-    <div className="flex-1 relative overflow-hidden">
-      <svg
-        viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
-        className="w-full h-full"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <defs>
-          {/* Star radial gradient */}
-          <radialGradient id="star-gradient" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={starColor} stopOpacity="1" />
-            <stop offset="60%" stopColor={starColor} stopOpacity="0.6" />
-            <stop offset="100%" stopColor={starColorDim} stopOpacity="0.2" />
-          </radialGradient>
-
-          {/* Glow filter for active planet */}
-          <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#00f0ff" floodOpacity="0.8" />
-          </filter>
-
-          {/* Glow filter for unread planet */}
-          <filter id="glow-magenta" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#ff006e" floodOpacity="0.6" />
-          </filter>
-
-          {/* Star glow filter */}
-          <filter id="star-glow-filter" x="-100%" y="-100%" width="300%" height="300%">
-            <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor={starColor} floodOpacity="0.5" />
-          </filter>
-
-          {/* Glow for voice-active planet */}
-          <filter id="glow-voice" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#34d399" floodOpacity="0.6" />
-          </filter>
-        </defs>
-
-        {/* Orbit rings (faint) */}
-        {rankedChannels.map((rc) => (
-          <circle
-            key={`orbit-${rc.channel.id}`}
-            cx={CENTER}
-            cy={CENTER}
-            r={rc.orbitRadius}
-            fill="none"
-            stroke="rgba(255,255,255,0.04)"
-            strokeWidth="1"
-            strokeDasharray="4 8"
-          />
-        ))}
-
-        {/* Overflow indicator (asteroid belt) */}
-        {overflowCount > 0 && (
-          <g>
-            <circle
-              cx={CENTER}
-              cy={CENTER}
-              r={MIN_ORBIT + MAX_VISIBLE_PLANETS * ORBIT_SPACING}
-              fill="none"
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth="2"
-              strokeDasharray="2 6"
-            />
-            <text
-              x={CENTER + MIN_ORBIT + MAX_VISIBLE_PLANETS * ORBIT_SPACING + 10}
-              y={CENTER}
-              fill="rgba(255,255,255,0.3)"
-              fontSize="11"
-              fontFamily="var(--font-mono)"
-              dominantBaseline="middle"
-            >
-              +{overflowCount} more
-            </text>
-          </g>
-        )}
-
-        {/* Central star */}
-        <g filter="url(#star-glow-filter)">
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={starRadius}
-            fill="url(#star-gradient)"
-            className="animate-pulse-glow"
-            style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
-          />
-          {/* Hub icon inside star if available */}
-          {activeHub.iconUrl && (
-            <clipPath id="star-clip">
-              <circle cx={CENTER} cy={CENTER} r={starRadius - 4} />
-            </clipPath>
-          )}
-          {activeHub.iconUrl && (
-            <image
-              href={activeHub.iconUrl}
-              x={CENTER - starRadius + 4}
-              y={CENTER - starRadius + 4}
-              width={(starRadius - 4) * 2}
-              height={(starRadius - 4) * 2}
-              clipPath="url(#star-clip)"
-              preserveAspectRatio="xMidYMid slice"
-            />
-          )}
-        </g>
-
-        {/* Hub name below star */}
-        <text
-          x={CENTER}
-          y={CENTER + starRadius + 20}
-          textAnchor="middle"
-          fill="rgba(255,255,255,0.7)"
-          fontSize="14"
-          fontFamily="var(--font-display)"
-          fontWeight="600"
-          letterSpacing="-0.02em"
-        >
-          {activeHub.name}
-        </text>
-
-        {/* Planets */}
-        {rankedChannels.map((rc, index) => (
-          <Planet
-            key={rc.channel.id}
-            rc={rc}
-            index={index}
-            isActive={rc.channel.id === activeChannelId}
-            onClick={handlePlanetClick}
-            voiceParticipants={voiceParticipantsByChannel[rc.channel.id] ?? []}
-          />
-        ))}
-      </svg>
-
-      {/* System info overlay (bottom-left) */}
-      <div className="absolute bottom-4 left-4 pointer-events-none">
-        <div className="text-[10px] text-white/30 font-mono uppercase tracking-wider">Solar System</div>
-        <div className="text-sm text-white/60 font-display">{channels.length} planets &middot; {memberCount} entities</div>
-      </div>
-
-      {/* Keyboard hint (bottom-right) */}
-      <div className="absolute bottom-4 right-4 pointer-events-none">
-        <div className="text-[10px] text-white/20 font-mono">Click a planet to enter channel</div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Planet sub-component
-// ---------------------------------------------------------------------------
-
-interface PlanetProps {
-  rc: RankedChannel;
-  index: number;
-  isActive: boolean;
-  onClick: (channelId: string) => void;
-  voiceParticipants: { userId: string; handle: string; status: PresenceStatus }[];
-}
-
-function Planet({ rc, index, isActive, onClick, voiceParticipants }: PlanetProps) {
-  const { channel, orbitRadius, orbitDuration, voiceCount, unread } = rc;
-  const isVoice = channel.type === 'voice';
-  const planetRadius = isVoice ? VOICE_PLANET_RADIUS : TEXT_PLANET_RADIUS;
-
-  // Planet fill color
-  const baseFill = isVoice ? '#8338ec' : '#00f0ff';
-  const activeFill = isVoice ? '#a855f7' : '#67e8f9';
-
-  // Determine glow filter
-  let filter = '';
-  if (isActive) filter = 'url(#glow-cyan)';
-  else if (voiceCount > 0) filter = 'url(#glow-voice)';
-  else if (unread) filter = 'url(#glow-magenta)';
-
-  // Start angle offset so planets don't bunch up
-  const startAngle = index * 47; // golden-ish spacing
-
-  // Animation direction alternates for visual variety
-  const direction = index % 2 === 0 ? 'normal' : 'reverse';
-
-  return (
-    <g
-      className="cursor-pointer"
-      onClick={() => onClick(channel.id)}
-      role="button"
-      tabIndex={0}
-      aria-label={`${channel.name} — ${isVoice ? 'voice' : 'text'} channel${voiceCount > 0 ? `, ${voiceCount} in voice` : ''}${unread ? ', has unread messages' : ''}`}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick(channel.id);
-        }
-      }}
+    <div
+      ref={containerRef}
+      className="flex-1 relative overflow-hidden"
     >
-      {/* Orbit container — rotates around center */}
-      <g
+      {/* Layer 0: Canvas animated background */}
+      <OrbitalCanvasBg
+        orbits={canvasOrbits}
+        userPositions={userPositionsMap}
+        onlineUserIds={onlineUserIds}
+      />
+
+      {/* Layer 1: Grid overlay */}
+      <div
+        className="absolute inset-0 z-[1] pointer-events-none"
         style={{
-          transformOrigin: `${CENTER}px ${CENTER}px`,
-          animation: `planet-orbit ${orbitDuration}s linear infinite ${direction}`,
+          backgroundImage:
+            'linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px)',
+          backgroundSize: '70px 70px',
         }}
-      >
-        {/* Planet positioned at orbit distance from center */}
-        <g
-          transform={`translate(${CENTER + orbitRadius}, ${CENTER})`}
-          style={{
-            transformOrigin: `${CENTER + orbitRadius}px ${CENTER}px`,
-          }}
-        >
-          {/* Counter-rotate to keep content upright */}
-          <g
-            style={{
-              transformOrigin: '0px 0px',
-              animation: `orbit-spin ${orbitDuration}s linear infinite ${direction === 'normal' ? 'reverse' : 'normal'}`,
-            }}
-          >
-            <Tooltip content={`${channel.name} (${isVoice ? 'voice' : 'text'})${voiceCount > 0 ? ` · ${voiceCount} in voice` : ''}${unread ? ' · unread' : ''}`}>
-              <g>
-                {/* Planet body */}
-                <circle
-                  cx="0"
-                  cy="0"
-                  r={planetRadius}
-                  fill={isActive ? activeFill : baseFill}
-                  opacity={isActive ? 1 : 0.7}
-                  filter={filter}
-                  className={clsx(
-                    'transition-opacity duration-300',
-                    !isActive && 'hover:opacity-100',
-                    unread && !isActive && 'planet-unread',
-                  )}
-                />
+      />
 
-                {/* Active ring */}
-                {isActive && (
-                  <circle
-                    cx="0"
-                    cy="0"
-                    r={planetRadius + 3}
-                    fill="none"
-                    stroke="#00f0ff"
-                    strokeWidth="1.5"
-                    opacity="0.5"
-                  />
-                )}
-
-                {/* Voice participant count badge */}
-                {voiceCount > 0 && (
-                  <g>
-                    <circle
-                      cx={planetRadius + 4}
-                      cy={-planetRadius + 2}
-                      r="7"
-                      fill="#34d399"
-                    />
-                    <text
-                      x={planetRadius + 4}
-                      y={-planetRadius + 2}
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fill="white"
-                      fontSize="8"
-                      fontWeight="700"
-                      fontFamily="var(--font-mono)"
-                    >
-                      {voiceCount}
-                    </text>
-                  </g>
-                )}
-
-                {/* Channel name label */}
-                <text
-                  x="0"
-                  y={planetRadius + 14}
-                  textAnchor="middle"
-                  fill={isActive ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)'}
-                  fontSize="11"
-                  fontFamily="var(--font-sans)"
-                  fontWeight={isActive ? '600' : '400'}
-                >
-                  {channel.name}
-                </text>
-
-                {/* Channel type icon */}
-                {isVoice ? (
-                  <text
-                    x="0"
-                    y={-planetRadius - 6}
-                    textAnchor="middle"
-                    fill="rgba(255,255,255,0.3)"
-                    fontSize="10"
-                    fontFamily="var(--font-mono)"
-                  >
-                    &#x1F3A4;
-                  </text>
-                ) : null}
-
-                {/* User dots orbiting this planet */}
-                {voiceParticipants.map((vp, dotIdx) => (
-                  <UserDot
-                    key={vp.userId}
-                    user={vp}
-                    index={dotIdx}
-                    totalDots={voiceParticipants.length}
-                    planetRadius={planetRadius}
-                  />
-                ))}
-              </g>
-            </Tooltip>
-          </g>
-        </g>
-      </g>
-    </g>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// User dot sub-component
-// ---------------------------------------------------------------------------
-
-interface UserDotProps {
-  user: { userId: string; handle: string; status: PresenceStatus };
-  index: number;
-  totalDots: number;
-  planetRadius: number;
-}
-
-function UserDot({ user, index, totalDots, planetRadius }: UserDotProps) {
-  const dotOrbitRadius = planetRadius + DOT_ORBIT_OFFSET;
-  const startAngle = (360 / Math.max(totalDots, 1)) * index;
-  const duration = DOT_ORBIT_DURATION_BASE + index * 0.5;
-  const color = STATUS_DOT_COLOR[user.status] ?? STATUS_DOT_COLOR.online;
-
-  return (
-    <g
-      style={{
-        transformOrigin: '0px 0px',
-        animation: `orbit-spin ${duration}s linear infinite`,
-      }}
-    >
-      <Tooltip content={user.handle}>
-        <circle
-          cx={dotOrbitRadius * Math.cos((startAngle * Math.PI) / 180)}
-          cy={dotOrbitRadius * Math.sin((startAngle * Math.PI) / 180)}
-          r={DOT_RADIUS}
-          fill={color}
-          opacity="0.8"
+      {/* Layer 2: Orbit zones */}
+      {orbitData.map((od) => (
+        <OrbitZone
+          key={od.channel.id}
+          id={od.channel.id}
+          name={od.channel.name}
+          cx={od.cx}
+          cy={od.cy}
+          radius={od.radius}
+          color={od.color}
+          memberCount={od.memberIds.length}
+          onDoubleClick={() => handleOrbitDoubleClick(od.channel.id)}
         />
-      </Tooltip>
-    </g>
+      ))}
+
+      {/* Layer 3: User nodes */}
+      {positionedUsers.map((user) => (
+        <UserNode
+          key={user.userId}
+          userId={user.userId}
+          handle={user.handle}
+          avatarUrl={user.avatarUrl}
+          initials={user.initials}
+          gradientColors={user.gradientColors}
+          x={user.x}
+          y={user.y}
+          status={user.status}
+          isMuted={user.isMuted}
+          isSpeaking={user.isSpeaking}
+          isCurrentUser={user.isCurrentUser}
+          orbitColor={user.orbitColor}
+          onMouseEnter={handleUserMouseEnter(user)}
+          onMouseMove={handleUserMouseMove}
+          onMouseLeave={handleUserMouseLeave}
+        />
+      ))}
+
+      {/* Layer 4: Topbar */}
+      <OrbitalTopbar
+        hubName={activeHub.name}
+        hubIconUrl={activeHub.iconUrl}
+        activeOrbitCount={activeOrbitCount}
+        onChannelListToggle={handleChannelListToggle}
+      />
+
+      {/* Layer 5: Channel list */}
+      <OrbitalChannelList
+        open={channelListOpen}
+        onClose={handleChannelListClose}
+        textChannels={channelListTextChannels}
+        voiceOrbits={channelListVoiceOrbits}
+        activeChannelId={activeChannelId}
+        onTextChannelSelect={handleTextChannelSelect}
+        onVoiceOrbitSelect={handleVoiceOrbitSelect}
+      />
+
+      {/* Layer 6: HUD */}
+      <OrbitalHud
+        voiceChannelName={connectedVoiceChannel?.name ?? null}
+        voiceParticipants={hudVoiceParticipants}
+        latencyMs={null}
+        currentUser={currentUserInfo}
+        isMicMuted={localMicMuted}
+        isDeafened={isDeafened}
+        onMicToggle={handleMicToggle}
+        onDeafenToggle={toggleDeafen}
+        onDisconnect={handleDisconnect}
+        commsCenterOpen={commsCenterOpen}
+        onCommsCenterToggle={toggleCommsCenter}
+        activeTextChannelName={activeTextChannelName}
+      />
+
+      {/* Layer 7: Splinter New Orbit button */}
+      <SplinterButton
+        hubId={activeHub.id}
+        canCreate={canManageChannels}
+        onChannelCreated={handleChannelCreated}
+        existingVoiceCount={voiceChannels.length}
+      />
+
+      {/* Layer 8: Floating chat panel (Comms Center) */}
+      {activeChannelId && activeTextChannelName && (
+        <FloatingChatPanel
+          channelId={activeChannelId}
+          channelName={activeTextChannelName}
+          open={commsCenterOpen}
+          onClose={toggleCommsCenter}
+          pinned={commsCenterPinned}
+          onTogglePin={toggleCommsCenterPin}
+          savedPosition={commsCenterPosition}
+          onPositionChange={setCommsCenterPosition}
+          savedSize={commsCenterSize}
+          onSizeChange={setCommsCenterSize}
+        />
+      )}
+
+      {/* Layer 9: Tooltip (highest z-index) */}
+      <UserTooltip
+        visible={tooltip.visible}
+        x={tooltip.x}
+        y={tooltip.y}
+        name={tooltip.name}
+        status={tooltip.status}
+        orbitName={tooltip.orbitName}
+        ping={tooltip.ping}
+      />
+    </div>
   );
 }
