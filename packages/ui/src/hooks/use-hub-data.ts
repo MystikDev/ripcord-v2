@@ -298,10 +298,12 @@ export function useHubData() {
         }));
         setChannels(mapped);
 
-        // Auto-select first text channel
+        // Pre-select first text channel (without exiting solar system view).
+        // We set only activeChannelId so the planet is highlighted, but
+        // systemViewActive stays true so the immersive view remains.
         const firstText = mapped.find((c) => c.type === 'text');
         if (firstText) {
-          setActiveChannel(firstText.id);
+          useHubStore.setState({ activeChannelId: firstText.id });
         }
 
         // Subscribe to all channels via gateway (batched into a single message)
@@ -331,7 +333,7 @@ export function useHubData() {
     return () => {
       cancelled = true;
     };
-  }, [activeHubId, setChannels, setActiveChannel, setVoiceStates, setMembersStore, setRolesStore, setPresenceMany, setPermissions]);
+  }, [activeHubId, setChannels, setVoiceStates, setMembersStore, setRolesStore, setPresenceMany, setPermissions]);
 
   // Re-subscribe channels & re-hydrate voice states on gateway reconnect
   useEffect(() => {
