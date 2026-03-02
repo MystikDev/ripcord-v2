@@ -15,7 +15,10 @@ import { OrbitalTopbar } from './orbital/orbital-topbar';
 import { OrbitalChannelList } from './orbital/orbital-channel-list';
 import { OrbitalHud } from './orbital/orbital-hud';
 import { SplinterButton } from './orbital/splinter-button';
+import { OrbitContextMenu } from './orbital/orbit-context-menu';
 import { FloatingChatPanel } from './orbital/floating-chat-panel';
+import { AdminConsole } from '../admin/admin-console';
+import { Permission } from '@ripcord/types';
 import { useHubStore, type Channel } from '../../stores/server-store';
 import { useHasPermission } from '../../hooks/use-has-permission';
 import { useVoiceStateStore, EMPTY_PARTICIPANTS } from '../../stores/voice-state-store';
@@ -126,6 +129,56 @@ function tooltipStatus(
 }
 
 // ---------------------------------------------------------------------------
+// Orbit collision avoidance
+// ---------------------------------------------------------------------------
+
+/** Minimum distance (viewport fraction) between orbit centers. */
+const MIN_ORBIT_SEPARATION = 0.15;
+
+/**
+ * Push overlapping orbits apart. Non-overridden orbits are nudged outward
+ * from the canvas center until no pair is closer than MIN_ORBIT_SEPARATION.
+ */
+function resolveOrbitCollisions(
+  orbits: Array<{ cx: number; cy: number; hasOverride: boolean }>,
+): Array<{ cx: number; cy: number }> {
+  const result = orbits.map((o) => ({ cx: o.cx, cy: o.cy }));
+  const centerX = 0.5;
+  const centerY = 0.45;
+
+  for (let i = 0; i < result.length; i++) {
+    // Don't move user-dragged orbits
+    if (orbits[i].hasOverride) continue;
+
+    let attempts = 0;
+    while (attempts < 10) {
+      let collision = false;
+      for (let j = 0; j < result.length; j++) {
+        if (i === j) continue;
+        const dx = result[i].cx - result[j].cx;
+        const dy = result[i].cy - result[j].cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MIN_ORBIT_SEPARATION) {
+          collision = true;
+          const angle = Math.atan2(
+            result[i].cy - centerY,
+            result[i].cx - centerX,
+          );
+          result[i] = {
+            cx: Math.max(0.08, Math.min(0.92, result[i].cx + Math.cos(angle) * 0.04)),
+            cy: Math.max(0.08, Math.min(0.92, result[i].cy + Math.sin(angle) * 0.04)),
+          };
+          break;
+        }
+      }
+      if (!collision) break;
+      attempts++;
+    }
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Computed orbit data type
 // ---------------------------------------------------------------------------
 
@@ -155,6 +208,8 @@ interface PositionedUser {
   isSpeaking: boolean;
   isCurrentUser: boolean;
   orbitColor: string;
+  /** Voice channel ID the user is in, or empty string */
+  channelId: string;
   /** Channel name the user is in, or 'NONE' */
   orbitName: string;
   /** Whether the user is currently typing in any channel */
@@ -212,12 +267,19 @@ export function SolarSystemView() {
 
   const canManageChannels = useHasPermission(1 << 3); // Permission.MANAGE_CHANNELS
   const canCreateOrbit = useHasPermission(1 << 14); // Permission.CREATE_ORBIT
+  const canManageHub = useHasPermission(Permission.MANAGE_HUB);
   const setChannels = useHubStore((s) => s.setChannels);
 
   const activeHub = hubs.find((h) => h.id === activeHubId);
 
   // -- Local state -----------------------------------------------------------
   const [channelListOpen, setChannelListOpen] = useState(false);
+  const [orbitCtxMenu, setOrbitCtxMenu] = useState<{
+    channelId: string;
+    channelName: string;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [adminConsoleOpen, setAdminConsoleOpen] = useState(false);
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
     x: number;
@@ -331,19 +393,27 @@ export function SolarSystemView() {
       ? ORBIT_PRESETS[count]!
       : generateCircularPresets(count);
 
+    // Compute raw positions with override flags
+    const rawPositions = voiceChannels.map((ch, i) => {
+      const preset = presets[i] ?? { cx: 0.5, cy: 0.5 };
+      const override = orbitOverrides[ch.id];
+      const pos = override ?? preset;
+      return { cx: pos.cx, cy: pos.cy, hasOverride: !!override };
+    });
+
+    // Resolve collisions for non-overridden orbits
+    const resolved = resolveOrbitCollisions(rawPositions);
+
     return voiceChannels.map((ch, i) => {
       const participants = voiceStates[ch.id] ?? EMPTY_PARTICIPANTS;
       const memberCount = participants.length;
       const radius = Math.min(160, 80 + 15 * memberCount);
       const color = ORBIT_COLORS[i % ORBIT_COLORS.length]!;
-      const preset = presets[i] ?? { cx: 0.5, cy: 0.5 };
-      // Apply user-dragged override if available
-      const pos = orbitOverrides[ch.id] ?? preset;
 
       return {
         channel: ch,
-        cx: pos.cx,
-        cy: pos.cy,
+        cx: resolved[i].cx,
+        cy: resolved[i].cy,
         radius,
         color,
         memberIds: participants.map((p) => p.userId),
@@ -401,6 +471,7 @@ export function SolarSystemView() {
           isSpeaking: speakingSet.has(p.userId),
           isCurrentUser: p.userId === currentUserId,
           orbitColor: od.color,
+          channelId: od.channel.id,
           orbitName: od.channel.name,
           isTyping: typingUserIds.has(p.userId),
           isScreenSharing: screenSharingSet.has(p.userId),
@@ -431,6 +502,7 @@ export function SolarSystemView() {
         isSpeaking: false,
         isCurrentUser: m.userId === currentUserId,
         orbitColor: '#888',
+        channelId: '',
         orbitName: 'NONE',
         isTyping: typingUserIds.has(m.userId),
         isScreenSharing: screenSharingSet.has(m.userId),
@@ -624,6 +696,29 @@ export function SolarSystemView() {
     [setOrbitOverride],
   );
 
+  // -- Orbit context menu handlers -------------------------------------------
+  const handleOrbitContextMenu = useCallback(
+    (channelId: string, channelName: string) => (e: React.MouseEvent) => {
+      setOrbitCtxMenu({ channelId, channelName, position: { x: e.clientX, y: e.clientY } });
+    },
+    [],
+  );
+
+  const handleOrbitChannelDeleted = useCallback(
+    (channelId: string) => {
+      setChannels(channels.filter((c) => c.id !== channelId));
+      setOrbitCtxMenu(null);
+    },
+    [channels, setChannels],
+  );
+
+  const handleOrbitChannelRenamed = useCallback(
+    (channelId: string, newName: string) => {
+      setChannels(channels.map((c) => (c.id === channelId ? { ...c, name: newName } : c)));
+    },
+    [channels, setChannels],
+  );
+
   // -- Canvas pan handlers (drag on empty space) -----------------------------
   const handleCanvasPanDown = useCallback(
     (e: React.PointerEvent) => {
@@ -713,6 +808,7 @@ export function SolarSystemView() {
             memberCount={od.memberIds.length}
             onDoubleClick={() => handleOrbitDoubleClick(od.channel.id)}
             onDragMove={handleOrbitDrag}
+            onContextMenu={handleOrbitContextMenu(od.channel.id, od.channel.name)}
           />
         ))}
 
@@ -732,6 +828,7 @@ export function SolarSystemView() {
             isSpeaking={user.isSpeaking}
             isCurrentUser={user.isCurrentUser}
             orbitColor={user.orbitColor}
+            channelId={user.channelId}
             isTyping={user.isTyping}
             isScreenSharing={user.isScreenSharing}
             onMouseEnter={handleUserMouseEnter(user)}
@@ -788,6 +885,35 @@ export function SolarSystemView() {
         onChannelCreated={handleChannelCreated}
         existingVoiceCount={voiceChannels.length}
       />
+
+      {/* Layer 7b: Orbit context menu */}
+      {orbitCtxMenu && activeHub && (
+        <OrbitContextMenu
+          channelId={orbitCtxMenu.channelId}
+          channelName={orbitCtxMenu.channelName}
+          hubId={activeHub.id}
+          position={orbitCtxMenu.position}
+          canManageChannels={canManageChannels}
+          canManageHub={canManageHub}
+          onClose={() => setOrbitCtxMenu(null)}
+          onOpenSettings={() => {
+            setOrbitCtxMenu(null);
+            setAdminConsoleOpen(true);
+          }}
+          onChannelDeleted={handleOrbitChannelDeleted}
+          onChannelRenamed={handleOrbitChannelRenamed}
+        />
+      )}
+
+      {/* Layer 7c: Admin console (controlled, opened from orbit context menu) */}
+      {activeHub && (
+        <AdminConsole
+          hubId={activeHub.id}
+          hubName={activeHub.name}
+          open={adminConsoleOpen}
+          onOpenChange={setAdminConsoleOpen}
+        />
+      )}
 
       {/* Layer 8: Floating chat panel (Comms Center) */}
       {activeChannelId && activeTextChannelName && (

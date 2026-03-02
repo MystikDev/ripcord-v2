@@ -18,6 +18,7 @@ import { SolarSystemView } from './solar-system-view';
 import { CosmosView } from './cosmos-view';
 import { IncomingCall } from '../voice/incoming-call';
 import { DmCallPanel } from '../voice/dm-call-panel';
+import { VoicePanel } from '../voice/voice-panel';
 import { BugReportButton } from '../ui/bug-report-dialog';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useHubStore } from '../../stores/server-store';
@@ -68,7 +69,16 @@ export function AppShell() {
 
         {showSystemView ? (
           /* Immersive orbital view for the active hub */
-          <SolarSystemView />
+          <>
+            <SolarSystemView />
+            {/* VoicePanel must stay mounted for voice connection logic
+                (pendingVoiceJoin). Normally lives in ChannelSidebar which
+                is unmounted during orbital view. Hidden since the orbital
+                HUD provides its own voice controls. */}
+            <div className="hidden">
+              <VoicePanel />
+            </div>
+          </>
         ) : showCosmosView ? (
           /* Cosmos landing — all hubs as nebulae */
           <CosmosView />

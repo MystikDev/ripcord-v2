@@ -36,6 +36,8 @@ interface OrbitZoneProps {
   onDoubleClick?: () => void;
   /** Called during drag with new viewport-fraction position */
   onDragMove?: (channelId: string, cx: number, cy: number) => void;
+  /** Called on right-click for context menu */
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +63,7 @@ export function OrbitZone({
   isTemporary = false,
   onDoubleClick,
   onDragMove,
+  onContextMenu,
 }: OrbitZoneProps) {
   const d1 = radius * 2;
   const d2 = radius * 2.4;
@@ -189,6 +192,11 @@ export function OrbitZone({
         style={{
           width: `${d2}px`,
           height: `${d2}px`,
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onContextMenu?.(e);
         }}
         onDoubleClick={(e) => {
           // Only fire double-click if we weren't dragging

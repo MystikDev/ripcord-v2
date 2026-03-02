@@ -12,12 +12,17 @@ import { create } from 'zustand';
 // ---------------------------------------------------------------------------
 
 /** A hub (server) the user has joined. */
+/** Voice quality tier presets that affect the SFU codec bitrate. */
+export type VoiceQualityTier = 'low' | 'medium' | 'high' | 'ultra';
+
+/** A hub (server) the user has joined. */
 export interface Hub {
   id: string;
   name: string;
   iconUrl?: string;
   bannerUrl?: string;
   ownerId: string;
+  voiceQualityTier?: VoiceQualityTier;
 }
 
 /** A text or voice channel within a hub. */

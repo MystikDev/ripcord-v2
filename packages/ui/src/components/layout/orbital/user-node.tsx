@@ -6,7 +6,9 @@
  */
 'use client';
 
+import { useState } from 'react';
 import clsx from 'clsx';
+import { ParticipantContextMenu } from '../../voice/participant-context-menu';
 
 // ---------------------------------------------------------------------------
 // Status colors
@@ -46,6 +48,8 @@ export interface UserNodeProps {
   isTyping?: boolean;
   /** Whether this user is screen sharing */
   isScreenSharing?: boolean;
+  /** Voice channel this user is in (empty string if not in voice) */
+  channelId: string;
   /** Orbit color for the pulsing rings */
   orbitColor: string;
   /** Called on mouse enter with the event */
@@ -74,11 +78,14 @@ export function UserNode({
   isCurrentUser,
   isTyping = false,
   isScreenSharing = false,
+  channelId,
   orbitColor,
   onMouseEnter,
   onMouseMove,
   onMouseLeave,
 }: UserNodeProps) {
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+
   const isOffline = status === 'offline';
   const statusColor = STATUS_COLOR[status];
 
@@ -99,6 +106,12 @@ export function UserNode({
         transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
       }}
       data-user-id={userId}
+      onContextMenu={(e) => {
+        if (isCurrentUser) return; // no context menu on yourself
+        e.preventDefault();
+        e.stopPropagation();
+        setCtxMenu({ x: e.clientX, y: e.clientY });
+      }}
       onMouseEnter={(e) => {
         // Scale on hover via inline style (CSS :hover doesn't mix well with
         // the translate(-50%,-50%) base transform when using Tailwind)
@@ -282,6 +295,17 @@ export function UserNode({
           <span className="text-cyan ml-1 font-semibold">&larr; YOU</span>
         )}
       </div>
+
+      {/* ── Right-click context menu (volume slider + admin actions) ── */}
+      {ctxMenu && (
+        <ParticipantContextMenu
+          userId={userId}
+          displayName={handle}
+          channelId={channelId}
+          position={ctxMenu}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
     </div>
   );
 }

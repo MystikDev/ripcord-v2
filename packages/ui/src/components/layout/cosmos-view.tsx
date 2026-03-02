@@ -10,6 +10,7 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import { CosmosCanvasBg } from './cosmos/cosmos-canvas-bg';
 import { HubNebula } from './cosmos/hub-nebula';
 import { useHubStore, type Hub } from '../../stores/server-store';
+import { AddHubDialog } from '../hub/create-hub-dialog';
 
 // ---------------------------------------------------------------------------
 // Pan drag ref type
@@ -103,6 +104,13 @@ export function CosmosView() {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // -- Hub position overrides for drag (local, not persisted) ---------------
+  const [hubOverrides, setHubOverrides] = useState<Record<string, { x: number; y: number }>>({});
+
+  const handleHubDrag = useCallback((hubId: string, newX: number, newY: number) => {
+    setHubOverrides((prev) => ({ ...prev, [hubId]: { x: newX, y: newY } }));
+  }, []);
+
   // -- Canvas pan (local, not persisted) ------------------------------------
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const panDragRef = useRef<PanDragState | null>(null);
@@ -170,10 +178,49 @@ export function CosmosView() {
     return (
       <div className="relative flex-1 overflow-hidden">
         <CosmosCanvasBg />
-        <div className="absolute inset-0 z-[10] flex items-center justify-center">
-          <span className="text-text-muted text-sm select-none">
+        <div className="absolute inset-0 z-[10] flex flex-col items-center justify-center gap-6">
+          <h2
+            className="font-display font-light tracking-[0.25em] uppercase select-none"
+            style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)' }}
+          >
             No solar systems yet
-          </span>
+          </h2>
+          <div className="flex gap-4">
+            <AddHubDialog
+              initialMode="create"
+              trigger={
+                <button
+                  type="button"
+                  className="px-6 py-3 rounded-xl font-mono text-[11px] tracking-wider uppercase cursor-pointer transition-all duration-200 hover:scale-105"
+                  style={{
+                    background: 'rgba(7, 9, 13, 0.85)',
+                    border: '1px solid rgba(0, 229, 255, 0.3)',
+                    color: 'var(--cyan)',
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  Create Solar System
+                </button>
+              }
+            />
+            <AddHubDialog
+              initialMode="join"
+              trigger={
+                <button
+                  type="button"
+                  className="px-6 py-3 rounded-xl font-mono text-[11px] tracking-wider uppercase cursor-pointer transition-all duration-200 hover:scale-105"
+                  style={{
+                    background: 'rgba(7, 9, 13, 0.85)',
+                    border: '1px solid rgba(176, 96, 255, 0.3)',
+                    color: '#b060ff',
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  Join with Invite
+                </button>
+              }
+            />
+          </div>
         </div>
       </div>
     );
@@ -235,13 +282,15 @@ export function CosmosView() {
           {positions.map((pos) => {
             const hub = hubs.find((h) => h.id === pos.hubId);
             if (!hub) return null;
+            const overridden = hubOverrides[hub.id] ?? pos;
             return (
               <HubNebula
                 key={hub.id}
                 hub={hub}
-                x={pos.x}
-                y={pos.y}
+                x={overridden.x}
+                y={overridden.y}
                 onSelect={handleSelect}
+                onDragMove={handleHubDrag}
               />
             );
           })}
@@ -256,7 +305,7 @@ export function CosmosView() {
           className="font-display font-light tracking-[0.25em] uppercase select-none"
           style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}
         >
-          YOUR COSMOS
+          THE RIPCORD COSMOS
         </h1>
       </div>
 

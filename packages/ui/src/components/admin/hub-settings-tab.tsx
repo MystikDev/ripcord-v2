@@ -9,7 +9,7 @@
 import { useCallback, useRef, useState, type FormEvent } from 'react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import { useHubStore } from '../../stores/server-store';
+import { useHubStore, type VoiceQualityTier } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useToast } from '../ui/toast';
 import { apiFetch } from '../../lib/api';
@@ -24,6 +24,20 @@ import { IconCropDialog } from './icon-crop-dialog';
 
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
 const MAX_INPUT_FILE_SIZE = 5 * 1024 * 1024; // 5 MB (source image, before crop)
+
+const VOICE_QUALITY_TIERS: Array<{
+  key: VoiceQualityTier;
+  label: string;
+  bitrate: string;
+  channels: string;
+  desc: string;
+  color: string;
+}> = [
+  { key: 'low', label: 'Low', bitrate: '32 kbps', channels: 'Mono', desc: 'Saves bandwidth', color: '#6b7280' },
+  { key: 'medium', label: 'Medium', bitrate: '64 kbps', channels: 'Stereo', desc: 'Balanced', color: '#00e5ff' },
+  { key: 'high', label: 'High', bitrate: '128 kbps', channels: 'Stereo', desc: 'High quality', color: '#b060ff' },
+  { key: 'ultra', label: 'Ultra', bitrate: '256 kbps', channels: 'Stereo', desc: 'Studio quality', color: '#ff9030' },
+];
 
 // ---------------------------------------------------------------------------
 // Component
@@ -63,6 +77,10 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
   const [name, setName] = useState(hubName);
   const [renameError, setRenameError] = useState('');
   const [renaming, setRenaming] = useState(false);
+
+  // Voice quality state
+  const [voiceTier, setVoiceTier] = useState<VoiceQualityTier>(hub?.voiceQualityTier ?? 'medium');
+  const [tierSaving, setTierSaving] = useState(false);
 
   // Delete state
   const [deleteConfirm, setDeleteConfirm] = useState('');
@@ -222,6 +240,32 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
     }
   };
 
+  // ----- Voice quality handler -----
+
+  const handleTierChange = useCallback(
+    async (tier: VoiceQualityTier) => {
+      if (tier === voiceTier) return;
+      const prevTier = voiceTier;
+      setVoiceTier(tier);
+      setTierSaving(true);
+      try {
+        const res = await apiFetch(`/v1/hubs/${hubId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ voiceQualityTier: tier }),
+        });
+        if (!res.ok) throw new Error(res.error ?? 'Failed to update voice quality');
+        setHubs(hubs.map((h) => (h.id === hubId ? { ...h, voiceQualityTier: tier } : h)));
+        toast.success('Voice quality updated');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to update');
+        setVoiceTier(prevTier);
+      } finally {
+        setTierSaving(false);
+      }
+    },
+    [hubId, hubs, setHubs, toast, voiceTier],
+  );
+
   // ----- Delete handler -----
 
   const handleDelete = async () => {
@@ -375,6 +419,35 @@ export function HubSettingsTab({ hubId, hubName }: { hubId: string; hubName: str
             fileName="hub-banner"
           />
         )}
+      </section>
+
+      {/* Voice Quality section */}
+      <section>
+        <h3 className="mb-3 text-base font-semibold text-text-primary">Voice Quality</h3>
+        <p className="mb-3 text-xs text-text-muted">
+          Higher quality uses more bandwidth. Affects all members in voice channels.
+        </p>
+        <div className="grid grid-cols-4 gap-2 max-w-md">
+          {VOICE_QUALITY_TIERS.map((tier) => (
+            <button
+              key={tier.key}
+              type="button"
+              onClick={() => handleTierChange(tier.key)}
+              disabled={tierSaving}
+              className={`flex flex-col items-center gap-1 rounded-lg p-3 border transition-all cursor-pointer ${
+                voiceTier === tier.key
+                  ? 'border-accent bg-accent/10'
+                  : 'border-border hover:border-accent/50 hover:bg-surface-2'
+              }`}
+            >
+              <span className="text-xs font-semibold" style={{ color: tier.color }}>
+                {tier.label}
+              </span>
+              <span className="text-[10px] text-text-muted">{tier.bitrate}</span>
+              <span className="text-[10px] text-text-muted">{tier.channels}</span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Rename section */}

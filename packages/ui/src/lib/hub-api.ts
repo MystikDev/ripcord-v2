@@ -122,6 +122,27 @@ export async function createChannel(
   return res.data;
 }
 
+/** Delete a channel in a hub. */
+export async function deleteChannel(hubId: string, channelId: string): Promise<void> {
+  const res = await apiFetch(`/v1/hubs/${hubId}/channels/${channelId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(res.error ?? 'Failed to delete channel');
+}
+
+/** Rename a channel in a hub. */
+export async function renameChannel(
+  hubId: string,
+  channelId: string,
+  name: string,
+): Promise<void> {
+  const res = await apiFetch(`/v1/hubs/${hubId}/channels/${channelId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error(res.error ?? 'Failed to rename channel');
+}
+
 /** Send a message to a channel. */
 export async function sendMessage(
   channelId: string,

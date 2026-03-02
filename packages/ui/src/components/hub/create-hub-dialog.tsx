@@ -25,9 +25,15 @@ export const CreateHubDialog = AddHubDialog;
 // AddHubDialog — Create or Join
 // ---------------------------------------------------------------------------
 
-export function AddHubDialog({ trigger }: { trigger: ReactNode }) {
+export function AddHubDialog({
+  trigger,
+  initialMode,
+}: {
+  trigger: ReactNode;
+  initialMode?: Mode;
+}) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>('choose');
+  const [mode, setMode] = useState<Mode>(initialMode ?? 'choose');
 
   // Create state
   const [name, setName] = useState('');
@@ -47,7 +53,7 @@ export function AddHubDialog({ trigger }: { trigger: ReactNode }) {
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (!next) {
-      setMode('choose');
+      setMode(initialMode ?? 'choose');
       setName('');
       setCreateError('');
       setCreating(false);

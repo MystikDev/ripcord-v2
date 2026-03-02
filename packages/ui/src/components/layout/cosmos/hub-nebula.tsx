@@ -19,6 +19,8 @@ export interface HubNebulaProps {
   y: number;
   /** Called with hub ID and DOM position for zoom targeting */
   onSelect: (hubId: string, pos: { x: number; y: number }) => void;
+  /** Called during drag with new viewport-fraction coordinates */
+  onDragMove?: (hubId: string, x: number, y: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,13 +59,18 @@ function getInitials(name: string): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export function HubNebula({ hub, x, y, onSelect }: HubNebulaProps) {
+const DRAG_THRESHOLD = 5;
+
+export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
   const [hovered, setHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startX: number; startY: number; dragging: boolean } | null>(null);
 
   const { primary, secondary } = getHubColors(hub.id);
 
   const handleClick = useCallback(() => {
+    // Suppress click after drag
+    if (dragRef.current?.dragging) return;
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
@@ -71,10 +78,42 @@ export function HubNebula({ hub, x, y, onSelect }: HubNebulaProps) {
     onSelect(hub.id, { x: centerX, y: centerY });
   }, [hub.id, onSelect]);
 
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (!onDragMove) return;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      dragRef.current = { startX: e.clientX, startY: e.clientY, dragging: false };
+    },
+    [onDragMove],
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const ref = dragRef.current;
+      if (!ref || !onDragMove) return;
+      const dx = e.clientX - ref.startX;
+      const dy = e.clientY - ref.startY;
+      if (!ref.dragging) {
+        if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+        ref.dragging = true;
+      }
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const newX = Math.max(0.05, Math.min(0.95, e.clientX / vw));
+      const newY = Math.max(0.05, Math.min(0.95, e.clientY / vh));
+      onDragMove(hub.id, newX, newY);
+    },
+    [hub.id, onDragMove],
+  );
+
+  const handlePointerUp = useCallback(() => {
+    dragRef.current = null;
+  }, []);
+
   return (
     <div
       ref={containerRef}
-      className="absolute flex flex-col items-center cursor-pointer"
+      className="absolute flex flex-col items-center cursor-grab active:cursor-grabbing"
       style={{
         left: `${x * 100}%`,
         top: `${y * 100}%`,
@@ -86,6 +125,9 @@ export function HubNebula({ hub, x, y, onSelect }: HubNebulaProps) {
         transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
       onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >

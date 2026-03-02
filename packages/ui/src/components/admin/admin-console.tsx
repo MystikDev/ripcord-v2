@@ -20,15 +20,32 @@ import { InviteManager } from './invite-manager';
 interface AdminConsoleProps {
   hubId: string;
   hubName: string;
-  trigger: React.ReactNode;
+  /** Trigger element for uncontrolled usage. Omit when using controlled mode. */
+  trigger?: React.ReactNode;
+  /** Controlled open state (optional — enables controlled mode). */
+  open?: boolean;
+  /** Controlled open change handler (optional). */
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function AdminConsole({ hubId, hubName, trigger }: AdminConsoleProps) {
-  const [open, setOpen] = useState(false);
+export function AdminConsole({
+  hubId,
+  hubName,
+  trigger,
+  open: controlledOpen,
+  onOpenChange,
+}: AdminConsoleProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (onOpenChange) onOpenChange(next);
+    if (!isControlled) setInternalOpen(next);
+  };
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
+      {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-surface-1 shadow-xl">
