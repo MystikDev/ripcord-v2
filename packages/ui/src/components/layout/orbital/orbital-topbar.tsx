@@ -17,6 +17,8 @@ export interface OrbitalTopbarProps {
   hubIconUrl?: string;
   activeOrbitCount: number;
   onChannelListToggle: () => void;
+  /** Navigate back to the cosmos landing view. */
+  onBackToCosmos?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -28,6 +30,7 @@ export function OrbitalTopbar({
   hubIconUrl,
   activeOrbitCount,
   onChannelListToggle,
+  onBackToCosmos,
 }: OrbitalTopbarProps) {
   const initials = hubName.slice(0, 2).toUpperCase();
 
@@ -40,6 +43,39 @@ export function OrbitalTopbar({
           'linear-gradient(to bottom, rgba(7, 9, 13, 0.98), rgba(7, 9, 13, 0))',
       }}
     >
+      {/* ── Back to cosmos button ── */}
+      {onBackToCosmos && (
+        <button
+          type="button"
+          onClick={onBackToCosmos}
+          className={clsx(
+            'flex items-center justify-center rounded-md',
+            'text-white/50 hover:text-white/80 transition-colors duration-150',
+            'cursor-pointer',
+          )}
+          style={{
+            width: '28px',
+            height: '28px',
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
+          aria-label="Back to cosmos"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="8,2 3,7 8,12" />
+          </svg>
+        </button>
+      )}
+
       {/* ── Hub logo ── */}
       <div
         className={clsx(

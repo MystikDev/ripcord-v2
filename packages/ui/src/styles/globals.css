@@ -325,3 +325,29 @@ body {
   50%  { transform: translate(-50%, -50%) scale(1.25); opacity: 0.3; }
   100% { transform: translate(-50%, -50%) scale(1);   opacity: 0.8; }
 }
+
+/* ─── Cosmos Landing Animations ─── */
+
+/* Nebula breathing glow */
+@keyframes nebula-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 0.8; transform: scale(1.06); }
+}
+
+/* Cosmos zoom-in transition (applied to cosmos container on hub select) */
+@keyframes cosmos-zoom-in {
+  0%   { transform: scale(1) translate(0, 0); opacity: 1; }
+  100% { transform: scale(8) translate(var(--zx), var(--zy)); opacity: 0; }
+}
+
+/* Cosmos entrance fade-in */
+@keyframes cosmos-enter {
+  0%   { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Dust particle gentle drift */
+@keyframes dust-drift {
+  0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+  50%      { transform: translate(var(--dx), var(--dy)); opacity: 0.5; }
+}

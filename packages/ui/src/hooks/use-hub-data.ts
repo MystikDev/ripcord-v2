@@ -85,13 +85,15 @@ export function useHubData() {
         }));
         setHubs(mapped);
         if (mapped.length > 0) {
-          // Preserve current selection if it exists in the fetched list
+          // Preserve current selection if it exists in the fetched list.
+          // Don't auto-select a hub — the cosmos landing view presents all
+          // hubs as nebulae so the user can choose which to enter.
           const state = useHubStore.getState();
           const currentId = state.activeHubId;
           const currentExists = currentId && mapped.some((h) => h.id === currentId);
-          // Don't auto-select a hub if the user is in DM view
-          if (!currentExists && !state.isDmView) {
-            setActiveHub(mapped[0]!.id);
+          if (currentId && !currentExists) {
+            // Active hub was deleted or user lost access — clear selection
+            useHubStore.setState({ activeHubId: null, channels: [], activeChannelId: null });
           }
           setShowOnboarding(false);
         } else {

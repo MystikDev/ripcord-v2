@@ -169,6 +169,7 @@ export function SolarSystemView() {
   const activeChannelId = useHubStore((s) => s.activeChannelId);
   const setActiveChannelOrbital = useHubStore((s) => s.setActiveChannelOrbital);
   const setPendingVoiceJoin = useHubStore((s) => s.setPendingVoiceJoin);
+  const clearActiveHub = useHubStore((s) => s.clearActiveHub);
 
   const voiceStates = useVoiceStateStore((s) => s.voiceStates);
   const speakingUserIds = useVoiceStateStore((s) => s.speakingUserIds);
@@ -550,14 +551,8 @@ export function SolarSystemView() {
     [channels, setChannels],
   );
 
-  // -- Empty state -----------------------------------------------------------
-  if (!activeHub) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-text-muted text-sm">
-        Select a solar system to begin exploring
-      </div>
-    );
-  }
+  // -- Empty state (cosmos view now handles hub selection) -------------------
+  if (!activeHub) return null;
 
   // -- Render ----------------------------------------------------------------
   return (
@@ -625,6 +620,7 @@ export function SolarSystemView() {
         hubIconUrl={activeHub.iconUrl}
         activeOrbitCount={activeOrbitCount}
         onChannelListToggle={handleChannelListToggle}
+        onBackToCosmos={clearActiveHub}
       />
 
       {/* Layer 5: Channel list */}

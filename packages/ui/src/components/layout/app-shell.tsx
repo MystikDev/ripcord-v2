@@ -15,6 +15,7 @@ import { ChannelSidebar } from './channel-sidebar';
 import { ChatArea } from './chat-area';
 import { MemberListPanel } from './member-list-panel';
 import { SolarSystemView } from './solar-system-view';
+import { CosmosView } from './cosmos-view';
 import { IncomingCall } from '../voice/incoming-call';
 import { DmCallPanel } from '../voice/dm-call-panel';
 import { BugReportButton } from '../ui/bug-report-dialog';
@@ -47,11 +48,12 @@ export function AppShell() {
   }, [activeHubId]);
 
   const showSystemView = systemViewActive && !isDmView && !!activeHubId;
+  const showCosmosView = !activeHubId && !isDmView;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-void">
-      {/* ORBIT ambient background layers — hidden during orbital view (it has its own canvas bg) */}
-      {!showSystemView && (
+      {/* ORBIT ambient background layers — hidden during orbital/cosmos view (they have own canvas bg) */}
+      {!showSystemView && !showCosmosView && (
         <>
           <div className="orbit-ambient" />
           <div className="orbit-grid" />
@@ -65,8 +67,11 @@ export function AppShell() {
         <HubSidebar />
 
         {showSystemView ? (
-          /* Immersive solar system view */
+          /* Immersive orbital view for the active hub */
           <SolarSystemView />
+        ) : showCosmosView ? (
+          /* Cosmos landing — all hubs as nebulae */
+          <CosmosView />
         ) : (
           /* Normal 3-column layout */
           <>
