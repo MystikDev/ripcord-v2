@@ -309,9 +309,45 @@ export function CosmosView() {
         </h1>
       </div>
 
-      {/* Bottom hint text */}
+      {/* Bottom: create/join buttons + hint text */}
       {!zoomTarget && (
-        <div className="absolute bottom-0 left-0 right-0 z-[10] flex justify-center pb-8 pointer-events-none">
+        <div className="absolute bottom-0 left-0 right-0 z-[10] flex flex-col items-center gap-4 pb-8 pointer-events-none">
+          <div className="flex gap-3 pointer-events-auto">
+            <AddHubDialog
+              initialMode="create"
+              trigger={
+                <button
+                  type="button"
+                  className="px-5 py-2 rounded-xl font-mono text-[10px] tracking-wider uppercase cursor-pointer transition-all duration-200 hover:scale-105"
+                  style={{
+                    background: 'rgba(7, 9, 13, 0.75)',
+                    border: '1px solid rgba(0, 229, 255, 0.25)',
+                    color: 'rgba(0, 229, 255, 0.7)',
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  Create Solar System
+                </button>
+              }
+            />
+            <AddHubDialog
+              initialMode="join"
+              trigger={
+                <button
+                  type="button"
+                  className="px-5 py-2 rounded-xl font-mono text-[10px] tracking-wider uppercase cursor-pointer transition-all duration-200 hover:scale-105"
+                  style={{
+                    background: 'rgba(7, 9, 13, 0.75)',
+                    border: '1px solid rgba(176, 96, 255, 0.25)',
+                    color: 'rgba(176, 96, 255, 0.7)',
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  Join with Invite
+                </button>
+              }
+            />
+          </div>
           <span
             className="font-mono text-[10px] tracking-[0.15em] uppercase select-none"
             style={{ color: 'rgba(255,255,255,0.2)' }}

@@ -126,7 +126,7 @@ export function OrbitalCanvasBg({
           ctx.moveTo(ua.x * W, ua.y * H);
           ctx.lineTo(ub.x * W, ub.y * H);
           ctx.strokeStyle =
-            '#34d399' +
+            orb.color +
             Math.round((0.08 + p * 0.12) * 255)
               .toString(16)
               .padStart(2, '0');
@@ -147,11 +147,11 @@ export function OrbitalCanvasBg({
             Math.PI * 2,
           );
           ctx.fillStyle =
-            '#34d399' +
+            orb.color +
             Math.round((0.6 + p * 0.4) * 255)
               .toString(16)
               .padStart(2, '0');
-          ctx.shadowColor = '#34d399';
+          ctx.shadowColor = orb.color;
           ctx.shadowBlur = 6;
           ctx.fill();
           ctx.shadowBlur = 0;

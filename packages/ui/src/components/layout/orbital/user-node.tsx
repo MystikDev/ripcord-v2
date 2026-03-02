@@ -166,7 +166,8 @@ export function UserNode({
                 height: '54px',
                 borderWidth: '1.5px',
                 borderStyle: 'solid',
-                borderColor: isSpeaking ? '#34d399' : orbitColor,
+                borderColor: isSpeaking ? '#00e5ff' : `${orbitColor}55`,
+                boxShadow: isSpeaking ? '0 0 14px rgba(0, 229, 255, 0.5)' : 'none',
               }}
             />
             <div
@@ -181,8 +182,8 @@ export function UserNode({
                 height: '68px',
                 borderWidth: '1.5px',
                 borderStyle: 'solid',
-                borderColor: isSpeaking ? '#34d399' : orbitColor,
-                opacity: 0.5,
+                borderColor: isSpeaking ? '#00e5ff' : `${orbitColor}22`,
+                boxShadow: isSpeaking ? '0 0 14px rgba(0, 229, 255, 0.5)' : 'none',
                 animationDelay: '0.4s',
               }}
             />
@@ -204,12 +205,12 @@ export function UserNode({
             borderWidth: '2px',
             borderStyle: 'solid',
             borderColor: isSpeaking
-              ? '#34d399'
+              ? '#00e5ff'
               : isCurrentUser
                 ? '#00e5ff'
                 : 'rgba(255, 255, 255, 0.1)',
             boxShadow: isSpeaking
-              ? '0 0 22px rgba(52, 211, 153, 0.5)'
+              ? '0 0 22px rgba(0, 229, 255, 0.5)'
               : isCurrentUser
                 ? '0 0 20px rgba(0, 229, 255, 0.4)'
                 : '0 4px 18px rgba(0, 0, 0, 0.5)',

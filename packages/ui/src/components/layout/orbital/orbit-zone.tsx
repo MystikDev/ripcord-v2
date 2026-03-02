@@ -152,7 +152,8 @@ export function OrbitZone({
           height: `${d1}px`,
           borderWidth: '1.5px',
           borderStyle: isTemporary ? 'dashed' : 'solid',
-          borderColor: color,
+          borderColor: `${color}44`,
+          boxShadow: `0 0 20px ${color}22 inset`,
         }}
       />
 
@@ -164,8 +165,7 @@ export function OrbitZone({
           height: `${d2}px`,
           borderWidth: '1.5px',
           borderStyle: isTemporary ? 'dashed' : 'solid',
-          borderColor: color,
-          opacity: 0.5,
+          borderColor: `${color}22`,
           animationDelay: '0.6s',
         }}
       />
@@ -175,7 +175,7 @@ export function OrbitZone({
         className="oz-label absolute left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-[0.1em] uppercase whitespace-nowrap flex items-center gap-[4px]"
         style={{
           top: '10px',
-          color,
+          color: `${color}88`,
         }}
       >
         {isTemporary && (
