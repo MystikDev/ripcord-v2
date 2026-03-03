@@ -203,7 +203,7 @@ export function FloatingChatPanel({
   // =========================================================================
 
   // -- Tab state (from settings store for persistence) -----------------------
-  const activeTab = useSettingsStore((s) => s.commsCenterActiveTab);
+  const activeTab = useSettingsStore((s) => s.commsCenterActiveTab) ?? 'chat';
   const setActiveTab = useSettingsStore((s) => s.setCommsCenterActiveTab);
 
   const handleResizeStart = useCallback(

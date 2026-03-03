@@ -733,11 +733,9 @@ export function SolarSystemView() {
       if (!panDragRef.current) return;
       const dx = e.clientX - panDragRef.current.startX;
       const dy = e.clientY - panDragRef.current.startY;
-      // Divide by zoomLevel for consistent drag feel when zoomed
-      const z = useOrbitLayoutStore.getState().zoomLevel;
       setPanOffset({
-        x: panDragRef.current.startPanX + dx / z,
-        y: panDragRef.current.startPanY + dy / z,
+        x: panDragRef.current.startPanX + dx,
+        y: panDragRef.current.startPanY + dy,
       });
     },
     [setPanOffset],

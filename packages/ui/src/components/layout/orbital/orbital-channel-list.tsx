@@ -124,12 +124,13 @@ export function OrbitalChannelList({
       {/* ── Invisible trigger zone ── */}
       <div
         onMouseEnter={handleTriggerEnter}
+        onMouseLeave={handlePanelLeave}
         style={{
           position: 'fixed',
           left: 96,
           top: 46,
           bottom: 54,
-          width: 12,
+          width: 20,
           zIndex: 179,
         }}
       />

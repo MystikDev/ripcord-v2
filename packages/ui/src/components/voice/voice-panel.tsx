@@ -161,6 +161,7 @@ export function VoicePanel() {
   const pendingVoiceJoin = useHubStore((s) => s.pendingVoiceJoin);
   const setPendingVoiceJoin = useHubStore((s) => s.setPendingVoiceJoin);
   const savedMicId = useSettingsStore((s) => s.selectedMicDeviceId);
+  const pttEnabled = useSettingsStore((s) => s.pttEnabled);
 
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -388,7 +389,7 @@ export function VoicePanel() {
           serverUrl={livekitUrl}
           token={token}
           connect={true}
-          audio={useSettingsStore.getState().pttEnabled ? false : savedMicId ? { deviceId: savedMicId } : true}
+          audio={pttEnabled ? false : savedMicId ? { deviceId: savedMicId } : true}
           video={false}
           onDisconnected={handleRoomDisconnected}
           onError={handleRoomError}

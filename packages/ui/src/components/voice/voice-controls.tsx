@@ -119,7 +119,7 @@ export function VoiceControls({ onDisconnect }: VoiceControlsProps) {
     };
     useVoiceStateStore.getState().setToggleMicFn(fn);
     return () => useVoiceStateStore.getState().setToggleMicFn(null);
-  }, []);  // No dependency — uses ref for always-current participant
+  }, [localParticipant]);  // Re-register when participant changes (match screen share pattern)
 
   // ----- Push-to-talk -----
   // Use a ref so the PTT callbacks always see the latest localParticipant
