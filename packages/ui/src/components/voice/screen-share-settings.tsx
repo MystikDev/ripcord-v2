@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { useSettingsStore } from '../../stores/settings-store';
 
@@ -120,7 +121,10 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
     });
   };
 
-  return (
+  // Portal to document.body so the dialog escapes any ancestor containing
+  // blocks (e.g. floating panel's backdropFilter creates one, trapping
+  // position:fixed children inside the panel instead of the viewport).
+  return createPortal(
     <div
       className="fixed inset-0 z-[300] bg-black/50"
       onClick={onClose}
@@ -266,6 +270,7 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -646,10 +646,18 @@ export function SolarSystemView() {
     toggleScreenShareFn?.();
   }, [toggleScreenShareFn]);
 
+  const disconnectFn = useVoiceStateStore((s) => s.disconnectFn);
   const handleDisconnect = useCallback(() => {
+    // Use the bridged disconnect function from VoicePanel (sends gateway
+    // leave message, clears LiveKit state, etc). Fall back to local-only
+    // cleanup if VoicePanel hasn't registered yet.
+    if (disconnectFn) {
+      disconnectFn();
+    } else {
+      setConnectedChannelId(null);
+    }
     setPendingVoiceJoin(null);
-    setConnectedChannelId(null);
-  }, [setPendingVoiceJoin, setConnectedChannelId]);
+  }, [disconnectFn, setPendingVoiceJoin, setConnectedChannelId]);
 
   const handleUserMouseEnter = useCallback(
     (user: PositionedUser) => (e: React.MouseEvent) => {
@@ -777,6 +785,23 @@ export function SolarSystemView() {
       ref={containerRef}
       className="flex-1 relative overflow-hidden"
     >
+      {/* ── Layer 0: Canvas animated background (viewport-fixed, never zooms) ── */}
+      <OrbitalCanvasBg
+        orbits={canvasOrbits}
+        userPositions={userPositionsMap}
+        onlineUserIds={onlineUserIds}
+      />
+
+      {/* ── Layer 1: Grid overlay (viewport-fixed, never zooms) ── */}
+      <div
+        className="absolute inset-0 z-[1] pointer-events-none"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px)',
+          backgroundSize: '70px 70px',
+        }}
+      />
+
       {/* ── Pannable content layer ── */}
       {/* Captures pointer events on empty space for canvas panning. */}
       <div
@@ -790,23 +815,6 @@ export function SolarSystemView() {
         onPointerMove={handleCanvasPanMove}
         onPointerUp={handleCanvasPanUp}
       >
-        {/* Layer 0: Canvas animated background */}
-        <OrbitalCanvasBg
-          orbits={canvasOrbits}
-          userPositions={userPositionsMap}
-          onlineUserIds={onlineUserIds}
-        />
-
-        {/* Layer 1: Grid overlay */}
-        <div
-          className="absolute inset-0 z-[1] pointer-events-none"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px)',
-            backgroundSize: '70px 70px',
-          }}
-        />
-
         {/* Layer 2: Orbit zones */}
         {orbitData.map((od) => (
           <OrbitZone

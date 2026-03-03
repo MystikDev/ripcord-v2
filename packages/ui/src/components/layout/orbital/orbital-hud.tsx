@@ -283,6 +283,31 @@ export function OrbitalHud({
         />
       </div>
 
+      {/* ── 4b. Disconnect shortcut — visible only when in voice ── */}
+      {isInVoice && (
+        <button
+          type="button"
+          onClick={onDisconnect}
+          title="Disconnect from voice"
+          className={clsx(
+            'flex items-center justify-center w-[30px] h-[30px] rounded-full shrink-0',
+            'border border-red-500/30 bg-red-500/10 text-red-400',
+            'hover:bg-red-500/25 hover:border-red-500/50',
+            'transition-all duration-150 cursor-pointer',
+          )}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path
+              d="M1.5 6c1-2.5 3.5-4 5.5-4s4.5 1.5 5.5 4l-1.5 1.5c-.3.3-.7.3-1 .1L8.5 6.5a.5.5 0 0 1-.2-.4V4.5a6.3 6.3 0 0 0-2.6 0v1.6c0 .15-.07.3-.2.4L4 7.6c-.3.2-.7.2-1-.1L1.5 6Z"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
+
       {/* ── 5. Right Spacer ── */}
       <div className="flex-1" />
 

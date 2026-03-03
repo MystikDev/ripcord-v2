@@ -70,6 +70,9 @@ export interface VoiceStateStore {
     audioSource: 'none' | 'system';
   }) => Promise<void>) | null;
 
+  /** Callback to disconnect from voice (bridged from VoicePanel inside LiveKitRoom). */
+  disconnectFn: (() => void) | null;
+
   /** Add a participant to a voice channel. */
   addParticipant: (channelId: string, participant: VoiceParticipant) => void;
 
@@ -102,6 +105,7 @@ export interface VoiceStateStore {
   setPttActive: (active: boolean) => void;
   setLocalScreenSharing: (sharing: boolean) => void;
   setStartScreenShareFn: (fn: VoiceStateStore['startScreenShareFn']) => void;
+  setDisconnectFn: (fn: (() => void) | null) => void;
 
   /** Reset all voice state data. */
   reset: () => void;
@@ -132,6 +136,7 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
   pttActive: false,
   localScreenSharing: false,
   startScreenShareFn: null,
+  disconnectFn: null,
 
   addParticipant: (channelId, participant) =>
     set((state) => {
@@ -273,6 +278,7 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
   setPttActive: (active) => set({ pttActive: active }),
   setLocalScreenSharing: (sharing) => set({ localScreenSharing: sharing }),
   setStartScreenShareFn: (fn) => set({ startScreenShareFn: fn }),
+  setDisconnectFn: (fn) => set({ disconnectFn: fn }),
 
   reset: () => set({
     voiceStates: {},
@@ -289,5 +295,6 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
     pttActive: false,
     localScreenSharing: false,
     startScreenShareFn: null,
+    disconnectFn: null,
   }),
 }));

@@ -203,10 +203,15 @@ export function CommsVoiceTab() {
   // -- Disconnect --
   const setPendingVoiceJoin = useHubStore((s) => s.setPendingVoiceJoin);
   const setConnectedChannelId = useVoiceStateStore((s) => s.setConnectedChannelId);
+  const disconnectFn = useVoiceStateStore((s) => s.disconnectFn);
   const handleDisconnect = useCallback(() => {
+    if (disconnectFn) {
+      disconnectFn();
+    } else {
+      setConnectedChannelId(null);
+    }
     setPendingVoiceJoin(null);
-    setConnectedChannelId(null);
-  }, [setPendingVoiceJoin, setConnectedChannelId]);
+  }, [disconnectFn, setPendingVoiceJoin, setConnectedChannelId]);
 
   return (
     <div

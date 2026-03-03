@@ -264,6 +264,13 @@ export function VoicePanel() {
     useVoiceStateStore.getState().setLatencyMs(null);
   }, [voiceChannelId]);
 
+  // Bridge the disconnect function into the store so components outside
+  // LiveKitRoom (HUD, COMMS popover, Voice tab) can trigger a full disconnect.
+  useEffect(() => {
+    useVoiceStateStore.getState().setDisconnectFn(handleDisconnect);
+    return () => useVoiceStateStore.getState().setDisconnectFn(null);
+  }, [handleDisconnect]);
+
   // ----- Room callbacks -----
 
   const handleRoomDisconnected = useCallback(() => {
