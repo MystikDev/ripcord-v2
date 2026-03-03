@@ -10,6 +10,7 @@
 import { useState, useCallback } from 'react';
 import clsx from 'clsx';
 import { CommsPopover } from './comms-popover';
+import { useHubStore } from '../../../stores/server-store';
 import { BugReportButton } from '../../ui/bug-report-dialog';
 
 // ---------------------------------------------------------------------------
@@ -143,6 +144,7 @@ export function OrbitalHud({
   }, []);
 
   const isInVoice = voiceChannelName !== null;
+  const enterDmView = useHubStore((s) => s.enterDmView);
 
   return (
     <div
@@ -311,7 +313,45 @@ export function OrbitalHud({
       {/* ── 5. Right Spacer ── */}
       <div className="flex-1" />
 
-      {/* ── 6. Comms Center Toggle (chat) ── */}
+      {/* ── 6. Friends / DMs ── */}
+      <button
+        type="button"
+        onClick={enterDmView}
+        title="Friends & Direct Messages"
+        className={clsx(
+          'flex items-center gap-1.5 px-3 py-1 rounded-full shrink-0',
+          'font-mono text-[11px] transition-all duration-150',
+          'border cursor-pointer',
+          'border-border bg-white/3 text-text-secondary hover:text-text-primary hover:border-white/15',
+        )}
+      >
+        {/* People icon */}
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          className="text-current shrink-0"
+        >
+          <circle cx="4" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.2" />
+          <path
+            d="M0.5 10.5c0-2 1.5-3.5 3.5-3.5s3.5 1.5 3.5 3.5"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+          <circle cx="8.5" cy="3.5" r="1.5" stroke="currentColor" strokeWidth="1" />
+          <path
+            d="M7.5 10.5c0-1.5 1-2.5 2-3"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeLinecap="round"
+          />
+        </svg>
+        <span className="whitespace-nowrap">Friends</span>
+      </button>
+
+      {/* ── 7. Comms Center Toggle (chat) ── */}
       <button
         type="button"
         onClick={onCommsCenterToggle}
