@@ -67,6 +67,8 @@ export interface HubState {
   activeDmChannelId: string | null;
   /** Whether the user is viewing the DM list (home screen). */
   isDmView: boolean;
+  /** Hub ID the user was on before entering DM view (for "back" navigation). */
+  previousHubId: string | null;
 
   /** Whether the full-screen solar system view is active (true = immersive, false = 3-column chat). */
   systemViewActive: boolean;
@@ -115,6 +117,7 @@ export const useHubStore = create<HubState>()((set, get) => ({
   dmChannels: [],
   activeDmChannelId: null,
   isDmView: false,
+  previousHubId: null,
   systemViewActive: true,
 
   setHubs: (hubs) => set({ hubs }),
@@ -157,6 +160,7 @@ export const useHubStore = create<HubState>()((set, get) => ({
     if (get().isDmView) return;
     set({
       isDmView: true,
+      previousHubId: get().activeHubId,
       activeHubId: null,
       activeChannelId: null,
       activeDmChannelId: null,
@@ -186,6 +190,7 @@ export const useHubStore = create<HubState>()((set, get) => ({
       dmChannels: [],
       activeDmChannelId: null,
       isDmView: false,
+      previousHubId: null,
       systemViewActive: true,
     }),
 }));

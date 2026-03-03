@@ -498,9 +498,32 @@ export function ChannelSidebar() {
     <div className="relative flex h-full flex-col glass-panel border-r border-white/5" style={{ width: sidebarWidth }}>
       {/* Header */}
       <div className="flex h-12 items-center justify-between border-b border-white/5 px-4">
-        <h2 className="truncate text-base font-semibold display-text text-text-primary">
-          {isDmView ? 'Direct Messages' : (activeHub?.name ?? 'Ripcord')}
-        </h2>
+        <div className="flex items-center gap-2 min-w-0">
+          {isDmView && (
+            <button
+              type="button"
+              onClick={() => {
+                const prev = useHubStore.getState().previousHubId;
+                if (prev) {
+                  useHubStore.getState().setActiveHub(prev);
+                } else {
+                  // No previous hub — go to cosmos view
+                  useHubStore.getState().clearActiveHub();
+                  useHubStore.setState({ isDmView: false });
+                }
+              }}
+              title="Back to Hub"
+              className="rounded-lg p-1 text-text-muted hover:text-accent hover:bg-white/5 transition-colors shrink-0"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 3L5 8l5 5" />
+              </svg>
+            </button>
+          )}
+          <h2 className="truncate text-base font-semibold display-text text-text-primary">
+            {isDmView ? 'Direct Messages' : (activeHub?.name ?? 'Ripcord')}
+          </h2>
+        </div>
         <div className="flex items-center gap-1">
         {activeHub && !isDmView && (
           <Tooltip content="Solar System View" side="bottom">
