@@ -88,8 +88,11 @@ export function OrbitalCanvasBg({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const W = canvas.width;
-    const H = canvas.height;
+    // Use CSS pixel dimensions (not buffer dimensions) because the context
+    // has a DPR transform applied — drawing at buffer coords would overshoot.
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.width / dpr;
+    const H = canvas.height / dpr;
     const frame = ++frameRef.current;
     const stars = starsRef.current!;
     const curOrbits = orbitsRef.current;
@@ -217,11 +220,16 @@ export function OrbitalCanvasBg({
     if (!canvas) return;
 
     // Size the canvas to its CSS pixel dimensions (devicePixelRatio aware).
+    // Use offsetWidth/offsetHeight (layout dimensions) instead of
+    // getBoundingClientRect() which returns post-transform dimensions —
+    // the canvas is inside a CSS-scaled parent (zoom).
     const resize = () => {
-      const rect = canvas.getBoundingClientRect();
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      if (w === 0 || h === 0) return; // Not laid out yet
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
       const ctx = canvas.getContext('2d');
       if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };

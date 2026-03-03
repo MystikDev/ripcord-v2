@@ -127,7 +127,7 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
       role="presentation"
     >
       <div
-        className="bg-surface-1 rounded-lg border border-border p-6 max-w-md mx-auto mt-[20vh]"
+        className="bg-surface-1 rounded-lg border border-border p-6 max-w-md mx-auto mt-[20vh] max-h-[70vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Screen Share Settings"
