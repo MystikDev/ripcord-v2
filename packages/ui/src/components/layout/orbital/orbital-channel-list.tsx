@@ -1,26 +1,34 @@
 /**
  * @module orbital-channel-list
- * Slide-out sidebar listing text channels and voice orbits for the orbital view.
- * Positioned to the right of the hub sidebar (left: 96px) and slides in/out
- * with a cubic-bezier transition. Contains two scrollable groups: TEXT channels
- * (prefixed with #) and VOICE ORBITS (with colored status dots).
+ * Hover-to-reveal sidebar listing text channels and voice orbits for the
+ * orbital view. Positioned to the right of the hub sidebar (left: 96px).
+ * Self-managed visibility: hover the trigger zone to open, mouse-leave to
+ * close after a delay. Contains two scrollable groups: TEXT channels
+ * (prefixed with #) and VOICE ORBITS (with colored status dots). Includes
+ * right-click context menu for rename/delete and + buttons for creation.
  */
 'use client';
 
+import { useCallback, useRef, useState } from 'react';
 import clsx from 'clsx';
+import { ChannelListContextMenu } from './channel-list-context-menu';
+import { createChannel } from '../../../lib/hub-api';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 interface OrbitalChannelListProps {
-  open: boolean;
-  onClose: () => void;
+  hubId: string;
   textChannels: Array<{ id: string; name: string; unreadCount: number }>;
   voiceOrbits: Array<{ id: string; name: string; color: string; onlineCount: number }>;
   activeChannelId: string | null;
   onTextChannelSelect: (id: string) => void;
   onVoiceOrbitSelect: (id: string) => void;
+  canManageChannels: boolean;
+  onChannelCreated: (channel: { id: string; hubId: string; name: string; type: 'text' | 'voice'; position: number }) => void;
+  onChannelDeleted: (channelId: string) => void;
+  onChannelRenamed: (channelId: string, newName: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -28,86 +36,170 @@ interface OrbitalChannelListProps {
 // ---------------------------------------------------------------------------
 
 export function OrbitalChannelList({
-  open,
-  onClose,
+  hubId,
   textChannels,
   voiceOrbits,
   activeChannelId,
   onTextChannelSelect,
   onVoiceOrbitSelect,
+  canManageChannels,
+  onChannelCreated,
+  onChannelDeleted,
+  onChannelRenamed,
 }: OrbitalChannelListProps) {
-  return (
-    <div
-      className="fixed flex flex-col z-[180]"
-      style={{
-        left: '96px',
-        top: '46px',
-        bottom: '54px',
-        width: '200px',
-        background: 'rgba(7, 9, 13, 0.95)',
-        borderRight: '1px solid var(--color-border)',
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
-        transform: open ? 'translateX(0)' : 'translateX(-220px)',
-        transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-      }}
-    >
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between px-3 py-2.5 shrink-0">
-        <span
-          className="font-mono text-[10px] tracking-[0.14em] uppercase text-text-secondary"
-        >
-          Orbits
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          className={clsx(
-            'flex items-center justify-center w-[22px] h-[22px] rounded',
-            'text-text-muted hover:text-text-primary',
-            'hover:bg-white/5 transition-colors duration-150',
-          )}
-          aria-label="Close channel list"
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 12 12"
-            fill="none"
-            className="text-current"
-          >
-            <line
-              x1="2"
-              y1="2"
-              x2="10"
-              y2="10"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-            <line
-              x1="10"
-              y1="2"
-              x2="2"
-              y2="10"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      </div>
+  const [panelOpen, setPanelOpen] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-      {/* ── Scrollable channel list ── */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 pb-2">
-        {/* TEXT group */}
-        {textChannels.length > 0 && (
+  // -- Context menu state ---
+  const [ctxMenu, setCtxMenu] = useState<{
+    channelId: string;
+    channelName: string;
+    channelType: 'text' | 'voice';
+    position: { x: number; y: number };
+  } | null>(null);
+
+  // -- Inline channel creation state ---
+  const [creatingType, setCreatingType] = useState<'text' | 'voice' | null>(null);
+  const [createName, setCreateName] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  // -- Hover handlers ---
+  const cancelClose = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTriggerEnter = useCallback(() => {
+    cancelClose();
+    setPanelOpen(true);
+  }, [cancelClose]);
+
+  const handlePanelLeave = useCallback(() => {
+    cancelClose();
+    closeTimerRef.current = setTimeout(() => {
+      setPanelOpen(false);
+    }, 200);
+  }, [cancelClose]);
+
+  const handlePanelEnter = useCallback(() => {
+    cancelClose();
+  }, [cancelClose]);
+
+  // -- Context menu ---
+  const handleContextMenu = useCallback(
+    (channelId: string, channelName: string, channelType: 'text' | 'voice') =>
+      (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!canManageChannels) return;
+        setCtxMenu({ channelId, channelName, channelType, position: { x: e.clientX, y: e.clientY } });
+      },
+    [canManageChannels],
+  );
+
+  // -- Channel creation ---
+  const handleCreateSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const trimmed = createName.trim();
+      if (!trimmed || !creatingType) return;
+      setCreating(true);
+      try {
+        const ch = await createChannel(hubId, trimmed, creatingType);
+        onChannelCreated({ ...ch, position: 0 });
+        setCreateName('');
+        setCreatingType(null);
+      } catch {
+        console.error('[OrbitalChannelList] Failed to create channel');
+      } finally {
+        setCreating(false);
+      }
+    },
+    [createName, creatingType, hubId, onChannelCreated],
+  );
+
+  return (
+    <>
+      {/* ── Invisible trigger zone ── */}
+      <div
+        onMouseEnter={handleTriggerEnter}
+        style={{
+          position: 'fixed',
+          left: 96,
+          top: 46,
+          bottom: 54,
+          width: 12,
+          zIndex: 179,
+        }}
+      />
+
+      {/* ── Panel ── */}
+      <div
+        onMouseEnter={handlePanelEnter}
+        onMouseLeave={handlePanelLeave}
+        className="fixed flex flex-col z-[180]"
+        style={{
+          left: '96px',
+          top: '46px',
+          bottom: '54px',
+          width: '200px',
+          background: 'rgba(7, 9, 13, 0.95)',
+          borderRight: '1px solid var(--color-border)',
+          backdropFilter: 'blur(14px)',
+          WebkitBackdropFilter: 'blur(14px)',
+          transform: panelOpen ? 'translateX(0)' : 'translateX(-220px)',
+          transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          pointerEvents: panelOpen ? 'auto' : 'none',
+        }}
+      >
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-3 py-2.5 shrink-0">
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-text-secondary">
+            Channels
+          </span>
+        </div>
+
+        {/* ── Scrollable channel list ── */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 pb-2">
+          {/* TEXT group */}
           <div className="mb-3">
-            <div className="px-2 py-1.5">
+            <div className="flex items-center justify-between px-2 py-1.5">
               <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-text-muted">
                 Text
               </span>
+              {canManageChannels && (
+                <button
+                  type="button"
+                  onClick={() => { setCreatingType('text'); setCreateName(''); }}
+                  className="flex items-center justify-center w-[16px] h-[16px] rounded text-text-muted hover:text-text-primary hover:bg-white/5 transition-colors duration-150"
+                  aria-label="Add text channel"
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                    <line x1="5" y1="1" x2="5" y2="9" />
+                    <line x1="1" y1="5" x2="9" y2="5" />
+                  </svg>
+                </button>
+              )}
             </div>
+
+            {/* Inline text creation input */}
+            {creatingType === 'text' && (
+              <form onSubmit={handleCreateSubmit} className="px-2 pb-1">
+                <input
+                  type="text"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder="channel-name"
+                  autoFocus
+                  disabled={creating}
+                  className="w-full rounded px-2 py-1 text-[11px] font-mono bg-white/5 border border-white/10 text-text-primary outline-none focus:border-cyan/50 placeholder:text-text-muted"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setCreatingType(null);
+                  }}
+                />
+              </form>
+            )}
 
             {textChannels.map((ch) => {
               const isActive = ch.id === activeChannelId;
@@ -116,6 +208,7 @@ export function OrbitalChannelList({
                   key={ch.id}
                   type="button"
                   onClick={() => onTextChannelSelect(ch.id)}
+                  onContextMenu={handleContextMenu(ch.id, ch.name, 'text')}
                   className={clsx(
                     'w-full flex items-center gap-1.5 px-2 py-[5px] rounded text-left',
                     'text-[12px] font-sans transition-colors duration-100',
@@ -143,16 +236,45 @@ export function OrbitalChannelList({
               );
             })}
           </div>
-        )}
 
-        {/* VOICE ORBITS group */}
-        {voiceOrbits.length > 0 && (
+          {/* VOICE ORBITS group */}
           <div>
-            <div className="px-2 py-1.5">
+            <div className="flex items-center justify-between px-2 py-1.5">
               <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-text-muted">
                 Voice Orbits
               </span>
+              {canManageChannels && (
+                <button
+                  type="button"
+                  onClick={() => { setCreatingType('voice'); setCreateName(''); }}
+                  className="flex items-center justify-center w-[16px] h-[16px] rounded text-text-muted hover:text-text-primary hover:bg-white/5 transition-colors duration-150"
+                  aria-label="Add voice orbit"
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                    <line x1="5" y1="1" x2="5" y2="9" />
+                    <line x1="1" y1="5" x2="9" y2="5" />
+                  </svg>
+                </button>
+              )}
             </div>
+
+            {/* Inline voice creation input */}
+            {creatingType === 'voice' && (
+              <form onSubmit={handleCreateSubmit} className="px-2 pb-1">
+                <input
+                  type="text"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder="orbit-name"
+                  autoFocus
+                  disabled={creating}
+                  className="w-full rounded px-2 py-1 text-[11px] font-mono bg-white/5 border border-white/10 text-text-primary outline-none focus:border-cyan/50 placeholder:text-text-muted"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setCreatingType(null);
+                  }}
+                />
+              </form>
+            )}
 
             {voiceOrbits.map((orbit) => {
               const isActive = orbit.id === activeChannelId;
@@ -161,6 +283,7 @@ export function OrbitalChannelList({
                   key={orbit.id}
                   type="button"
                   onClick={() => onVoiceOrbitSelect(orbit.id)}
+                  onContextMenu={handleContextMenu(orbit.id, orbit.name, 'voice')}
                   className={clsx(
                     'w-full flex items-center gap-2 px-2 py-[5px] rounded text-left',
                     'text-[12px] font-sans transition-colors duration-100',
@@ -187,8 +310,29 @@ export function OrbitalChannelList({
               );
             })}
           </div>
-        )}
+        </div>
       </div>
-    </div>
+
+      {/* ── Context menu ── */}
+      {ctxMenu && (
+        <ChannelListContextMenu
+          channelId={ctxMenu.channelId}
+          channelName={ctxMenu.channelName}
+          channelType={ctxMenu.channelType}
+          hubId={hubId}
+          position={ctxMenu.position}
+          onClose={() => setCtxMenu(null)}
+          canManageChannels={canManageChannels}
+          onChannelDeleted={(id) => {
+            onChannelDeleted(id);
+            setCtxMenu(null);
+          }}
+          onChannelRenamed={(id, name) => {
+            onChannelRenamed(id, name);
+            setCtxMenu(null);
+          }}
+        />
+      )}
+    </>
   );
 }

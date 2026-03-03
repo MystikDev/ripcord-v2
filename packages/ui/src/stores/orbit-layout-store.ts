@@ -26,7 +26,14 @@ interface OrbitLayoutState {
   /** Reset pan offset to origin */
   resetPanOffset: () => void;
 
-  /** Reset all transient state (overrides + pan) */
+  /** Canvas zoom level (0.3–3.0, default 1.0). */
+  zoomLevel: number;
+  /** Set zoom level directly (clamped 0.3–3.0). */
+  setZoomLevel: (level: number) => void;
+  /** Adjust zoom by a delta (clamped 0.3–3.0). */
+  adjustZoom: (delta: number) => void;
+
+  /** Reset all transient state (overrides + pan + zoom) */
   resetAll: () => void;
 }
 
@@ -44,5 +51,10 @@ export const useOrbitLayoutStore = create<OrbitLayoutState>((set) => ({
   setPanOffset: (offset) => set({ panOffset: offset }),
   resetPanOffset: () => set({ panOffset: { x: 0, y: 0 } }),
 
-  resetAll: () => set({ overrides: {}, panOffset: { x: 0, y: 0 } }),
+  zoomLevel: 1.0,
+  setZoomLevel: (level) => set({ zoomLevel: Math.max(0.3, Math.min(3.0, level)) }),
+  adjustZoom: (delta) =>
+    set((s) => ({ zoomLevel: Math.max(0.3, Math.min(3.0, s.zoomLevel + delta)) })),
+
+  resetAll: () => set({ overrides: {}, panOffset: { x: 0, y: 0 }, zoomLevel: 1.0 }),
 }));

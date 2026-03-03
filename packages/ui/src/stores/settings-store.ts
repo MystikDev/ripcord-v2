@@ -161,6 +161,18 @@ export interface SettingsState {
   /** Set the channel sidebar width (clamped 200–480). */
   setChannelSidebarWidth: (width: number) => void;
 
+  /** Active tab in the Comms Center ('chat' or 'voice'). Default: 'chat' */
+  commsCenterActiveTab: 'chat' | 'voice';
+  /** Set the active Comms Center tab. */
+  setCommsCenterActiveTab: (tab: 'chat' | 'voice') => void;
+
+  /** Whether push-to-talk mode is enabled (persisted). Default: false */
+  pttEnabled: boolean;
+  /** Toggle push-to-talk on/off. */
+  togglePtt: () => void;
+  /** Directly set push-to-talk enabled state. */
+  setPttEnabled: (enabled: boolean) => void;
+
   /** Whether the Comms Center floating chat panel is open. */
   commsCenterOpen: boolean;
   /** Toggle the Comms Center open/closed. */
@@ -274,6 +286,13 @@ export const useSettingsStore = create<SettingsState>()(
       channelSidebarWidth: 240,
       setChannelSidebarWidth: (width) => set({ channelSidebarWidth: Math.max(200, Math.min(480, width)) }),
 
+      commsCenterActiveTab: 'chat' as const,
+      setCommsCenterActiveTab: (tab) => set({ commsCenterActiveTab: tab }),
+
+      pttEnabled: false,
+      togglePtt: () => set((s) => ({ pttEnabled: !s.pttEnabled })),
+      setPttEnabled: (enabled) => set({ pttEnabled: enabled }),
+
       commsCenterOpen: false,
       toggleCommsCenter: () => set((s) => ({ commsCenterOpen: !s.commsCenterOpen })),
       commsCenterPinned: false,
@@ -315,6 +334,8 @@ export const useSettingsStore = create<SettingsState>()(
         screenShareViewerQuality: state.screenShareViewerQuality,
         screenShareViewerFps: state.screenShareViewerFps,
         channelSidebarWidth: state.channelSidebarWidth,
+        commsCenterActiveTab: state.commsCenterActiveTab,
+        pttEnabled: state.pttEnabled,
         commsCenterPinned: state.commsCenterPinned,
         commsCenterPosition: state.commsCenterPosition,
         commsCenterSize: state.commsCenterSize,

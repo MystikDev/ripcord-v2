@@ -73,14 +73,10 @@ function StatusDot({ state }: { state: ConnectionState }) {
 function VoicePanelContent({
   channelName,
   connectionState,
-  pttEnabled,
-  onTogglePtt,
   onDisconnect,
 }: {
   channelName: string;
   connectionState: ConnectionState;
-  pttEnabled: boolean;
-  onTogglePtt: () => void;
   onDisconnect: () => void;
 }) {
   // Activate noise-gate processor based on user settings
@@ -148,8 +144,6 @@ function VoicePanelContent({
       {/* Controls */}
       {connectionState === 'connected' && (
         <VoiceControls
-          pttEnabled={pttEnabled}
-          onTogglePtt={onTogglePtt}
           onDisconnect={onDisconnect}
         />
       )}
@@ -173,8 +167,6 @@ export function VoicePanel() {
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [pttEnabled, setPttEnabled] = useState(false);
-
   // Create a stable Room instance so LiveKit reuses connections cleanly
   const room = useMemo(() => new Room(ROOM_OPTIONS), []);
 
@@ -267,7 +259,6 @@ export function VoicePanel() {
     setVoiceChannelId(null);
     setConnectionState('idle');
     setError(null);
-    setPttEnabled(false);
     useVoiceStateStore.getState().setConnectedChannelId(null);
     useVoiceStateStore.getState().setLatencyMs(null);
   }, [voiceChannelId]);
@@ -289,12 +280,6 @@ export function VoicePanel() {
 
   const handleRoomConnected = useCallback(() => {
     setConnectionState('connected');
-  }, []);
-
-  // ----- PTT toggle -----
-
-  const handleTogglePtt = useCallback(() => {
-    setPttEnabled((prev) => !prev);
   }, []);
 
   // ----- Auto-join on double-click signal -----
@@ -350,7 +335,6 @@ export function VoicePanel() {
         setLivekitUrl(url);
         setVoiceChannelId(pendingVoiceJoin);
         setConnectionState('connected');
-        setPttEnabled(false);
         useVoiceStateStore.getState().setConnectedChannelId(pendingVoiceJoin);
 
         // Optimistic local addition — appear in sidebar immediately
@@ -404,7 +388,7 @@ export function VoicePanel() {
           serverUrl={livekitUrl}
           token={token}
           connect={true}
-          audio={pttEnabled ? false : savedMicId ? { deviceId: savedMicId } : true}
+          audio={useSettingsStore.getState().pttEnabled ? false : savedMicId ? { deviceId: savedMicId } : true}
           video={false}
           onDisconnected={handleRoomDisconnected}
           onError={handleRoomError}
@@ -414,8 +398,6 @@ export function VoicePanel() {
           <VoicePanelContent
             channelName={voiceChannel?.name ?? 'Voice'}
             connectionState={connectionState}
-            pttEnabled={pttEnabled}
-            onTogglePtt={handleTogglePtt}
             onDisconnect={handleDisconnect}
           />
         </LiveKitRoom>

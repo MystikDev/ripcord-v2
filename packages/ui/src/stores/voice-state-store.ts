@@ -56,6 +56,20 @@ export interface VoiceStateStore {
   /** Callback to toggle screen share (set by VoiceControls inside LiveKitRoom). */
   toggleScreenShareFn: (() => void) | null;
 
+  /** Whether the local PTT key is currently held/active (bridged from VoiceControls). */
+  pttActive: boolean;
+
+  /** Whether the local user is currently screen sharing (bridged from VoiceControls). */
+  localScreenSharing: boolean;
+
+  /** Callback to start screen share with specific options (bridged from VoiceControls). */
+  startScreenShareFn: ((options: {
+    resolution?: { width: number; height: number };
+    frameRate: number;
+    contentHint: 'detail' | 'motion';
+    audioSource: 'none' | 'system';
+  }) => Promise<void>) | null;
+
   /** Add a participant to a voice channel. */
   addParticipant: (channelId: string, participant: VoiceParticipant) => void;
 
@@ -85,6 +99,9 @@ export interface VoiceStateStore {
   setLocalMicMuted: (muted: boolean) => void;
   setToggleMicFn: (fn: (() => void) | null) => void;
   setToggleScreenShareFn: (fn: (() => void) | null) => void;
+  setPttActive: (active: boolean) => void;
+  setLocalScreenSharing: (sharing: boolean) => void;
+  setStartScreenShareFn: (fn: VoiceStateStore['startScreenShareFn']) => void;
 
   /** Reset all voice state data. */
   reset: () => void;
@@ -112,6 +129,9 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
   localMicMuted: false,
   toggleMicFn: null,
   toggleScreenShareFn: null,
+  pttActive: false,
+  localScreenSharing: false,
+  startScreenShareFn: null,
 
   addParticipant: (channelId, participant) =>
     set((state) => {
@@ -250,6 +270,9 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
   setLocalMicMuted: (muted) => set({ localMicMuted: muted }),
   setToggleMicFn: (fn) => set({ toggleMicFn: fn }),
   setToggleScreenShareFn: (fn) => set({ toggleScreenShareFn: fn }),
+  setPttActive: (active) => set({ pttActive: active }),
+  setLocalScreenSharing: (sharing) => set({ localScreenSharing: sharing }),
+  setStartScreenShareFn: (fn) => set({ startScreenShareFn: fn }),
 
   reset: () => set({
     voiceStates: {},
@@ -263,5 +286,8 @@ export const useVoiceStateStore = create<VoiceStateStore>()((set) => ({
     localMicMuted: false,
     toggleMicFn: null,
     toggleScreenShareFn: null,
+    pttActive: false,
+    localScreenSharing: false,
+    startScreenShareFn: null,
   }),
 }));

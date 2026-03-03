@@ -16,7 +16,6 @@ export interface OrbitalTopbarProps {
   hubName: string;
   hubIconUrl?: string;
   activeOrbitCount: number;
-  onChannelListToggle: () => void;
   /** Navigate back to the cosmos landing view. */
   onBackToCosmos?: () => void;
 }
@@ -29,7 +28,6 @@ export function OrbitalTopbar({
   hubName,
   hubIconUrl,
   activeOrbitCount,
-  onChannelListToggle,
   onBackToCosmos,
 }: OrbitalTopbarProps) {
   const initials = hubName.slice(0, 2).toUpperCase();
@@ -152,38 +150,6 @@ export function OrbitalTopbar({
 
       {/* ── Spacer ── */}
       <div className="flex-1" />
-
-      {/* ── Channel list toggle button ── */}
-      <button
-        type="button"
-        onClick={onChannelListToggle}
-        className={clsx(
-          'flex items-center justify-center rounded-md',
-          'text-white/50 hover:text-white/80 transition-colors duration-150',
-          'cursor-pointer',
-        )}
-        style={{
-          width: '32px',
-          height: '32px',
-          background: 'rgba(255, 255, 255, 0.06)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-        }}
-        aria-label="Toggle channel list"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        >
-          <line x1="2" y1="4" x2="14" y2="4" />
-          <line x1="2" y1="8" x2="14" y2="8" />
-          <line x1="2" y1="12" x2="14" y2="12" />
-        </svg>
-      </button>
     </div>
   );
 }

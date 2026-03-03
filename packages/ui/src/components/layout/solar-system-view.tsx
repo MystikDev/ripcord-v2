@@ -263,6 +263,8 @@ export function SolarSystemView() {
   const setOrbitOverride = useOrbitLayoutStore((s) => s.setOverride);
   const panOffset = useOrbitLayoutStore((s) => s.panOffset);
   const setPanOffset = useOrbitLayoutStore((s) => s.setPanOffset);
+  const zoomLevel = useOrbitLayoutStore((s) => s.zoomLevel);
+  const adjustZoom = useOrbitLayoutStore((s) => s.adjustZoom);
   const resetLayout = useOrbitLayoutStore((s) => s.resetAll);
 
   const canManageChannels = useHasPermission(1 << 3); // Permission.MANAGE_CHANNELS
@@ -273,7 +275,6 @@ export function SolarSystemView() {
   const activeHub = hubs.find((h) => h.id === activeHubId);
 
   // -- Local state -----------------------------------------------------------
-  const [channelListOpen, setChannelListOpen] = useState(false);
   const [orbitCtxMenu, setOrbitCtxMenu] = useState<{
     channelId: string;
     channelName: string;
@@ -616,14 +617,6 @@ export function SolarSystemView() {
   );
 
   // -- Callbacks -------------------------------------------------------------
-  const handleChannelListToggle = useCallback(() => {
-    setChannelListOpen((prev) => !prev);
-  }, []);
-
-  const handleChannelListClose = useCallback(() => {
-    setChannelListOpen(false);
-  }, []);
-
   const handleTextChannelSelect = useCallback(
     (id: string) => {
       setActiveChannelOrbital(id);
@@ -682,7 +675,7 @@ export function SolarSystemView() {
   }, []);
 
   const handleChannelCreated = useCallback(
-    (channel: { id: string; hubId: string; name: string; type: 'voice'; position: number }) => {
+    (channel: { id: string; hubId: string; name: string; type: 'text' | 'voice'; position: number }) => {
       setChannels([...channels, channel]);
     },
     [channels, setChannels],
@@ -740,9 +733,11 @@ export function SolarSystemView() {
       if (!panDragRef.current) return;
       const dx = e.clientX - panDragRef.current.startX;
       const dy = e.clientY - panDragRef.current.startY;
+      // Divide by zoomLevel for consistent drag feel when zoomed
+      const z = useOrbitLayoutStore.getState().zoomLevel;
       setPanOffset({
-        x: panDragRef.current.startPanX + dx,
-        y: panDragRef.current.startPanY + dy,
+        x: panDragRef.current.startPanX + dx / z,
+        y: panDragRef.current.startPanY + dy / z,
       });
     },
     [setPanOffset],
@@ -751,6 +746,19 @@ export function SolarSystemView() {
   const handleCanvasPanUp = useCallback(() => {
     panDragRef.current = null;
   }, []);
+
+  // -- Mouse wheel zoom handler -----------------------------------------------
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = -e.deltaY * 0.001;
+      adjustZoom(delta);
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [adjustZoom]);
 
   // -- Back to cosmos: also reset layout -------------------------------------
   const handleBackToCosmos = useCallback(() => {
@@ -772,7 +780,8 @@ export function SolarSystemView() {
       <div
         className="absolute inset-0 z-[2] cursor-grab active:cursor-grabbing"
         style={{
-          transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
+          transformOrigin: 'center center',
         }}
         onPointerDown={handleCanvasPanDown}
         onPointerMove={handleCanvasPanMove}
@@ -845,19 +854,21 @@ export function SolarSystemView() {
         hubName={activeHub.name}
         hubIconUrl={activeHub.iconUrl}
         activeOrbitCount={activeOrbitCount}
-        onChannelListToggle={handleChannelListToggle}
         onBackToCosmos={handleBackToCosmos}
       />
 
       {/* Layer 5: Channel list */}
       <OrbitalChannelList
-        open={channelListOpen}
-        onClose={handleChannelListClose}
+        hubId={activeHub.id}
         textChannels={channelListTextChannels}
         voiceOrbits={channelListVoiceOrbits}
         activeChannelId={activeChannelId}
         onTextChannelSelect={handleTextChannelSelect}
         onVoiceOrbitSelect={handleVoiceOrbitSelect}
+        canManageChannels={canManageChannels}
+        onChannelCreated={handleChannelCreated}
+        onChannelDeleted={handleOrbitChannelDeleted}
+        onChannelRenamed={handleOrbitChannelRenamed}
       />
 
       {/* Layer 6: HUD */}

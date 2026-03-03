@@ -14,6 +14,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageList } from '../../chat/message-list';
 import { MessageComposer } from '../../chat/message-composer';
 import { TypingIndicator } from '../../chat/typing-indicator';
+import { CommsVoiceTab } from './comms-voice-tab';
+import { useSettingsStore } from '../../../stores/settings-store';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,7 +50,7 @@ interface FloatingChatPanelProps {
 
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 300;
-const MAX_WIDTH_FRAC = 0.8;
+const MAX_WIDTH_FRAC = 0.9;
 const MAX_HEIGHT_FRAC = 0.8;
 
 /** Resize handle hit-zone thickness in pixels */
@@ -131,7 +133,7 @@ export function FloatingChatPanel({
     origHeight: number;
     origPosX: number;
     origPosY: number;
-    edges: { right: boolean; bottom: boolean };
+    edges: { right: boolean; bottom: boolean; left: boolean };
   } | null>(null);
 
   // -- Sync savedSize changes from parent -----------------------------------
@@ -200,8 +202,12 @@ export function FloatingChatPanel({
   // Resize handlers (edge / corner)
   // =========================================================================
 
+  // -- Tab state (from settings store for persistence) -----------------------
+  const activeTab = useSettingsStore((s) => s.commsCenterActiveTab);
+  const setActiveTab = useSettingsStore((s) => s.setCommsCenterActiveTab);
+
   const handleResizeStart = useCallback(
-    (edges: { right: boolean; bottom: boolean }) => (e: React.PointerEvent) => {
+    (edges: { right: boolean; bottom: boolean; left: boolean }) => (e: React.PointerEvent) => {
       e.preventDefault();
       e.stopPropagation();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -226,15 +232,22 @@ export function FloatingChatPanel({
 
     let newWidth = ref.origWidth;
     let newHeight = ref.origHeight;
+    let newPosX = ref.origPosX;
 
     if (ref.edges.right) newWidth = ref.origWidth + dx;
+    if (ref.edges.left) {
+      newWidth = ref.origWidth - dx;
+      newPosX = ref.origPosX + dx;
+    }
     if (ref.edges.bottom) newHeight = ref.origHeight + dy;
 
     const clamped = clampSize(newWidth, newHeight);
+    // Adjust position if the width was clamped during left-edge resize
+    if (ref.edges.left) {
+      newPosX = ref.origPosX + (ref.origWidth - clamped.width);
+    }
     setSize(clamped);
-
-    // Keep position clamped with new size
-    setPosition((prev) => clampPosition(prev.x, prev.y, clamped.width, clamped.height));
+    setPosition(clampPosition(newPosX, ref.origPosY, clamped.width, clamped.height));
   }, []);
 
   const handleResizeEnd = useCallback(() => {
@@ -391,22 +404,74 @@ export function FloatingChatPanel({
         </button>
       </div>
 
-      {/* ── Chat content ────────────────────────────────────────────── */}
+      {/* ── Tab bar ─────────────────────────────────────────────────── */}
       <div
         style={{
-          flex: 1,
           display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          userSelect: 'text',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          flexShrink: 0,
         }}
       >
-        <MessageList channelId={channelId} />
-        <TypingIndicator channelId={channelId} />
-        <MessageComposer channelId={channelId} channelName={channelName} />
+        {(['chat', 'voice'] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            style={{
+              flex: 1,
+              padding: '6px 0',
+              border: 'none',
+              borderBottom: activeTab === tab ? '2px solid #00e5ff' : '2px solid transparent',
+              background: 'transparent',
+              color: activeTab === tab ? '#00e5ff' : 'rgba(255, 255, 255, 0.4)',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontSize: 10,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              cursor: 'pointer',
+              transition: 'color 0.15s, border-color 0.15s',
+            }}
+          >
+            {tab === 'chat' ? 'Chat' : 'Voice'}
+          </button>
+        ))}
       </div>
 
+      {/* ── Tab content ──────────────────────────────────────────────── */}
+      {activeTab === 'chat' && (
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            userSelect: 'text',
+          }}
+        >
+          <MessageList channelId={channelId} />
+          <TypingIndicator channelId={channelId} />
+          <MessageComposer channelId={channelId} channelName={channelName} />
+        </div>
+      )}
+      {activeTab === 'voice' && <CommsVoiceTab />}
+
       {/* ── Resize handles ─────────────────────────────────────────────── */}
+
+      {/* Left edge */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: HANDLE_SIZE,
+          height: '100%',
+          cursor: 'w-resize',
+        }}
+        onPointerDown={handleResizeStart({ right: false, bottom: false, left: true })}
+        onPointerMove={handleResizeMove}
+        onPointerUp={handleResizeEnd}
+      />
 
       {/* Right edge */}
       <div
@@ -418,7 +483,7 @@ export function FloatingChatPanel({
           height: '100%',
           cursor: 'e-resize',
         }}
-        onPointerDown={handleResizeStart({ right: true, bottom: false })}
+        onPointerDown={handleResizeStart({ right: true, bottom: false, left: false })}
         onPointerMove={handleResizeMove}
         onPointerUp={handleResizeEnd}
       />
@@ -433,7 +498,7 @@ export function FloatingChatPanel({
           height: HANDLE_SIZE,
           cursor: 's-resize',
         }}
-        onPointerDown={handleResizeStart({ right: false, bottom: true })}
+        onPointerDown={handleResizeStart({ right: false, bottom: true, left: false })}
         onPointerMove={handleResizeMove}
         onPointerUp={handleResizeEnd}
       />
@@ -448,7 +513,7 @@ export function FloatingChatPanel({
           height: HANDLE_SIZE * 2,
           cursor: 'se-resize',
         }}
-        onPointerDown={handleResizeStart({ right: true, bottom: true })}
+        onPointerDown={handleResizeStart({ right: true, bottom: true, left: false })}
         onPointerMove={handleResizeMove}
         onPointerUp={handleResizeEnd}
       />

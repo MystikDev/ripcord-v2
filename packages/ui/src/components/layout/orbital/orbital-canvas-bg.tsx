@@ -119,7 +119,7 @@ export function OrbitalCanvasBg({
           const ub = positions[onlineMembers[j]];
           if (!ua || !ub) continue;
 
-          const p = (Math.sin(frame * 0.02 + i * 1.3) + 1) / 2;
+          const p = (Math.sin(frame * 0.008 + i * 1.3) + 1) / 2;
 
           // Dashed connection line
           ctx.beginPath();
@@ -132,17 +132,26 @@ export function OrbitalCanvasBg({
               .padStart(2, '0');
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 9]);
-          ctx.lineDashOffset = -frame * 0.35;
+          ctx.lineDashOffset = -frame * 0.08;
           ctx.stroke();
           ctx.setLineDash([]);
 
-          // Travelling dot
-          const t = (frame * 0.009 + i * 0.4) % 1;
+          // Travelling dot — slower with organic sine-wave wobble
+          const t = (frame * 0.002 + i * 0.4) % 1;
+          // Perpendicular wobble for organic feel
+          const dx = ub.x - ua.x;
+          const dy = ub.y - ua.y;
+          const len = Math.sqrt(dx * dx + dy * dy) || 1;
+          const perpX = -dy / len;
+          const perpY = dx / len;
+          const wobble = Math.sin(frame * 0.015 + i * 2.1) * 0.03;
+          // Breathing dot radius
+          const dotRadius = 2.5 + Math.sin(frame * 0.01 + i * 0.7) * 1;
           ctx.beginPath();
           ctx.arc(
-            (ua.x + (ub.x - ua.x) * t) * W,
-            (ua.y + (ub.y - ua.y) * t) * H,
-            3,
+            (ua.x + dx * t + perpX * wobble) * W,
+            (ua.y + dy * t + perpY * wobble) * H,
+            dotRadius,
             0,
             Math.PI * 2,
           );

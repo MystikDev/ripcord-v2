@@ -62,10 +62,6 @@ function DisconnectIcon() {
 // ---------------------------------------------------------------------------
 
 export interface VoiceControlsProps {
-  /** Whether push-to-talk mode is enabled */
-  pttEnabled: boolean;
-  /** Toggle push-to-talk mode */
-  onTogglePtt: () => void;
   /** Disconnect from the voice channel */
   onDisconnect: () => void;
 }
@@ -74,9 +70,11 @@ export interface VoiceControlsProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceControlsProps) {
+export function VoiceControls({ onDisconnect }: VoiceControlsProps) {
   const { localParticipant } = useLocalParticipant();
   const pttKey = useSettingsStore((s) => s.pttKey);
+  const pttEnabled = useSettingsStore((s) => s.pttEnabled);
+  const togglePtt = useSettingsStore((s) => s.togglePtt);
 
   const isMicMuted = !localParticipant.isMicrophoneEnabled;
   const isScreenSharing = localParticipant.isScreenShareEnabled;
@@ -107,11 +105,21 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
 
   useEffect(() => {
     const fn = async () => {
-      await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled);
+      const lp = localParticipantRef.current;
+      const newEnabled = !lp.isMicrophoneEnabled;
+      try {
+        await lp.setMicrophoneEnabled(newEnabled);
+      } catch (err) {
+        console.error('[VoiceControls] Failed to toggle mic:', err);
+      }
+      // Optimistic store update — don't wait for the LiveKit hook re-render
+      // to propagate through the bridge effect. This ensures the COMMS popover
+      // UI updates immediately even if useLocalParticipant() re-render is delayed.
+      useVoiceStateStore.getState().setLocalMicMuted(!newEnabled);
     };
     useVoiceStateStore.getState().setToggleMicFn(fn);
     return () => useVoiceStateStore.getState().setToggleMicFn(null);
-  }, [localParticipant]);
+  }, []);  // No dependency — uses ref for always-current participant
 
   // ----- Push-to-talk -----
   // Use a ref so the PTT callbacks always see the latest localParticipant
@@ -133,6 +141,16 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
     onActivate: handlePttActivate,
     onDeactivate: handlePttDeactivate,
   });
+
+  // ----- Bridge PTT active state to Zustand store -----
+  useEffect(() => {
+    useVoiceStateStore.getState().setPttActive(pttActive);
+  }, [pttActive]);
+
+  // ----- Bridge screen sharing state to Zustand store -----
+  useEffect(() => {
+    useVoiceStateStore.getState().setLocalScreenSharing(isScreenSharing);
+  }, [isScreenSharing]);
 
   // ----- Screen share -----
 
@@ -201,6 +219,13 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
     }
   }, []);
 
+  // Register startScreenShareFn so the Comms Center Voice tab can start sharing
+  // with specific options without needing LiveKit context.
+  useEffect(() => {
+    useVoiceStateStore.getState().setStartScreenShareFn(handleStartShare);
+    return () => useVoiceStateStore.getState().setStartScreenShareFn(null);
+  }, [handleStartShare]);
+
   // ----- Render -----
 
   return (
@@ -208,7 +233,7 @@ export function VoiceControls({ pttEnabled, onTogglePtt, onDisconnect }: VoiceCo
       {/* Push-to-talk toggle */}
       <Tooltip content={pttEnabled ? 'Disable Push-to-Talk' : `Enable Push-to-Talk (${getKeyDisplayLabel(pttKey)})`} side="top">
         <button
-          onClick={onTogglePtt}
+          onClick={togglePtt}
           className={clsx(
             'flex h-9 items-center gap-1 rounded-full px-3 text-xs font-medium transition-all',
             pttEnabled
