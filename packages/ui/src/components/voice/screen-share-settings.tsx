@@ -122,7 +122,7 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50"
+      className="fixed inset-0 z-[300] bg-black/50"
       onClick={onClose}
       role="presentation"
     >

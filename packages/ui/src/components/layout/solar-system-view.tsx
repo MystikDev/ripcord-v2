@@ -750,6 +750,10 @@ export function SolarSystemView() {
     const el = containerRef.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
+      // Only zoom on the canvas/pannable area — don't hijack scroll in
+      // overlays like the chat panel, channel list, or popovers.
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-pannable]')) return;
       e.preventDefault();
       const delta = -e.deltaY * 0.001;
       adjustZoom(delta);
@@ -776,6 +780,7 @@ export function SolarSystemView() {
       {/* ── Pannable content layer ── */}
       {/* Captures pointer events on empty space for canvas panning. */}
       <div
+        data-pannable
         className="absolute inset-0 z-[2] cursor-grab active:cursor-grabbing"
         style={{
           transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,

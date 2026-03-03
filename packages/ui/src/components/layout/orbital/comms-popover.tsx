@@ -2,13 +2,14 @@
  * @module comms-popover
  * Glass-morphism popover for audio/voice controls in the orbital view.
  * Opens upward from the COMMS button in the HUD. Sections: Voice Status,
- * Mic Toggle, Deafen Toggle, Screen Share Toggle, and Disconnect.
+ * Mic Toggle, Deafen Toggle, Audio Devices, Screen Share Toggle, and Disconnect.
  * Closes on click-outside or Escape.
  */
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
+import { useSettingsStore } from '../../../stores/settings-store';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,6 +49,85 @@ function latencyLabel(ms: number): string {
   if (ms < 80) return 'Good';
   if (ms < 150) return 'Fair';
   return 'Poor';
+}
+
+// ---------------------------------------------------------------------------
+// Standalone Device Selector (no LiveKit context needed)
+// ---------------------------------------------------------------------------
+
+function DeviceSelect({
+  label,
+  kind,
+  selectedId,
+  onSelect,
+}: {
+  label: string;
+  kind: 'audioinput' | 'audiooutput';
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const enumerate = async () => {
+      try {
+        const all = await navigator.mediaDevices.enumerateDevices();
+        if (!cancelled) setDevices(all.filter((d) => d.kind === kind));
+      } catch {
+        // Permission denied or no devices
+      }
+    };
+    enumerate();
+    navigator.mediaDevices.addEventListener('devicechange', enumerate);
+    return () => {
+      cancelled = true;
+      navigator.mediaDevices.removeEventListener('devicechange', enumerate);
+    };
+  }, [kind]);
+
+  return (
+    <div className="px-3 py-1">
+      <label className="block font-mono text-[9px] uppercase tracking-wider text-white/35 mb-1">
+        {label}
+      </label>
+      <select
+        value={selectedId ?? ''}
+        onChange={(e) => onSelect(e.target.value || null)}
+        className="w-full rounded-md px-2 py-1.5 font-mono text-[10px] outline-none cursor-pointer"
+        style={{
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'rgba(255, 255, 255, 0.05)',
+          color: 'rgba(255, 255, 255, 0.85)',
+        }}
+      >
+        <option value="">System Default</option>
+        {devices.map((d) => (
+          <option key={d.deviceId} value={d.deviceId}>
+            {d.label || `${kind === 'audioinput' ? 'Mic' : 'Speaker'} ${d.deviceId.slice(0, 8)}`}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Audio Devices Section
+// ---------------------------------------------------------------------------
+
+function AudioDevices() {
+  const selectedMicId = useSettingsStore((s) => s.selectedMicDeviceId);
+  const setSelectedMicId = useSettingsStore((s) => s.setSelectedMicDeviceId);
+  const selectedSpeakerId = useSettingsStore((s) => s.selectedSpeakerDeviceId);
+  const setSelectedSpeakerId = useSettingsStore((s) => s.setSelectedSpeakerDeviceId);
+
+  return (
+    <div className="py-1">
+      <DeviceSelect label="Input" kind="audioinput" selectedId={selectedMicId} onSelect={setSelectedMicId} />
+      <DeviceSelect label="Output" kind="audiooutput" selectedId={selectedSpeakerId} onSelect={setSelectedSpeakerId} />
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -218,8 +298,14 @@ export function CommsPopover({
         </div>
       </button>
 
+      {/* ── Audio Devices ── */}
+      <div className="mx-3 my-1 border-t border-white/8" />
+      <AudioDevices />
+
       {/* ── Screen Share Toggle ── */}
       {isInVoice && (
+        <>
+        <div className="mx-3 my-1 border-t border-white/8" />
         <button
           type="button"
           onClick={onScreenShareToggle}
@@ -248,6 +334,7 @@ export function CommsPopover({
             </span>
           </div>
         </button>
+        </>
       )}
 
       {/* ── Disconnect ── */}
