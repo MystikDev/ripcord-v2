@@ -42,10 +42,10 @@ const PRESENCE_WEIGHT: Record<PresenceStatus, number> = {
 };
 
 const STATUS_COLOR: Record<PresenceStatus, string> = {
-  online: 'bg-emerald-400',
-  idle: 'bg-amber-400',
-  dnd: 'bg-red-400',
-  offline: 'bg-gray-500',
+  online: 'bg-[#34d399]',
+  idle: 'bg-[#fbbf24]',
+  dnd: 'bg-[#f87171]',
+  offline: 'bg-[#5c657a]',
 };
 
 // ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ function StatusDot({ status }: { status: PresenceStatus }) {
   return (
     <span
       className={clsx(
-        'absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-surface-1',
+        'absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#0a0a0f]',
         STATUS_COLOR[status],
       )}
     />
@@ -137,7 +137,8 @@ function FriendRow({
   return (
     <div
       className={clsx(
-        'flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-surface-2',
+        'flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200',
+        'border border-transparent hover:bg-white/5 hover:border-white/8',
         offline && 'opacity-40',
       )}
     >
@@ -150,7 +151,7 @@ function FriendRow({
       {/* Handle */}
       <span
         className={clsx(
-          'min-w-0 flex-1 truncate text-sm font-medium',
+          'min-w-0 flex-1 truncate font-mono text-[12px]',
           offline ? 'text-text-muted' : 'text-text-primary',
         )}
       >
@@ -161,13 +162,13 @@ function FriendRow({
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           onClick={handleDm}
-          className="rounded bg-surface-3 px-3 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+          className="rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-accent/30 hover:bg-accent/10 hover:text-accent"
         >
           DM
         </button>
         <button
           onClick={handleRemove}
-          className="rounded bg-surface-3 px-3 py-1 text-xs text-text-secondary transition-colors hover:bg-red-500/20 hover:text-red-400"
+          className="rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
         >
           Remove
         </button>
@@ -210,12 +211,12 @@ function PendingRow({
   }, [userId]);
 
   return (
-    <div className="flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-surface-2">
+    <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 border border-transparent hover:bg-white/5 hover:border-white/8">
       <div className="shrink-0">
         <Avatar src={avatarUrl} fallback={handle} size="sm" />
       </div>
 
-      <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">
+      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-text-primary">
         {handle}
       </span>
 
@@ -224,13 +225,13 @@ function PendingRow({
           <>
             <button
               onClick={handleAccept}
-              className="rounded bg-emerald-600 px-3 py-1 text-xs text-white transition-colors hover:bg-emerald-500"
+              className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-mono text-[10px] text-emerald-400 transition-all duration-150 hover:bg-emerald-500/20 hover:border-emerald-500/50"
             >
               Accept
             </button>
             <button
               onClick={handleDecline}
-              className="rounded bg-surface-3 px-3 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+              className="rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-white/15 hover:bg-white/8 hover:text-text-primary"
             >
               Decline
             </button>
@@ -238,7 +239,7 @@ function PendingRow({
         ) : (
           <button
             onClick={handleCancel}
-            className="rounded bg-surface-3 px-3 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+            className="rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-white/15 hover:bg-white/8 hover:text-text-primary"
           >
             Cancel
           </button>
@@ -265,18 +266,18 @@ function BlockedRow({
   }, [userId]);
 
   return (
-    <div className="flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-surface-2">
+    <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 border border-transparent hover:bg-white/5 hover:border-white/8">
       <div className="shrink-0">
         <Avatar fallback={handle} size="sm" />
       </div>
 
-      <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">
+      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-text-primary">
         {handle}
       </span>
 
       <button
         onClick={handleUnblock}
-        className="shrink-0 rounded bg-surface-3 px-3 py-1 text-xs text-text-secondary transition-colors hover:bg-red-500/20 hover:text-red-400"
+        className="shrink-0 rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
       >
         Unblock
       </button>
@@ -305,21 +306,27 @@ function TabBar({
   onChange: (tab: Tab) => void;
 }) {
   return (
-    <div className="flex h-12 items-center gap-4 border-b border-border px-4">
+    <div className="flex h-12 items-center gap-1 border-b border-white/5 px-3">
       {TABS.map(({ key, label }) => (
         <button
           key={key}
           onClick={() => onChange(key)}
           className={clsx(
-            'relative pb-0.5 text-sm font-medium transition-colors',
+            'relative px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] transition-all duration-150 cursor-pointer',
             active === key
-              ? 'text-text-primary'
+              ? 'text-accent'
               : 'text-text-muted hover:text-text-secondary',
           )}
         >
-          {label} — {counts[key]}
+          {label}
+          <span className={clsx(
+            'ml-1.5 font-mono text-[10px]',
+            active === key ? 'text-accent/60' : 'text-text-muted/60',
+          )}>
+            {counts[key]}
+          </span>
           {active === key && (
-            <span className="absolute -bottom-[9px] left-0 right-0 h-0.5 rounded-full bg-accent" />
+            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-[2px] rounded-full bg-accent" />
           )}
         </button>
       ))}
@@ -334,7 +341,7 @@ function TabBar({
 function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
     <div className="px-3 pt-4 pb-1">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+      <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-white/35">
         {label} — {count}
       </p>
     </div>
@@ -409,7 +416,7 @@ export function FriendsPanel() {
         return (
           <div className="p-2">
             {onlineFriends.length === 0 ? (
-              <p className="px-2 pt-8 text-center text-sm text-text-muted">
+              <p className="px-2 pt-8 text-center font-mono text-[11px] text-text-muted">
                 No friends online
               </p>
             ) : (
@@ -429,7 +436,7 @@ export function FriendsPanel() {
         return (
           <div className="p-2">
             {allFriends.length === 0 ? (
-              <p className="px-2 pt-8 text-center text-sm text-text-muted">
+              <p className="px-2 pt-8 text-center font-mono text-[11px] text-text-muted">
                 No friends yet
               </p>
             ) : (
@@ -453,7 +460,7 @@ export function FriendsPanel() {
         return (
           <div className="p-2">
             {pendingIncoming.length === 0 && pendingOutgoing.length === 0 ? (
-              <p className="px-2 pt-8 text-center text-sm text-text-muted">
+              <p className="px-2 pt-8 text-center font-mono text-[11px] text-text-muted">
                 No pending requests
               </p>
             ) : (
@@ -495,7 +502,7 @@ export function FriendsPanel() {
         return (
           <div className="p-2">
             {blocked.length === 0 ? (
-              <p className="px-2 pt-8 text-center text-sm text-text-muted">
+              <p className="px-2 pt-8 text-center font-mono text-[11px] text-text-muted">
                 No blocked users
               </p>
             ) : (
@@ -509,7 +516,7 @@ export function FriendsPanel() {
   };
 
   return (
-    <div className="flex h-full flex-1 flex-col bg-surface-1">
+    <div className="flex h-full flex-1 flex-col bg-surface-1/80 backdrop-blur-sm">
       <TabBar active={activeTab} counts={counts} onChange={setActiveTab} />
       <ScrollArea className="flex-1">
         {renderContent()}
