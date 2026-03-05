@@ -130,6 +130,7 @@ function FriendRow({
   }, [userId]);
 
   const handleRemove = useCallback(async () => {
+    if (!window.confirm("Remove this friend? You'll need to send a new request to reconnect.")) return;
     const { ok } = await removeFriend(userId);
     if (ok) await refreshFriends();
   }, [userId]);
@@ -162,13 +163,13 @@ function FriendRow({
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           onClick={handleDm}
-          className="rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-accent/30 hover:bg-accent/10 hover:text-accent"
+          className="rounded-lg border border-white/8 bg-white/5 px-3.5 py-1.5 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-accent/30 hover:bg-accent/10 hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           DM
         </button>
         <button
           onClick={handleRemove}
-          className="rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+          className="rounded-lg border border-white/8 bg-white/5 px-3.5 py-1.5 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-accent/40"
         >
           Remove
         </button>
@@ -225,13 +226,13 @@ function PendingRow({
           <>
             <button
               onClick={handleAccept}
-              className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-mono text-[10px] text-emerald-400 transition-all duration-150 hover:bg-emerald-500/20 hover:border-emerald-500/50"
+              className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 font-mono text-[10px] text-emerald-400 transition-all duration-150 hover:bg-emerald-500/20 hover:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
             >
               Accept
             </button>
             <button
               onClick={handleDecline}
-              className="rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-white/15 hover:bg-white/8 hover:text-text-primary"
+              className="rounded-lg border border-white/8 bg-white/5 px-3.5 py-1.5 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-white/15 hover:bg-white/8 hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40"
             >
               Decline
             </button>
@@ -239,7 +240,7 @@ function PendingRow({
         ) : (
           <button
             onClick={handleCancel}
-            className="rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-white/15 hover:bg-white/8 hover:text-text-primary"
+            className="rounded-lg border border-white/8 bg-white/5 px-3.5 py-1.5 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-white/15 hover:bg-white/8 hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40"
           >
             Cancel
           </button>
@@ -261,6 +262,7 @@ function BlockedRow({
   handle: string;
 }) {
   const handleUnblock = useCallback(async () => {
+    if (!window.confirm("Unblock this user? They'll be able to message you again.")) return;
     const { ok } = await unblockUser(userId);
     if (ok) await refreshBlocked();
   }, [userId]);
@@ -277,7 +279,7 @@ function BlockedRow({
 
       <button
         onClick={handleUnblock}
-        className="shrink-0 rounded-lg border border-white/8 bg-white/5 px-3 py-1 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+        className="shrink-0 rounded-lg border border-white/8 bg-white/5 px-3.5 py-1.5 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-accent/40"
       >
         Unblock
       </button>
@@ -312,7 +314,7 @@ function TabBar({
           key={key}
           onClick={() => onChange(key)}
           className={clsx(
-            'relative px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] transition-all duration-150 cursor-pointer',
+            'relative px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/40',
             active === key
               ? 'text-accent'
               : 'text-text-muted hover:text-text-secondary',
@@ -320,8 +322,8 @@ function TabBar({
         >
           {label}
           <span className={clsx(
-            'ml-1.5 font-mono text-[10px]',
-            active === key ? 'text-accent/60' : 'text-text-muted/60',
+            'ml-1.5 font-mono text-[11px]',
+            active === key ? 'text-accent/70' : 'text-text-muted/70',
           )}>
             {counts[key]}
           </span>

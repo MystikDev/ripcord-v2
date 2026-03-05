@@ -41,6 +41,21 @@
   --animate-gentle-bounce: gentle-bounce 2s ease-in-out infinite;
 }
 
+/* Z-INDEX LAYERS:
+ * 0    - Canvas background (orbit-ambient)
+ * 1    - Grid overlay (orbit-grid)
+ * 2    - Pannable content layer
+ * 20   - User nodes (default)
+ * 30   - User nodes (hovered)
+ * 50   - Context menus, splinter particles
+ * 100  - Scanline overlay
+ * 130  - Channel list trigger zone
+ * 180  - Channel list panel
+ * 200  - HUD bar, splinter button
+ * 300  - Screen share dialog (portal)
+ * 400  - Modal overlays
+ */
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text-primary);
@@ -48,6 +63,11 @@ body {
   font-size: var(--font-size-base, 14px);
   overflow: hidden;
 }
+
+/* ─── Standardized Transition Tokens ─── */
+.transition-fast { transition-duration: 100ms; }
+.transition-standard { transition-duration: 150ms; }
+.transition-slow { transition-duration: 200ms; }
 
 /* ─── Custom Scrollbar (ORBIT cyan tint) ─── */
 ::-webkit-scrollbar { width: 4px; }
@@ -65,6 +85,15 @@ body {
 *:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* ─── Subtle Loading Pulse ─── */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* ─── Typing indicator dot pulse ─── */

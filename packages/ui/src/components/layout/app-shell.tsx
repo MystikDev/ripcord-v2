@@ -20,6 +20,7 @@ import { IncomingCall } from '../voice/incoming-call';
 import { DmCallPanel } from '../voice/dm-call-panel';
 import { VoicePanel } from '../voice/voice-panel';
 import { BugReportButton } from '../ui/bug-report-dialog';
+import { ToastContainer } from '../ui/toast';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useHubStore } from '../../stores/server-store';
 import { useThemeOverrides } from '../../hooks/use-theme-overrides';
@@ -109,6 +110,11 @@ export function AppShell() {
       {/* Floating bug report button (lower-right, above toasts).
           Hidden in orbital / cosmos views — the HUD has its own inline bug icon. */}
       {!showSystemView && !showCosmosView && <BugReportButton />}
+
+      {/* Imperative toast container — renders showToast() calls from anywhere in
+          the app, including stores and non-React contexts. z-[500] sits above all
+          other overlays. Always mounted so toasts fire regardless of view mode. */}
+      <ToastContainer />
     </div>
   );
 }

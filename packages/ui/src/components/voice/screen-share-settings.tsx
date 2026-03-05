@@ -43,11 +43,11 @@ const AUDIO_SOURCES: { value: AudioSource; label: string; description?: string }
   { value: 'system', label: 'Share Audio', description: 'Captures audio from the shared window. Select a specific window (not "Entire Screen") for best results.' },
 ];
 
-const RESOLUTIONS: { value: Resolution; label: string }[] = [
+const RESOLUTIONS: { value: Resolution; label: string; description?: string }[] = [
   { value: '720p', label: '720p' },
   { value: '1080p', label: '1080p' },
   { value: '1440p', label: '1440p' },
-  { value: 'source', label: 'Source' },
+  { value: 'source', label: 'Native', description: "Uses your display's native resolution" },
 ];
 
 const FRAME_RATES: { value: FrameRate; label: string }[] = [
@@ -68,6 +68,29 @@ const CONTENT_HINTS: { value: ContentHint; label: string; description: string }[
     description: 'Optimised for video and animation. Higher frame rate, adaptive resolution.',
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Bandwidth estimate helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns an estimated bandwidth in Mbps for the given resolution + frame rate.
+ * Rough VoIP/screen-share bitrate approximations.
+ */
+function estimateBandwidthMbps(res: Resolution, fps: FrameRate): number {
+  // Base bitrates at 30fps
+  const base: Record<Resolution, number> = {
+    '720p': 3,
+    '1080p': 6,
+    '1440p': 12,
+    source: 15,
+  };
+  const baseMbps = base[res];
+  // Scale for frame rate relative to 30fps
+  if (fps === 15) return Math.round(baseMbps * 0.6 * 10) / 10;
+  if (fps === 60) return Math.round(baseMbps * 1.7 * 10) / 10;
+  return baseMbps;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -152,7 +175,7 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
                 type="button"
                 onClick={() => setResolution(r.value)}
                 className={clsx(
-                  'px-3 py-1.5 rounded text-sm transition-colors',
+                  'px-4 py-2 rounded text-sm transition-colors',
                   resolution === r.value
                     ? 'bg-accent text-white'
                     : 'bg-surface-2 text-text-secondary hover:bg-surface-3',
@@ -162,6 +185,14 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
               </button>
             ))}
           </div>
+          {(() => {
+            const selected = RESOLUTIONS.find((r) => r.value === resolution);
+            return selected?.description ? (
+              <p className="mt-1.5 text-xs italic text-text-tertiary">
+                {selected.description}
+              </p>
+            ) : null;
+          })()}
         </div>
 
         {/* ---- Frame Rate ---- */}
@@ -176,7 +207,7 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
                 type="button"
                 onClick={() => setFrameRate(f.value)}
                 className={clsx(
-                  'px-3 py-1.5 rounded text-sm transition-colors',
+                  'px-4 py-2 rounded text-sm transition-colors',
                   frameRate === f.value
                     ? 'bg-accent text-white'
                     : 'bg-surface-2 text-text-secondary hover:bg-surface-3',
@@ -186,6 +217,15 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
               </button>
             ))}
           </div>
+        </div>
+
+        {/* ---- Bandwidth Estimate ---- */}
+        <div className="mb-4 flex items-center gap-2">
+          <span className="font-mono text-[10px] text-white/40">Est.</span>
+          <span className="font-mono text-[10px] text-white/40 font-semibold">
+            ~{estimateBandwidthMbps(resolution, frameRate)} Mbps
+          </span>
+          <span className="font-mono text-[10px] text-white/25">upload required</span>
         </div>
 
         {/* ---- Content Type ---- */}
@@ -232,7 +272,7 @@ export function ScreenShareSettings({ open, onClose, onStart }: ScreenShareSetti
                 type="button"
                 onClick={() => setAudioSource(a.value)}
                 className={clsx(
-                  'px-3 py-1.5 rounded text-sm transition-colors',
+                  'px-4 py-2 rounded text-sm transition-colors',
                   audioSource === a.value
                     ? 'bg-accent text-white'
                     : 'bg-surface-2 text-text-secondary hover:bg-surface-3',

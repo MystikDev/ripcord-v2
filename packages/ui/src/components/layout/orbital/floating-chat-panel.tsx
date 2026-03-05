@@ -297,17 +297,20 @@ export function FloatingChatPanel({
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           cursor: 'grab',
           flexShrink: 0,
+          transition: 'background 0.15s',
         }}
         onPointerDown={handleDragStart}
         onPointerMove={handleDragMove}
         onPointerUp={handleDragEnd}
+        onMouseEnter={(e) => { (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'); }}
+        onMouseLeave={(e) => { (e.currentTarget.style.background = ''); }}
       >
         {/* Channel name */}
         <span
           style={{
             flex: 1,
             fontFamily: 'var(--font-mono, monospace)',
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             color: 'rgba(255, 255, 255, 0.85)',
             overflow: 'hidden',
@@ -417,6 +420,7 @@ export function FloatingChatPanel({
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
+            className="focus:outline-none focus:ring-2 focus:ring-[rgba(0,229,255,0.4)] focus:ring-inset"
             style={{
               flex: 1,
               padding: '6px 0',
@@ -460,6 +464,7 @@ export function FloatingChatPanel({
 
       {/* Left edge */}
       <div
+        className="transition-colors duration-150 hover:bg-white/10"
         style={{
           position: 'absolute',
           top: 0,
@@ -475,6 +480,7 @@ export function FloatingChatPanel({
 
       {/* Right edge */}
       <div
+        className="transition-colors duration-150 hover:bg-white/10"
         style={{
           position: 'absolute',
           top: 0,
@@ -490,6 +496,7 @@ export function FloatingChatPanel({
 
       {/* Bottom edge */}
       <div
+        className="transition-colors duration-150 hover:bg-white/10"
         style={{
           position: 'absolute',
           bottom: 0,
@@ -505,6 +512,7 @@ export function FloatingChatPanel({
 
       {/* Bottom-right corner */}
       <div
+        className="transition-colors duration-150 hover:bg-white/10"
         style={{
           position: 'absolute',
           bottom: 0,

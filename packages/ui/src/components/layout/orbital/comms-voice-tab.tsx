@@ -22,14 +22,14 @@ import { getKeyDisplayLabel } from '../../../lib/key-display';
 // ---------------------------------------------------------------------------
 
 function latencyColor(ms: number): string {
-  if (ms < 80) return '#34d399';
-  if (ms < 150) return '#fbbf24';
+  if (ms < 100) return '#34d399';
+  if (ms < 200) return '#fbbf24';
   return '#f87171';
 }
 
 function latencyLabel(ms: number): string {
-  if (ms < 80) return 'Good';
-  if (ms < 150) return 'Fair';
+  if (ms < 100) return 'Good';
+  if (ms < 200) return 'Fair';
   return 'Poor';
 }
 
@@ -79,7 +79,7 @@ function DeviceSelector({
           fontSize: 9,
           textTransform: 'uppercase',
           letterSpacing: '0.12em',
-          color: 'rgba(255, 255, 255, 0.4)',
+          color: 'rgba(255, 255, 255, 0.5)',
           marginBottom: 4,
         }}
       >
@@ -274,6 +274,7 @@ export function CommsVoiceTab() {
           {/* Mic toggle */}
           <button
             type="button"
+            title="Mute/Unmute Microphone"
             onClick={() => toggleMicFn?.()}
             style={{
               flex: 1,
@@ -304,6 +305,7 @@ export function CommsVoiceTab() {
           {/* Deafen toggle */}
           <button
             type="button"
+            title="Deafen/Undeafen"
             onClick={toggleDeafen}
             style={{
               flex: 1,
@@ -332,6 +334,7 @@ export function CommsVoiceTab() {
           {/* Disconnect */}
           <button
             type="button"
+            title="Disconnect from voice"
             onClick={handleDisconnect}
             style={{
               display: 'flex',
@@ -366,23 +369,24 @@ export function CommsVoiceTab() {
             type="button"
             onClick={togglePtt}
             style={{
-              width: 32,
-              height: 18,
-              borderRadius: 9,
+              width: 40,
+              height: 22,
+              borderRadius: 11,
               border: 'none',
               background: pttEnabled ? '#00e5ff' : 'rgba(255, 255, 255, 0.15)',
               cursor: 'pointer',
               position: 'relative',
               transition: 'background 0.2s',
+              flexShrink: 0,
             }}
           >
             <span
               style={{
                 position: 'absolute',
-                top: 2,
-                left: pttEnabled ? 16 : 2,
-                width: 14,
-                height: 14,
+                top: 3,
+                left: pttEnabled ? 21 : 3,
+                width: 16,
+                height: 16,
                 borderRadius: '50%',
                 background: 'white',
                 transition: 'left 0.2s',
@@ -477,23 +481,24 @@ export function CommsVoiceTab() {
             type="button"
             onClick={() => setNoiseSuppressionEnabled(!noiseSuppressionEnabled)}
             style={{
-              width: 32,
-              height: 18,
-              borderRadius: 9,
+              width: 40,
+              height: 22,
+              borderRadius: 11,
               border: 'none',
               background: noiseSuppressionEnabled ? '#00e5ff' : 'rgba(255, 255, 255, 0.15)',
               cursor: 'pointer',
               position: 'relative',
               transition: 'background 0.2s',
+              flexShrink: 0,
             }}
           >
             <span
               style={{
                 position: 'absolute',
-                top: 2,
-                left: noiseSuppressionEnabled ? 16 : 2,
-                width: 14,
-                height: 14,
+                top: 3,
+                left: noiseSuppressionEnabled ? 21 : 3,
+                width: 16,
+                height: 16,
                 borderRadius: '50%',
                 background: 'white',
                 transition: 'left 0.2s',
@@ -511,7 +516,7 @@ export function CommsVoiceTab() {
               onChange={(e) => setNoiseSuppressionStrength(Number(e.target.value))}
               style={{ width: '100%', accentColor: '#00e5ff' }}
             />
-            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 9, color: 'rgba(255,255,255,0.3)', textAlign: 'right' }}>
+            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'right' }}>
               {noiseSuppressionStrength}%
             </div>
           </div>
@@ -526,23 +531,24 @@ export function CommsVoiceTab() {
             type="button"
             onClick={() => setEqEnabled(!eqEnabled)}
             style={{
-              width: 32,
-              height: 18,
-              borderRadius: 9,
+              width: 40,
+              height: 22,
+              borderRadius: 11,
               border: 'none',
               background: eqEnabled ? '#00e5ff' : 'rgba(255, 255, 255, 0.15)',
               cursor: 'pointer',
               position: 'relative',
               transition: 'background 0.2s',
+              flexShrink: 0,
             }}
           >
             <span
               style={{
                 position: 'absolute',
-                top: 2,
-                left: eqEnabled ? 16 : 2,
-                width: 14,
-                height: 14,
+                top: 3,
+                left: eqEnabled ? 21 : 3,
+                width: 16,
+                height: 16,
                 borderRadius: '50%',
                 background: 'white',
                 transition: 'left 0.2s',
@@ -566,7 +572,7 @@ export function CommsVoiceTab() {
                   onChange={(e) => set(Number(e.target.value))}
                   style={{ width: '100%', accentColor: '#00e5ff' }}
                 />
-                <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 8, color: 'rgba(255,255,255,0.35)' }}>
+                <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
                   {label} {value > 0 ? '+' : ''}{value}
                 </div>
               </div>

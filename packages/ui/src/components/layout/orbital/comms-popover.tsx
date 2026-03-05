@@ -40,14 +40,14 @@ interface CommsPopoverProps {
 // ---------------------------------------------------------------------------
 
 function latencyColor(ms: number): string {
-  if (ms < 80) return '#34d399';
-  if (ms < 150) return '#fbbf24';
+  if (ms < 100) return '#34d399';
+  if (ms < 200) return '#fbbf24';
   return '#f87171';
 }
 
 function latencyLabel(ms: number): string {
-  if (ms < 80) return 'Good';
-  if (ms < 150) return 'Fair';
+  if (ms < 100) return 'Good';
+  if (ms < 200) return 'Fair';
   return 'Poor';
 }
 
@@ -88,13 +88,13 @@ function DeviceSelect({
 
   return (
     <div className="px-3 py-1">
-      <label className="block font-mono text-[9px] uppercase tracking-wider text-white/35 mb-1">
+      <label className="block font-mono text-[9px] uppercase tracking-wider text-white/50 mb-1">
         {label}
       </label>
       <select
         value={selectedId ?? ''}
         onChange={(e) => onSelect(e.target.value || null)}
-        className="w-full rounded-md px-2 py-1.5 font-mono text-[10px] outline-none cursor-pointer"
+        className="w-full rounded-md px-2 py-2 font-mono text-[10px] outline-none cursor-pointer"
         style={{
           border: '1px solid rgba(255, 255, 255, 0.1)',
           background: 'rgba(255, 255, 255, 0.05)',
@@ -236,10 +236,12 @@ export function CommsPopover({
       <button
         type="button"
         onClick={onMicToggle}
+        title="Toggle Microphone"
         className={clsx(
           'w-full flex items-center gap-3 px-3 py-2 text-left',
           'transition-colors duration-100 cursor-pointer',
           'hover:bg-white/5',
+          'focus:ring-2 focus:ring-accent/50 focus:outline-none',
         )}
       >
         <div
@@ -267,10 +269,12 @@ export function CommsPopover({
       <button
         type="button"
         onClick={onDeafenToggle}
+        title="Toggle Deafen"
         className={clsx(
           'w-full flex items-center gap-3 px-3 py-2 text-left',
           'transition-colors duration-100 cursor-pointer',
           'hover:bg-white/5',
+          'focus:ring-2 focus:ring-accent/50 focus:outline-none',
         )}
       >
         <div
@@ -309,10 +313,12 @@ export function CommsPopover({
         <button
           type="button"
           onClick={onScreenShareToggle}
+          title="Share Screen"
           className={clsx(
             'w-full flex items-center gap-3 px-3 py-2 text-left',
             'transition-colors duration-100 cursor-pointer',
             'hover:bg-white/5',
+            'focus:ring-2 focus:ring-accent/50 focus:outline-none',
           )}
         >
           <div
@@ -344,10 +350,12 @@ export function CommsPopover({
           <button
             type="button"
             onClick={handleDisconnect}
+            title="Disconnect from voice"
             className={clsx(
               'w-full flex items-center gap-3 px-3 py-2 text-left',
               'transition-colors duration-100 cursor-pointer',
               'hover:bg-red-500/10',
+              'focus:ring-2 focus:ring-red-500/50 focus:outline-none',
             )}
           >
             <div className="w-[28px] h-[28px] rounded-lg flex items-center justify-center shrink-0 bg-red-500/15 text-red-400">

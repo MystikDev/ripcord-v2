@@ -117,15 +117,30 @@ function VoicePanelContent({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <StatusDot state={connectionState} />
-          <span className="text-xs font-medium text-text-secondary">
-            {connectionState === 'connected'
-              ? 'Voice Connected'
-              : connectionState === 'connecting'
-                ? 'Connecting...'
+          {connectionState === 'connecting' ? (
+            <div className="flex items-center gap-1.5 text-xs font-medium text-warning">
+              <svg
+                className="animate-spin shrink-0"
+                width="10"
+                height="10"
+                viewBox="0 0 12 12"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1.5" />
+                <path d="M6 1.5a4.5 4.5 0 0 1 4.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <span>Connecting...</span>
+            </div>
+          ) : (
+            <span className="text-xs font-medium text-text-secondary">
+              {connectionState === 'connected'
+                ? 'Voice Connected'
                 : connectionState === 'error'
                   ? 'Connection Error'
                   : 'Not Connected'}
-          </span>
+            </span>
+          )}
           {connectionState === 'connected' && (
             <SignalMeter latencyMs={latencyMs} quality={quality} />
           )}
@@ -168,6 +183,8 @@ export function VoicePanel() {
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [showDisconnectToast, setShowDisconnectToast] = useState(false);
+  const disconnectToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Create a stable Room instance so LiveKit reuses connections cleanly
   const room = useMemo(() => new Room(ROOM_OPTIONS), []);
 
@@ -262,6 +279,11 @@ export function VoicePanel() {
     setError(null);
     useVoiceStateStore.getState().setConnectedChannelId(null);
     useVoiceStateStore.getState().setLatencyMs(null);
+
+    // Show disconnect toast for 2 seconds
+    setShowDisconnectToast(true);
+    if (disconnectToastTimerRef.current) clearTimeout(disconnectToastTimerRef.current);
+    disconnectToastTimerRef.current = setTimeout(() => setShowDisconnectToast(false), 2000);
   }, [voiceChannelId]);
 
   // Bridge the disconnect function into the store so components outside
@@ -389,6 +411,23 @@ export function VoicePanel() {
 
   return (
     <div className="border-t border-border bg-surface-1/80">
+      {/* Disconnect toast notification */}
+      {showDisconnectToast && (
+        <div
+          className={clsx(
+            'flex items-center justify-center gap-1.5 px-3 py-1.5',
+            'text-xs font-mono text-text-muted',
+            'bg-surface-2/80 border-b border-border',
+            'transition-opacity duration-300',
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="w-[5px] h-[5px] rounded-full bg-text-muted/60 shrink-0" />
+          Disconnected from voice
+        </div>
+      )}
+
       {/* Connected: render LiveKitRoom wrapper */}
       {isConnected && (
         <LiveKitRoom
@@ -417,7 +456,7 @@ export function VoicePanel() {
           {isVoiceChannel && connectionState === 'idle' && (
             <button
               onClick={handleJoin}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-success/20 px-3 py-2 text-sm font-medium text-success transition-colors hover:bg-success/30"
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-success/20 px-4 py-2.5 text-sm font-medium text-success transition-colors hover:bg-success/30"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                 <rect x="5.5" y="1" width="5" height="8" rx="2.5" />
@@ -430,7 +469,20 @@ export function VoicePanel() {
           )}
 
           {connectionState === 'connecting' && (
-            <p className="text-xs text-warning animate-pulse">Connecting...</p>
+            <div className="flex items-center gap-2 text-xs text-warning">
+              <svg
+                className="animate-spin shrink-0"
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1.5" />
+                <path d="M6 1.5a4.5 4.5 0 0 1 4.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <span>Connecting...</span>
+            </div>
           )}
 
           {connectionState === 'error' && (

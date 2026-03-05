@@ -40,10 +40,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={clsx(
-            'h-10 w-full rounded-lg border bg-surface-1 px-3 text-sm text-text-primary',
+            'h-11 w-full rounded-lg border bg-surface-1 px-3 text-sm text-text-primary',
             'placeholder:text-text-muted',
             'transition-colors',
-            'focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1 focus:ring-offset-bg',
+            'focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1 focus:ring-offset-surface-1',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             error
               ? 'border-danger focus:ring-danger'
@@ -53,7 +53,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
         {error && (
-          <p className="text-xs text-danger">{error}</p>
+          <p className="text-sm text-danger">{error}</p>
         )}
       </div>
     );

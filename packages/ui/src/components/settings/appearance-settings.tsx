@@ -129,7 +129,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
             onChange={(e) => setFontSize(Number(e.target.value))}
             className="w-full accent-accent h-1.5 cursor-pointer"
           />
-          <div className="mt-1 flex justify-between text-[10px] text-text-muted">
+          <div className="mt-1 flex justify-between text-sm text-text-muted">
             <span>12px</span>
             <span>16px</span>
             <span>20px</span>
@@ -151,7 +151,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
             onChange={(e) => setIconSize(Number(e.target.value))}
             className="w-full accent-accent h-1.5 cursor-pointer"
           />
-          <div className="mt-1 flex justify-between text-[10px] text-text-muted">
+          <div className="mt-1 flex justify-between text-sm text-text-muted">
             <span>24px</span>
             <span>44px</span>
             <span>64px</span>
@@ -166,7 +166,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
               <button
                 key={preset.label}
                 onClick={() => setFontColor(preset.value)}
-                className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors ${
+                className={`flex h-10 items-center gap-1.5 rounded-md border px-3 text-xs transition-colors ${
                   (preset.value === fontColor || (preset.value === null && fontColor === null))
                     ? 'border-accent bg-accent/10 text-text-primary'
                     : 'border-border bg-surface-2 text-text-secondary hover:border-text-muted'
@@ -191,7 +191,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
               <button
                 key={preset.label}
                 onClick={() => setUsernameColor(preset.value)}
-                className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors ${
+                className={`flex h-10 items-center gap-1.5 rounded-md border px-3 text-xs transition-colors ${
                   (preset.value === usernameColor || (preset.value === null && usernameColor === null))
                     ? 'border-accent bg-accent/10 text-text-primary'
                     : 'border-border bg-surface-2 text-text-secondary hover:border-text-muted'
@@ -216,7 +216,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
               <button
                 key={preset.label}
                 onClick={() => setChatTextColor(preset.value)}
-                className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors ${
+                className={`flex h-10 items-center gap-1.5 rounded-md border px-3 text-xs transition-colors ${
                   (preset.value === chatTextColor || (preset.value === null && chatTextColor === null))
                     ? 'border-accent bg-accent/10 text-text-primary'
                     : 'border-border bg-surface-2 text-text-secondary hover:border-text-muted'
@@ -293,6 +293,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
         {/* Reset */}
         <button
           onClick={() => {
+            if (!window.confirm('Reset all appearance settings to defaults?')) return;
             setFontSize(14);
             setFontColor(null);
             setIconSize(32);

@@ -520,11 +520,24 @@ export function ChannelSidebar() {
               </svg>
             </button>
           )}
-          <h2 className="truncate text-base font-semibold display-text text-text-primary">
-            {isDmView ? 'Direct Messages' : (activeHub?.name ?? 'Ripcord')}
-          </h2>
+          {isDmView ? (
+            <div className="min-w-0 flex flex-col">
+              {activeHub && (
+                <span className="font-mono text-[11px] text-white/60 truncate">
+                  {activeHub.name} &rsaquo; Direct Messages
+                </span>
+              )}
+              <h2 className="truncate text-base font-semibold display-text text-text-primary leading-tight">
+                Direct Messages
+              </h2>
+            </div>
+          ) : (
+            <h2 className="truncate text-base font-semibold display-text text-text-primary">
+              {activeHub?.name ?? 'Ripcord'}
+            </h2>
+          )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
         {activeHub && !isDmView && (
           <Tooltip content="Solar System View" side="bottom">
             <button
@@ -546,7 +559,7 @@ export function ChannelSidebar() {
             hubId={activeHub.id}
             hubName={activeHub.name}
             trigger={
-              <button className="rounded-lg p-1.5 text-text-muted hover:text-accent hover:bg-white/5 transition-colors" title="Solar System Settings">
+              <button className="rounded-lg p-1.5 text-text-muted hover:text-accent hover:bg-white/5 transition-colors" title="Hub Settings">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M8 10a2 2 0 100-4 2 2 0 000 4z" />
                   <path d="M13.5 8a5.5 5.5 0 01-.15 1.28l1.26.73a.5.5 0 01.12.64l-1.2 2.08a.5.5 0 01-.61.22l-1.49-.6a5.5 5.5 0 01-1.1.64l-.23 1.58a.5.5 0 01-.49.43H6.4a.5.5 0 01-.49-.42l-.23-1.59a5.5 5.5 0 01-1.1-.64l-1.49.6a.5.5 0 01-.61-.22l-1.2-2.08a.5.5 0 01.12-.64l1.26-.73A5.5 5.5 0 012.5 8c0-.44.05-.87.15-1.28l-1.26-.73a.5.5 0 01-.12-.64l1.2-2.08a.5.5 0 01.61-.22l1.49.6a5.5 5.5 0 011.1-.64l.23-1.58A.5.5 0 016.4 1h2.2a.5.5 0 01.49.42l.23 1.59a5.5 5.5 0 011.1.64l1.49-.6a.5.5 0 01.61.22l1.2 2.08a.5.5 0 01-.12.64l-1.26.73c.1.41.16.84.16 1.28z" />
@@ -605,7 +618,7 @@ export function ChannelSidebar() {
             {textChannels.length > 0 && (
               <div className="mb-2">
                 <div className="mb-1 flex items-center justify-between px-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                  <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-white/35">
                     Text Channels
                   </p>
                   {activeHubId && (
@@ -632,7 +645,7 @@ export function ChannelSidebar() {
                 <div className="my-2 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 <div>
                   <div className="mb-1 flex items-center justify-between px-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                    <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-white/35">
                       Voice Channels
                     </p>
                     {activeHubId && (
@@ -678,9 +691,9 @@ export function ChannelSidebar() {
         {panelExpanded ? (
           <UserPanel pinned={panelPinned} onTogglePin={togglePanelPin} />
         ) : (
-          /* Collapsed: "Node Commands" label */
+          /* Collapsed: "Controls" label */
           <div className="flex items-center justify-center border-t border-white/5 bg-surface-1/30 backdrop-blur-sm py-2 cursor-pointer">
-            <span className="text-xs font-bold text-danger tracking-wide uppercase">Node Commands</span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-white/35">Controls</span>
           </div>
         )}
       </div>
@@ -688,7 +701,7 @@ export function ChannelSidebar() {
       {/* Resize handle — cyan glow on hover */}
       <div
         onMouseDown={handleResizeStart}
-        className="absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize hover:bg-accent/30 active:bg-accent/50 transition-colors"
+        className="absolute top-0 right-0 z-10 h-full w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/50 transition-colors"
       />
     </div>
   );

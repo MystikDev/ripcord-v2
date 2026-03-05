@@ -26,7 +26,7 @@ const variantStyles = {
 } as const;
 
 const sizeStyles = {
-  sm: 'h-8 px-3 text-sm rounded-md',
+  sm: 'h-9 px-3 text-sm rounded-md',
   md: 'h-10 px-4 text-sm rounded-lg',
   lg: 'h-12 px-6 text-base rounded-lg',
 } as const;
@@ -64,13 +64,13 @@ export function Button({
     <motion.button
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.1 }}
+      transition={{ duration: 0.05 }}
       type={type}
       disabled={disabled || loading}
       onClick={onClick}
       className={clsx(
         'inline-flex items-center justify-center font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
         'disabled:opacity-50 disabled:pointer-events-none',
         variantStyles[variant],
         sizeStyles[size],

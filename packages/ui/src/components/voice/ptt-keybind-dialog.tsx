@@ -13,6 +13,29 @@ import { useSettingsStore } from '../../stores/settings-store';
 import { getKeyDisplayLabel, mouseButtonKey } from '../../lib/key-display';
 
 // ---------------------------------------------------------------------------
+// Conflict detection
+// ---------------------------------------------------------------------------
+
+const CONFLICT_KEYS = new Set([
+  'Space', ' ',
+  'Enter',
+  'Escape',
+  'Tab',
+]);
+
+const CONFLICT_COMBOS = new Set([
+  'c', 'v', 'z', 'x', 'a',
+]);
+
+function isConflictKey(key: string): boolean {
+  if (CONFLICT_KEYS.has(key)) return true;
+  // Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+X, Ctrl+A are captured as plain keys when
+  // modifier state is separate; flag the bare letters as likely conflicts too.
+  if (CONFLICT_COMBOS.has(key.toLowerCase())) return true;
+  return false;
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -109,9 +132,9 @@ export function PttKeybindDialog() {
       >
         {/* Key capture display */}
         <div className="flex flex-col items-center gap-4 py-4">
-          <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-border bg-surface-2 text-xl font-bold text-text-primary">
+          <div className="flex h-28 w-28 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-surface-2 text-xl font-bold text-text-primary">
             {isListening ? (
-              <span className="animate-pulse text-sm text-text-muted">...</span>
+              <span className="animate-pulse text-base text-text-muted">Listening...</span>
             ) : pendingKey ? (
               getKeyDisplayLabel(pendingKey)
             ) : (
@@ -120,13 +143,20 @@ export function PttKeybindDialog() {
           </div>
 
           {isListening && (
-            <p className="text-xs text-text-muted">Listening for key or mouse button...</p>
+            <p className="text-sm text-text-muted">Press any key or mouse button</p>
           )}
 
           {pendingKey && !isListening && (
-            <p className="text-xs text-text-secondary">
-              New key: <span className="font-semibold">{getKeyDisplayLabel(pendingKey)}</span>
-            </p>
+            <>
+              <p className="text-xs text-text-secondary">
+                New key: <span className="font-semibold">{getKeyDisplayLabel(pendingKey)}</span>
+              </p>
+              {isConflictKey(pendingKey) && (
+                <p className="text-xs text-warning">
+                  Warning: This key may conflict with common shortcuts
+                </p>
+              )}
+            </>
           )}
         </div>
 

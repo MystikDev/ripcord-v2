@@ -46,14 +46,15 @@ export function OrbitalTopbar({
         <button
           type="button"
           onClick={onBackToCosmos}
+          title="Back to Cosmos"
           className={clsx(
-            'flex items-center justify-center rounded-md',
-            'text-white/50 hover:text-white/80 transition-colors duration-150',
+            'flex items-center justify-center rounded-lg p-1',
+            'text-white/70 hover:text-white/90 hover:bg-white/10 transition-all duration-150',
             'cursor-pointer',
           )}
           style={{
-            width: '28px',
-            height: '28px',
+            width: '32px',
+            height: '32px',
             background: 'rgba(255, 255, 255, 0.06)',
             border: '1px solid rgba(255, 255, 255, 0.08)',
           }}
@@ -77,12 +78,12 @@ export function OrbitalTopbar({
       {/* ── Hub logo ── */}
       <div
         className={clsx(
-          'flex-shrink-0 flex items-center justify-center rounded-[6px]',
-          'font-display font-bold text-[12px] text-white select-none',
+          'flex-shrink-0 flex items-center justify-center rounded-[7px]',
+          'font-display font-bold text-[14px] text-white select-none',
         )}
         style={{
-          width: '28px',
-          height: '28px',
+          width: '32px',
+          height: '32px',
           background: hubIconUrl
             ? undefined
             : 'linear-gradient(135deg, #00e5ff, #007cf0)',

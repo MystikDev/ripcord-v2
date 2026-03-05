@@ -218,6 +218,7 @@ export function OrbitalHud({
         <button
           type="button"
           onClick={toggleComms}
+          title="Audio Controls"
           className={clsx(
             'flex items-center gap-1.5 px-3 py-1 rounded-full',
             'font-mono text-[11px] transition-all duration-150',
@@ -262,12 +263,18 @@ export function OrbitalHud({
               strokeWidth="1.2"
             />
           </svg>
-          <span className="whitespace-nowrap">COMMS</span>
+          <span className="whitespace-nowrap">
+            {isDeafened ? 'DEAFENED' : isMicMuted ? 'MUTED' : 'COMMS'}
+          </span>
           {/* Status indicator dot */}
           {(isMicMuted || isDeafened) && (
             <span className="w-[5px] h-[5px] rounded-full bg-red-400 shrink-0" />
           )}
         </button>
+        {/* Deafen indicator dot — absolute-positioned on button corner */}
+        {isDeafened && (
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-400 rounded-full pointer-events-none" />
+        )}
 
         {/* Popover */}
         <CommsPopover
@@ -355,6 +362,7 @@ export function OrbitalHud({
       <button
         type="button"
         onClick={onCommsCenterToggle}
+        title="Toggle Chat Panel"
         className={clsx(
           'flex items-center gap-1.5 px-3 py-1 rounded-full shrink-0',
           'font-mono text-[11px] transition-all duration-150',
@@ -387,9 +395,15 @@ export function OrbitalHud({
 
       {/* ── 7. User Pill ── */}
       <div
+        role="button"
+        tabIndex={0}
+        onClick={onCommsCenterToggle}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onCommsCenterToggle(); }}
+        title="Toggle Chat Panel"
         className={clsx(
           'flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-full shrink-0',
-          'border border-border',
+          'border border-border cursor-pointer',
+          'hover:border-white/20 hover:bg-white/5 transition-all duration-150',
         )}
         style={{ background: 'rgba(7, 9, 13, 0.85)' }}
       >

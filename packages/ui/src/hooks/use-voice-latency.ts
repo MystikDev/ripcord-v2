@@ -24,8 +24,8 @@ export interface VoiceLatency {
 const POLL_INTERVAL_MS = 5_000;
 
 /** Thresholds for quality classification (ms). */
-const EXCELLENT_THRESHOLD_MS = 80;
-const GOOD_THRESHOLD_MS = 150;
+const EXCELLENT_THRESHOLD_MS = 100;
+const GOOD_THRESHOLD_MS = 200;
 
 function classifyLatency(ms: number | null): LatencyQuality {
   if (ms === null) return 'unknown';

@@ -281,6 +281,28 @@ export function SolarSystemView() {
     position: { x: number; y: number };
   } | null>(null);
   const [adminConsoleOpen, setAdminConsoleOpen] = useState(false);
+
+  // -- First-time zoom/pan hint overlay --------------------------------------
+  const HINT_KEY = 'ripcord:orbital:pan-zoom-hint-seen';
+  const [panZoomHintVisible, setPanZoomHintVisible] = useState(() => {
+    try {
+      return localStorage.getItem(HINT_KEY) !== '1';
+    } catch {
+      return false;
+    }
+  });
+
+  const dismissPanZoomHint = useCallback(() => {
+    setPanZoomHintVisible(false);
+    try { localStorage.setItem(HINT_KEY, '1'); } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (!panZoomHintVisible) return;
+    const timer = setTimeout(dismissPanZoomHint, 5000);
+    return () => clearTimeout(timer);
+  }, [panZoomHintVisible, dismissPanZoomHint]);
+
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
     x: number;
@@ -881,6 +903,28 @@ export function SolarSystemView() {
         onChannelDeleted={handleOrbitChannelDeleted}
         onChannelRenamed={handleOrbitChannelRenamed}
       />
+
+      {/* Layer 5b: First-time zoom/pan hint overlay */}
+      {panZoomHintVisible && (
+        <div
+          className="fixed z-[195] left-0 right-0 flex justify-center pointer-events-none"
+          style={{ bottom: '70px' }}
+        >
+          <button
+            type="button"
+            onClick={dismissPanZoomHint}
+            className={[
+              'font-mono text-[11px] text-white/50',
+              'bg-white/5 border border-white/10 rounded-full px-4 py-2',
+              'cursor-pointer pointer-events-auto select-none',
+              'transition-opacity duration-300',
+              'hover:text-white/70 hover:bg-white/8',
+            ].join(' ')}
+          >
+            Scroll to zoom &middot; Drag to pan
+          </button>
+        </div>
+      )}
 
       {/* Layer 6: HUD */}
       <OrbitalHud

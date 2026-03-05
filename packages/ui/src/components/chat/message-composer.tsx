@@ -22,6 +22,10 @@ import type { SlashCommand } from '../../lib/ai/commands';
 
 const EMPTY_MESSAGES: Message[] = [];
 
+// Character count thresholds
+const CHAR_COUNT_WARN_THRESHOLD = 1500;
+const CHAR_COUNT_MAX = 2000;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -101,6 +105,8 @@ function MessageComposer({ channelId, channelName }, ref) {
   const TYPING_DEBOUNCE_MS = 3_000;
 
   const hasPendingAttachments = pendingAttachments.length > 0;
+  const charCount = content.length;
+  const showCharCount = charCount >= CHAR_COUNT_WARN_THRESHOLD;
 
   const emitTyping = useCallback(() => {
     const now = Date.now();
@@ -275,6 +281,13 @@ function MessageComposer({ channelId, channelName }, ref) {
     setPendingAttachments((prev) => prev.filter((a) => a.attachmentId !== attachmentId));
   };
 
+  // Derived send button title
+  const sendButtonTitle = sending
+    ? 'Sending...'
+    : (!content.trim() && !hasPendingAttachments)
+    ? 'Type a message to send'
+    : 'Send message (Enter)';
+
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="relative shrink-0 px-6 pb-4 pt-2 bg-gradient-to-t from-void via-void/90 to-transparent">
       {/* Command palette */}
@@ -340,12 +353,13 @@ function MessageComposer({ channelId, channelName }, ref) {
             onPaste={handlePaste}
             placeholder={`Transmit to #${channelName}...`}
             rows={1}
-            className="max-h-32 flex-1 resize-none bg-transparent text-white placeholder-white/30 focus:outline-none py-2.5 text-[15px]"
+            className="max-h-32 flex-1 resize-none bg-transparent text-white placeholder-white/50 focus:outline-none py-2.5 text-[15px]"
             style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-chat-text, var(--color-text-primary))' }}
           />
           <button
             type="submit"
             disabled={(!content.trim() && !hasPendingAttachments) || sending || aiProcessing}
+            title={sendButtonTitle}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-black font-bold transition-all hover:bg-accent-hover hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -353,6 +367,15 @@ function MessageComposer({ channelId, channelName }, ref) {
             </svg>
           </button>
         </div>
+
+        {/* Character count — only shown when approaching the limit */}
+        {showCharCount && (
+          <div className="flex justify-end mt-1 pr-1">
+            <span className={`font-mono text-[10px] ${charCount >= CHAR_COUNT_MAX ? 'text-danger' : 'text-white/30'}`}>
+              {charCount} / {CHAR_COUNT_MAX}
+            </span>
+          </div>
+        )}
 
         {/* Context chips */}
         <div className="flex items-center gap-2 mt-2 overflow-x-auto">
@@ -379,15 +402,6 @@ function MessageComposer({ channelId, channelName }, ref) {
           >
             <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M4 4l4 4-4 4M8 12h4" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Snippet
-          </button>
-          <button
-            type="button"
-            disabled
-            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60 opacity-50 cursor-not-allowed whitespace-nowrap"
-            title="Coming soon"
-          >
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M2 8h12M8 2v12" strokeLinecap="round" /></svg>
-            Poll
           </button>
         </div>
       </div>

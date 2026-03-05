@@ -121,7 +121,7 @@ export function OrbitalChannelList({
 
   return (
     <>
-      {/* ── Invisible trigger zone ── */}
+      {/* ── Trigger zone with visual affordance ── */}
       <div
         onMouseEnter={handleTriggerEnter}
         onMouseLeave={handlePanelLeave}
@@ -130,10 +130,33 @@ export function OrbitalChannelList({
           left: 96,
           top: 46,
           bottom: 54,
-          width: 20,
+          width: 40,
           zIndex: 179,
         }}
-      />
+      >
+        {/* Visible affordance bar — subtle hint that hovering reveals channels */}
+        <div
+          className="absolute left-0 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5 pointer-events-none"
+          style={{ paddingLeft: '4px' }}
+        >
+          {/* Thin vertical bar */}
+          <div
+            className="rounded-full transition-opacity duration-200"
+            style={{
+              width: '3px',
+              height: '40px',
+              background: 'rgba(255, 255, 255, 0.12)',
+            }}
+          />
+          {/* Chevron hint */}
+          <span
+            className="font-mono select-none"
+            style={{ fontSize: '9px', color: 'rgba(255,255,255,0.18)', letterSpacing: '0.05em' }}
+          >
+            C
+          </span>
+        </div>
+      </div>
 
       {/* ── Panel ── */}
       <div

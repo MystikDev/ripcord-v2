@@ -29,6 +29,8 @@ import type { Message } from '../../stores/message-store';
 export interface MessageItemProps {
   message: Message;
   isConsecutive: boolean;
+  /** Whether this message was authored by the currently logged-in user. */
+  isOwnMessage?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -83,11 +85,29 @@ function BookmarkIcon({ active }: { active: boolean }) {
   );
 }
 
+/** Pencil / edit icon for the action button. */
+function EditIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11.5 2.5a1.414 1.414 0 012 2L5 13H2v-3L11.5 2.5z" />
+    </svg>
+  );
+}
+
+/** Trash / delete icon for the action button. */
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function MessageItem({ message, isConsecutive }: MessageItemProps) {
+export function MessageItem({ message, isConsecutive, isOwnMessage = false }: MessageItemProps) {
   // Resolve handle + avatar from member cache (reactive — updates when members load)
   const cachedHandle = useMemberStore((s) => s.members[message.authorId]?.handle);
   const cachedAvatarUrl = useMemberStore((s) => s.members[message.authorId]?.avatarUrl);
@@ -105,6 +125,8 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  // Local editing state (wire up to real edit API when ready)
+  const [isEditing, setIsEditing] = useState(false);
 
   const isPinned = !!message.pinnedAt;
 
@@ -134,6 +156,18 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
     }
   }, [isPinned, message.channelId, message.id]);
 
+  const handleEdit = useCallback(() => {
+    console.log('Edit message:', message.id);
+    setIsEditing(true);
+  }, [message.id]);
+
+  const handleDelete = useCallback(() => {
+    if (window.confirm('Delete this message?')) {
+      console.log('Delete message:', message.id);
+      // TODO: wire up to deleteMessage API action
+    }
+  }, [message.id]);
+
   // ---- Compact mode: single-line layout, no avatar ----
   if (compactMode) {
     return (
@@ -141,7 +175,10 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.15 }}
-        className="group relative flex items-start gap-2 px-4 py-px hover:bg-white/[0.03] rounded-lg"
+        className={`group relative flex items-start gap-2 px-4 py-px rounded-lg transition-colors ${
+          isOwnMessage ? 'bg-accent/5 hover:bg-accent/8' : 'hover:bg-white/[0.03]'
+        }`}
+        tabIndex={0}
       >
         <span className="shrink-0 text-text-muted font-mono" style={{ fontSize: 'var(--font-size-xs, 10px)', minWidth: '3.5em', textAlign: 'right' }}>
           {formatRelativeTime(message.createdAt)}
@@ -190,9 +227,13 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
           )}
         </div>
 
-        {/* Action buttons (show on hover) — glass style */}
-        <div className="absolute right-2 top-0 hidden items-center gap-0.5 rounded-xl glass-panel px-1 group-hover:flex">
+        {/* Action buttons (show on hover or focus-within) — glass style */}
+        <div
+          className="absolute right-2 top-0 hidden items-center gap-0.5 rounded-xl glass-panel px-1 group-hover:flex group-focus-within:flex"
+          tabIndex={-1}
+        >
           <button
+            tabIndex={0}
             onClick={handleToggleBookmark}
             className={`rounded-lg p-1 transition-colors ${
               isBookmarked
@@ -204,6 +245,7 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
             <BookmarkIcon active={isBookmarked} />
           </button>
           <button
+            tabIndex={0}
             onClick={handleTogglePin}
             className={`rounded-lg p-1 transition-colors ${
               isPinned
@@ -214,6 +256,26 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
           >
             <PinActionIcon pinned={isPinned} />
           </button>
+          {isOwnMessage && (
+            <>
+              <button
+                tabIndex={0}
+                onClick={handleEdit}
+                className="rounded-lg p-1 transition-colors text-text-muted hover:bg-white/10 hover:text-accent"
+                title="Edit message"
+              >
+                <EditIcon />
+              </button>
+              <button
+                tabIndex={0}
+                onClick={handleDelete}
+                className="rounded-lg p-1 transition-colors text-text-muted hover:bg-white/10 hover:text-danger"
+                title="Delete message"
+              >
+                <TrashIcon />
+              </button>
+            </>
+          )}
         </div>
 
         {/* User context menu */}
@@ -237,7 +299,8 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
       transition={{ duration: 0.15 }}
       className={`message-node group relative rounded-2xl transition-colors ${
         isConsecutive ? 'pl-16 py-0.5' : 'glass-card p-5 mt-3'
-      }`}
+      } ${isOwnMessage ? 'bg-accent/5' : ''}`}
+      tabIndex={0}
     >
       {/* Avatar + content */}
       <div className={isConsecutive ? '' : 'flex gap-4'}>
@@ -311,31 +374,16 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
               ))}
             </div>
           )}
-
-          {/* Thread interaction strip — ORBIT branch + reaction indicators */}
-          {!isConsecutive && (
-            <div className="mt-3 flex items-center gap-4">
-              <button className="flex items-center gap-1.5 text-sm text-white/40 hover:text-accent transition-colors">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 3v10M6 13l-4-4M6 13l4-4" />
-                  <path d="M10 3h3v3" />
-                  <path d="M13 3L6 10" />
-                </svg>
-                <span>Thread</span>
-              </button>
-              <button className="flex items-center gap-1.5 text-sm text-white/40 hover:text-accent-magenta transition-colors">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 14s-5.5-3.5-5.5-7.5C2.5 4 4.5 2 7 2a3.5 3.5 0 011 .5A3.5 3.5 0 019 2c2.5 0 4.5 2 4.5 4.5S8 14 8 14z" />
-                </svg>
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Action buttons (show on hover) — glass overlay */}
-      <div className="absolute right-3 top-3 hidden items-center gap-0.5 rounded-xl glass-panel px-1 group-hover:flex">
+      {/* Action buttons (show on hover or focus-within) — glass overlay */}
+      <div
+        className="absolute right-3 top-3 hidden items-center gap-0.5 rounded-xl glass-panel px-1 group-hover:flex group-focus-within:flex"
+        tabIndex={-1}
+      >
         <button
+          tabIndex={0}
           onClick={handleToggleBookmark}
           className={`rounded-lg p-1.5 transition-colors ${
             isBookmarked
@@ -347,6 +395,7 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
           <BookmarkIcon active={isBookmarked} />
         </button>
         <button
+          tabIndex={0}
           onClick={handleTogglePin}
           className={`rounded-lg p-1.5 transition-colors ${
             isPinned
@@ -357,6 +406,26 @@ export function MessageItem({ message, isConsecutive }: MessageItemProps) {
         >
           <PinActionIcon pinned={isPinned} />
         </button>
+        {isOwnMessage && (
+          <>
+            <button
+              tabIndex={0}
+              onClick={handleEdit}
+              className="rounded-lg p-1.5 transition-colors text-text-muted hover:bg-white/10 hover:text-accent"
+              title="Edit message"
+            >
+              <EditIcon />
+            </button>
+            <button
+              tabIndex={0}
+              onClick={handleDelete}
+              className="rounded-lg p-1.5 transition-colors text-text-muted hover:bg-white/10 hover:text-danger"
+              title="Delete message"
+            >
+              <TrashIcon />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Timestamp on hover for consecutive messages */}
