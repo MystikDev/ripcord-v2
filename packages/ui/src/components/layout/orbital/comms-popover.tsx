@@ -97,13 +97,20 @@ function DeviceSelect({
         className="w-full rounded-md px-2 py-2 font-mono text-[10px] outline-none cursor-pointer"
         style={{
           border: '1px solid rgba(255, 255, 255, 0.1)',
-          background: 'rgba(255, 255, 255, 0.05)',
+          background: 'rgba(10, 10, 15, 0.95)',
           color: 'rgba(255, 255, 255, 0.85)',
+          colorScheme: 'dark',
         }}
       >
-        <option value="">System Default</option>
+        <option value="" style={{ background: '#0a0a0f', color: 'rgba(255, 255, 255, 0.85)' }}>
+          System Default
+        </option>
         {devices.map((d) => (
-          <option key={d.deviceId} value={d.deviceId}>
+          <option
+            key={d.deviceId}
+            value={d.deviceId}
+            style={{ background: '#0a0a0f', color: 'rgba(255, 255, 255, 0.85)' }}
+          >
             {d.label || `${kind === 'audioinput' ? 'Mic' : 'Speaker'} ${d.deviceId.slice(0, 8)}`}
           </option>
         ))}

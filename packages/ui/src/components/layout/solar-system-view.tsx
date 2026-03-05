@@ -907,7 +907,7 @@ export function SolarSystemView() {
       {/* Layer 5b: First-time zoom/pan hint overlay */}
       {panZoomHintVisible && (
         <div
-          className="fixed z-[195] left-0 right-0 flex justify-center pointer-events-none"
+          className="absolute z-[195] left-0 right-0 flex justify-center pointer-events-none"
           style={{ bottom: '70px' }}
         >
           <button

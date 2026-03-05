@@ -126,8 +126,8 @@ export function OrbitalChannelList({
         onMouseEnter={handleTriggerEnter}
         onMouseLeave={handlePanelLeave}
         style={{
-          position: 'fixed',
-          left: 96,
+          position: 'absolute',
+          left: 0,
           top: 46,
           bottom: 54,
           width: 40,
@@ -162,9 +162,9 @@ export function OrbitalChannelList({
       <div
         onMouseEnter={handlePanelEnter}
         onMouseLeave={handlePanelLeave}
-        className="fixed flex flex-col z-[180]"
+        className="absolute flex flex-col z-[180]"
         style={{
-          left: '96px',
+          left: '0',
           top: '46px',
           bottom: '54px',
           width: '200px',

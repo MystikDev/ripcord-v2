@@ -106,20 +106,24 @@ export function VoiceControls({ onDisconnect }: VoiceControlsProps) {
   useEffect(() => {
     const fn = async () => {
       const lp = localParticipantRef.current;
-      const newEnabled = !lp.isMicrophoneEnabled;
+      if (!lp) return;
+      const currentlyEnabled = lp.isMicrophoneEnabled;
       try {
-        await lp.setMicrophoneEnabled(newEnabled);
+        await lp.setMicrophoneEnabled(!currentlyEnabled);
+        // Only update store after a successful toggle — prevents UI desync
+        // when setMicrophoneEnabled fails (e.g. during connection transition).
+        useVoiceStateStore.getState().setLocalMicMuted(currentlyEnabled);
       } catch (err) {
         console.error('[VoiceControls] Failed to toggle mic:', err);
       }
-      // Optimistic store update — don't wait for the LiveKit hook re-render
-      // to propagate through the bridge effect. This ensures the COMMS popover
-      // UI updates immediately even if useLocalParticipant() re-render is delayed.
-      useVoiceStateStore.getState().setLocalMicMuted(!newEnabled);
     };
     useVoiceStateStore.getState().setToggleMicFn(fn);
     return () => useVoiceStateStore.getState().setToggleMicFn(null);
-  }, [localParticipant]);  // Re-register when participant changes (match screen share pattern)
+    // Stable deps — fn reads from localParticipantRef at call time, so it
+    // always gets the latest participant. Empty deps eliminates the brief
+    // null window during re-registration that could cause missed clicks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ----- Push-to-talk -----
   // Use a ref so the PTT callbacks always see the latest localParticipant
@@ -165,7 +169,8 @@ export function VoiceControls({ onDisconnect }: VoiceControlsProps) {
     };
     useVoiceStateStore.getState().setToggleScreenShareFn(fn);
     return () => useVoiceStateStore.getState().setToggleScreenShareFn(null);
-  }, [localParticipant]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {

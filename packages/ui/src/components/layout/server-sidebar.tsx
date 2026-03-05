@@ -198,12 +198,15 @@ function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
           />
 
           {hub.iconUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={hub.iconUrl}
-              alt={hub.name}
-              className="h-full w-full rounded-[inherit] object-cover"
-            />
+            <div className="absolute inset-0 rounded-[inherit] overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={hub.iconUrl}
+                alt={hub.name}
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
+            </div>
           ) : (
             <span className="text-sm font-semibold">
               {hub.name.slice(0, 2).toUpperCase()}

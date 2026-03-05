@@ -34,7 +34,7 @@ export function OrbitalTopbar({
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-[200] flex items-center px-4 gap-[10px]"
+      className="absolute top-0 left-0 right-0 z-[200] flex items-center px-4 gap-[10px]"
       style={{
         height: '46px',
         background:

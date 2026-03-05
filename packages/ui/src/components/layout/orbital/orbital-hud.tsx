@@ -148,10 +148,10 @@ export function OrbitalHud({
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[200] flex items-center"
+      className="absolute bottom-0 left-0 right-0 z-[200] flex items-center"
       style={{
         height: '54px',
-        padding: '0 16px 0 100px',
+        padding: '0 16px',
         gap: '10px',
         background: 'linear-gradient(to top, rgba(7, 9, 13, 0.98), rgba(7, 9, 13, 0))',
       }}
