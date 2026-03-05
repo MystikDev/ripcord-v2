@@ -1,12 +1,13 @@
 /**
  * @module hub-nebula
- * Renders a single hub as a glowing nebula card in the cosmos landing view.
- * Each hub is positioned absolutely using viewport-fraction coordinates and
- * derives its colour palette deterministically from the hub ID.
+ * Renders a single hub as a visually rich nebula in the cosmos landing view.
+ * Features: animated orbital rings, particle field, pulsing core with
+ * dynamic glow, and smooth hover interactions. Colour palette is derived
+ * deterministically from the hub ID for consistency.
  */
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,6 +41,9 @@ function getHubColors(id: string) {
   return {
     primary: `hsl(${hue}, 80%, 60%)`,
     secondary: `hsl(${hue + 40}, 70%, 50%)`,
+    glow: `hsl(${hue}, 90%, 65%)`,
+    faint: `hsl(${hue}, 60%, 40%)`,
+    ring: `hsl(${hue + 20}, 70%, 55%)`,
   };
 }
 
@@ -56,6 +60,47 @@ function getInitials(name: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Deterministic particles from hub ID
+// ---------------------------------------------------------------------------
+
+interface Particle {
+  /** Angle in degrees */
+  angle: number;
+  /** Distance from center as fraction of container */
+  dist: number;
+  /** Size in px */
+  size: number;
+  /** Animation delay */
+  delay: number;
+  /** Opacity */
+  opacity: number;
+}
+
+function generateParticles(id: string, count: number): Particle[] {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  const particles: Particle[] = [];
+  for (let i = 0; i < count; i++) {
+    hash = (hash * 16807 + 12345) & 0x7fffffff;
+    const angle = (hash % 360);
+    hash = (hash * 16807 + 12345) & 0x7fffffff;
+    const dist = 0.25 + ((hash % 100) / 100) * 0.45;
+    hash = (hash * 16807 + 12345) & 0x7fffffff;
+    const size = 1 + (hash % 3);
+    hash = (hash * 16807 + 12345) & 0x7fffffff;
+    const delay = (hash % 4000) / 1000;
+    hash = (hash * 16807 + 12345) & 0x7fffffff;
+    const opacity = 0.3 + ((hash % 60) / 100);
+
+    particles.push({ angle, dist, size, delay, opacity });
+  }
+  return particles;
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -66,10 +111,17 @@ export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; dragging: boolean } | null>(null);
 
-  const { primary, secondary } = getHubColors(hub.id);
+  const colors = getHubColors(hub.id);
+  const particles = useMemo(() => generateParticles(hub.id, 12), [hub.id]);
+
+  // Deterministic ring tilt from hub ID
+  const ringTilt = useMemo(() => {
+    let h = 0;
+    for (let i = 0; i < hub.id.length; i++) h = hub.id.charCodeAt(i) + ((h << 5) - h);
+    return 55 + (h % 25); // 55-80 degree tilt
+  }, [hub.id]);
 
   const handleClick = useCallback(() => {
-    // Suppress click after drag
     if (dragRef.current?.dragging) return;
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -118,10 +170,10 @@ export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
         left: `${x * 100}%`,
         top: `${y * 100}%`,
         transform: hovered
-          ? 'translate(-50%, -50%) scale(1.08)'
+          ? 'translate(-50%, -50%) scale(1.12)'
           : 'translate(-50%, -50%)',
-        width: '160px',
-        height: '160px',
+        width: '200px',
+        height: '200px',
         transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
       onClick={handleClick}
@@ -131,39 +183,150 @@ export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* ── Outer glow ── */}
+      {/* ── Deep ambient glow ── */}
       <div
-        className="absolute rounded-full pointer-events-none"
+        className="absolute pointer-events-none"
         style={{
-          inset: '-30%',
-          background: `radial-gradient(circle, ${primary} 0%, ${secondary} 40%, transparent 70%)`,
-          filter: 'blur(25px)',
+          inset: '-50%',
+          background: `radial-gradient(circle, ${colors.glow}15 0%, ${colors.primary}08 40%, transparent 70%)`,
+          filter: 'blur(30px)',
+          opacity: hovered ? 1 : 0.6,
+          transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      />
+
+      {/* ── Outer nebula haze ── */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          inset: '-25%',
+          background: `radial-gradient(ellipse at 40% 45%, ${colors.primary}20 0%, ${colors.secondary}10 50%, transparent 80%)`,
+          filter: 'blur(15px)',
           opacity: hovered ? 0.9 : 0.5,
           animation: 'nebula-breathe 4s ease-in-out infinite',
           transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       />
 
+      {/* ── Orbital ring 1 ── */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          width: '140px',
+          height: '140px',
+          left: '50%',
+          top: '50%',
+          transform: `translate(-50%, -50%) rotateX(${ringTilt}deg)`,
+          borderRadius: '50%',
+          border: `1px solid`,
+          borderColor: hovered ? `${colors.ring}60` : `${colors.ring}25`,
+          animation: 'cosmos-ring-spin 12s linear infinite',
+          transition: 'border-color 0.5s',
+        }}
+      >
+        {/* Orbiting dot */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '-2px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '4px',
+            height: '4px',
+            borderRadius: '50%',
+            background: colors.glow,
+            boxShadow: `0 0 6px ${colors.glow}`,
+          }}
+        />
+      </div>
+
+      {/* ── Orbital ring 2 (counter-rotating) ── */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          width: '170px',
+          height: '170px',
+          left: '50%',
+          top: '50%',
+          transform: `translate(-50%, -50%) rotateX(${ringTilt + 15}deg) rotateZ(45deg)`,
+          borderRadius: '50%',
+          border: `1px solid`,
+          borderColor: hovered ? `${colors.secondary}40` : `${colors.secondary}15`,
+          animation: 'cosmos-ring-spin-reverse 18s linear infinite',
+          transition: 'border-color 0.5s',
+        }}
+      />
+
+      {/* ── Particle field ── */}
+      {particles.map((p, i) => {
+        const rad = (p.angle * Math.PI) / 180;
+        const px = 50 + Math.cos(rad) * p.dist * 100;
+        const py = 50 + Math.sin(rad) * p.dist * 100;
+        return (
+          <div
+            key={i}
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              left: `${px}%`,
+              top: `${py}%`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              background: colors.glow,
+              opacity: hovered ? p.opacity : p.opacity * 0.4,
+              boxShadow: `0 0 ${p.size * 2}px ${colors.glow}60`,
+              animation: `cosmos-particle-pulse ${2 + p.delay}s ease-in-out infinite`,
+              animationDelay: `${p.delay}s`,
+              transition: 'opacity 0.5s',
+            }}
+          />
+        );
+      })}
+
       {/* ── Inner core ── */}
       <div
         className="relative flex items-center justify-center rounded-full"
         style={{
-          width: '80px',
-          height: '80px',
+          width: '76px',
+          height: '76px',
           margin: 'auto',
-          background: `radial-gradient(circle, ${primary}, ${secondary})`,
-          boxShadow: `0 0 30px ${primary}40, 0 0 60px ${primary}20`,
+          background: `radial-gradient(circle at 35% 35%, ${colors.glow}40, ${colors.primary}90 50%, ${colors.secondary} 100%)`,
+          boxShadow: hovered
+            ? `0 0 20px ${colors.glow}60, 0 0 50px ${colors.primary}30, 0 0 80px ${colors.primary}15, inset 0 0 20px ${colors.glow}20`
+            : `0 0 15px ${colors.primary}30, 0 0 40px ${colors.primary}15, inset 0 0 15px ${colors.glow}10`,
+          animation: 'cosmos-core-pulse 3s ease-in-out infinite',
+          transition: 'box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
+        {/* Glass highlight on core */}
+        <div
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: '60%',
+            height: '40%',
+            top: '8%',
+            left: '15%',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 100%)',
+            borderRadius: '50%',
+          }}
+        />
         {hub.iconUrl ? (
           <img
             src={hub.iconUrl}
             alt={hub.name}
             className="w-10 h-10 rounded-full object-cover"
             draggable={false}
+            style={{ position: 'relative', zIndex: 1 }}
           />
         ) : (
-          <span className="select-none font-display font-bold text-white text-lg">
+          <span
+            className="select-none font-display font-bold text-lg"
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              color: 'rgba(255,255,255,0.95)',
+              textShadow: `0 0 10px ${colors.glow}80`,
+            }}
+          >
             {getInitials(hub.name)}
           </span>
         )}
@@ -171,15 +334,16 @@ export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
 
       {/* ── Hub name label ── */}
       <div
-        className={`mt-auto font-mono uppercase tracking-[0.1em] text-[11px] whitespace-nowrap ${
-          hovered ? 'text-white/90' : 'text-white/60'
-        }`}
+        className="mt-auto font-mono uppercase tracking-[0.12em] text-[10px] whitespace-nowrap"
         style={{
-          background: 'rgba(255, 255, 255, 0.06)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '2px 10px',
+          background: hovered ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+          border: `1px solid ${hovered ? `${colors.ring}40` : 'rgba(255, 255, 255, 0.06)'}`,
+          padding: '3px 12px',
           borderRadius: '9999px',
-          transition: 'color 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+          color: hovered ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.6)',
+          transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+          backdropFilter: 'blur(8px)',
+          textShadow: hovered ? `0 0 8px ${colors.glow}40` : 'none',
         }}
       >
         {hub.name}

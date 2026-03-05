@@ -19,6 +19,7 @@ import { BookmarksPanel } from '../chat/bookmarks-panel';
 import { sendMessage } from '../../lib/hub-api';
 import { getDmVoiceToken } from '../../lib/voice-api';
 import { gateway } from '../../lib/gateway-client';
+import { FriendsPanel } from '../friends/friends-panel';
 import clsx from 'clsx';
 
 // Gateway opcodes for call signaling
@@ -124,6 +125,15 @@ export function ChatArea() {
     : activeChannel?.name;
 
   if (!effectiveChannelId) {
+    // In DM view with no conversation selected → show Friends panel
+    if (isDmView) {
+      return (
+        <div className="flex flex-1 overflow-hidden">
+          <FriendsPanel />
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-transparent">
         <div className="text-center">
@@ -139,12 +149,10 @@ export function ChatArea() {
             </svg>
           </div>
           <h3 className="text-lg font-semibold display-text text-text-primary">
-            {isDmView ? 'Select a conversation' : 'Select a channel'}
+            Select a channel
           </h3>
           <p className="mt-1 text-sm text-text-muted">
-            {isDmView
-              ? 'Pick a conversation from the sidebar to start chatting'
-              : 'Pick a channel from the sidebar to start chatting'}
+            Pick a channel from the sidebar to start chatting
           </p>
         </div>
       </div>

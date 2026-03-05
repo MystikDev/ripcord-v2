@@ -375,6 +375,30 @@ body {
   100% { opacity: 1; transform: scale(1); }
 }
 
+/* ── Cosmos nebula animations ──────────────────────────────────────── */
+
+/* Orbital ring rotation */
+@keyframes cosmos-ring-spin {
+  0%   { transform: translate(-50%, -50%) rotateX(var(--ring-tilt, 65deg)) rotateZ(0deg); }
+  100% { transform: translate(-50%, -50%) rotateX(var(--ring-tilt, 65deg)) rotateZ(360deg); }
+}
+@keyframes cosmos-ring-spin-reverse {
+  0%   { transform: translate(-50%, -50%) rotateX(var(--ring-tilt, 75deg)) rotateZ(45deg); }
+  100% { transform: translate(-50%, -50%) rotateX(var(--ring-tilt, 75deg)) rotateZ(-315deg); }
+}
+
+/* Pulsing core glow */
+@keyframes cosmos-core-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50%      { transform: scale(1.04); filter: brightness(1.15); }
+}
+
+/* Particle twinkle */
+@keyframes cosmos-particle-pulse {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50%      { opacity: 0.8; transform: scale(1.2); }
+}
+
 /* Dust particle gentle drift */
 @keyframes dust-drift {
   0%, 100% { transform: translate(0, 0); opacity: 0.3; }

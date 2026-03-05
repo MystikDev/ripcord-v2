@@ -21,7 +21,6 @@ import { ParticipantContextMenu } from '../voice/participant-context-menu';
 import { CreateChannelDialog } from '../hub/create-channel-dialog';
 import { AdminConsole } from '../admin/admin-console';
 import { DmChannelList } from '../dm/dm-channel-list';
-import { FriendsPanel } from '../friends/friends-panel';
 
 import { AppearanceSettings } from '../settings/appearance-settings';
 import { Tooltip } from '../ui/tooltip';
@@ -442,6 +441,7 @@ export function ChannelSidebar() {
   const channels = useHubStore((s) => s.channels);
   const activeChannelId = useHubStore((s) => s.activeChannelId);
   const isDmView = useHubStore((s) => s.isDmView);
+  const activeDmChannelId = useHubStore((s) => s.activeDmChannelId);
 
   const sidebarWidth = useSettingsStore((s) => s.channelSidebarWidth);
   const setSidebarWidth = useSettingsStore((s) => s.setChannelSidebarWidth);
@@ -473,7 +473,7 @@ export function ChannelSidebar() {
     document.body.style.userSelect = 'none';
   }, [setSidebarWidth]);
 
-  const [dmTab, setDmTab] = useState<'friends' | 'messages'>('friends');
+  // dmTab state removed — Friends panel now renders in ChatArea
 
   // Collapsible bottom panel state
   const [panelPinned, setPanelPinned] = useState(() => {
@@ -587,30 +587,28 @@ export function ChannelSidebar() {
       <ScrollArea className="flex-1">
         {isDmView ? (
           <div className="flex h-full flex-col">
-            {/* Tab bar */}
-            <div className="flex border-b border-white/5 px-2">
+            {/* Friends button */}
+            <div className="p-2 pb-0">
               <button
+                onClick={() => {
+                  useHubStore.setState({ activeDmChannelId: null, activeChannelId: null });
+                }}
                 className={clsx(
-                  'px-3 py-2 text-xs font-medium transition-colors',
-                  dmTab === 'friends' ? 'text-accent border-b-2 border-accent' : 'text-text-muted hover:text-text-secondary',
+                  'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] transition-all duration-150',
+                  !activeDmChannelId
+                    ? 'bg-accent/10 text-accent border border-accent/20'
+                    : 'text-text-muted hover:text-text-secondary hover:bg-white/5 border border-transparent',
                 )}
-                onClick={() => setDmTab('friends')}
               >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 8a3 3 0 100-6 3 3 0 000 6zM2 14a6 6 0 0112 0" />
+                </svg>
                 Friends
               </button>
-              <button
-                className={clsx(
-                  'px-3 py-2 text-xs font-medium transition-colors',
-                  dmTab === 'messages' ? 'text-accent border-b-2 border-accent' : 'text-text-muted hover:text-text-secondary',
-                )}
-                onClick={() => setDmTab('messages')}
-              >
-                Messages
-              </button>
             </div>
-            {/* Tab content */}
+            {/* DM conversation list */}
             <div className="flex-1 overflow-hidden">
-              {dmTab === 'friends' ? <FriendsPanel /> : <DmChannelList />}
+              <DmChannelList />
             </div>
           </div>
         ) : (
