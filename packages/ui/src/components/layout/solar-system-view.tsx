@@ -7,7 +7,7 @@
 'use client';
 
 import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
-import { OrbitalCanvasBg } from './orbital/orbital-canvas-bg';
+import { OrbitalCanvas } from './orbital/orbital-canvas';
 import { OrbitZone } from './orbital/orbit-zone';
 import { UserNode } from './orbital/user-node';
 import { UserTooltip } from './orbital/user-tooltip';
@@ -558,7 +558,7 @@ export function SolarSystemView() {
     return set;
   }, [positionedUsers]);
 
-  // -- Derived: canvas bg orbits prop ----------------------------------------
+  // -- Derived: canvas orbits prop (includes channel info for planets) -------
   const canvasOrbits = useMemo(
     () =>
       orbitData.map((od) => ({
@@ -568,6 +568,8 @@ export function SolarSystemView() {
         radius: od.radius,
         color: od.color,
         memberIds: od.memberIds,
+        channelName: od.channel.name,
+        channelType: od.channel.type as 'voice' | 'text',
       })),
     [orbitData],
   );
@@ -807,21 +809,15 @@ export function SolarSystemView() {
       ref={containerRef}
       className="flex-1 relative overflow-hidden"
     >
-      {/* ── Layer 0: Canvas animated background (viewport-fixed, never zooms) ── */}
-      <OrbitalCanvasBg
+      {/* ── Layer 0: Canvas scene (starfield, sun, orbits, planets, effects) ── */}
+      <OrbitalCanvas
         orbits={canvasOrbits}
         userPositions={userPositionsMap}
         onlineUserIds={onlineUserIds}
-      />
-
-      {/* ── Layer 1: Grid overlay (viewport-fixed, never zooms) ── */}
-      <div
-        className="absolute inset-0 z-[1] pointer-events-none"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px)',
-          backgroundSize: '70px 70px',
-        }}
+        hubIconUrl={activeHub.iconUrl}
+        hubName={activeHub.name}
+        panOffset={panOffset}
+        zoomLevel={zoomLevel}
       />
 
       {/* ── Pannable content layer ── */}
