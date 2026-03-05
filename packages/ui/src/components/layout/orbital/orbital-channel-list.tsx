@@ -13,6 +13,7 @@ import { useCallback, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { ChannelListContextMenu } from './channel-list-context-menu';
 import { createChannel } from '../../../lib/hub-api';
+import { useSettingsStore } from '../../../stores/settings-store';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -334,6 +335,9 @@ export function OrbitalChannelList({
               );
             })}
           </div>
+
+          {/* ── Sun intensity slider ── */}
+          <SunIntensitySlider />
         </div>
       </div>
 
@@ -358,5 +362,42 @@ export function OrbitalChannelList({
         />
       )}
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sun intensity slider (self-contained, reads/writes settings store)
+// ---------------------------------------------------------------------------
+
+function SunIntensitySlider() {
+  const sunIntensity = useSettingsStore((s) => s.sunIntensity);
+  const setSunIntensity = useSettingsStore((s) => s.setSunIntensity);
+
+  return (
+    <div className="mt-3 px-2 pb-1 border-t border-white/5 pt-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-text-muted flex items-center gap-1.5">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" opacity="0.7">
+            <circle cx="8" cy="8" r="3" />
+            <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.2" fill="none" />
+          </svg>
+          Sun
+        </span>
+        <span className="font-mono text-[9px] text-text-muted">
+          {Math.round(sunIntensity * 100)}%
+        </span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value={Math.round(sunIntensity * 100)}
+        onChange={(e) => setSunIntensity(Number(e.target.value) / 100)}
+        className="w-full h-[3px] appearance-none bg-white/10 rounded-full outline-none cursor-pointer accent-amber-400"
+        style={{ accentColor: '#fbbf24' }}
+        aria-label="Sun intensity"
+      />
+    </div>
   );
 }

@@ -52,6 +52,8 @@ export interface OrbitalCanvasProps {
   panOffset: { x: number; y: number };
   /** Canvas zoom level (0.3–3.0) */
   zoomLevel: number;
+  /** Sun brightness 0.0–1.0 (default 1.0) */
+  sunIntensity: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,6 +207,7 @@ export function OrbitalCanvas({
   hubName,
   panOffset,
   zoomLevel,
+  sunIntensity,
 }: OrbitalCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
@@ -227,7 +230,7 @@ export function OrbitalCanvas({
   // ── Asteroid belt particles ────────────────────────────────────
   const beltRef = useRef<AsteroidParticle[] | null>(null);
   if (beltRef.current === null) {
-    beltRef.current = makeAsteroidBelt(190, 340, 150);
+    beltRef.current = makeAsteroidBelt(140, 520, 350);
   }
 
   // ── Planet texture cache (channelId → offscreen canvas) ────────
@@ -244,12 +247,14 @@ export function OrbitalCanvas({
   const panRef = useRef(panOffset);
   const zoomRef = useRef(zoomLevel);
   const hubNameRef = useRef(hubName);
+  const sunIntensityRef = useRef(sunIntensity);
   orbitsRef.current = orbits;
   userPosRef.current = userPositions;
   onlineRef.current = onlineUserIds;
   panRef.current = panOffset;
   zoomRef.current = zoomLevel;
   hubNameRef.current = hubName;
+  sunIntensityRef.current = sunIntensity;
 
   // ── Load hub icon ──────────────────────────────────────────────
   useEffect(() => {
@@ -316,6 +321,7 @@ export function OrbitalCanvas({
     const online = onlineRef.current;
     const pan = panRef.current;
     const zoom = zoomRef.current;
+    const sunAlpha = sunIntensityRef.current;
 
     const starsFar = starsFarRef.current!;
     const starsMid = starsMidRef.current!;
@@ -447,9 +453,9 @@ export function OrbitalCanvas({
 
     // ── 4c. Sun (corona → core → flares → hub icon) ─────────────
     ctx.save();
-    ctx.globalAlpha = 1;
 
-    // Deep corona glow
+    // Deep corona glow (scaled by sunIntensity)
+    ctx.globalAlpha = sunAlpha;
     const corona = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, SUN_RADIUS * 3.5);
     corona.addColorStop(0, 'rgba(255,255,255,0.85)');
     corona.addColorStop(0.15, 'rgba(255,235,190,0.65)');
@@ -461,6 +467,7 @@ export function OrbitalCanvas({
     ctx.fill();
 
     // Core gradient (offset highlight for depth)
+    ctx.globalAlpha = sunAlpha;
     const core = ctx.createRadialGradient(
       sunX - 7, sunY - 7, 0,
       sunX, sunY, SUN_RADIUS,
@@ -469,7 +476,7 @@ export function OrbitalCanvas({
     core.addColorStop(0.50, 'rgba(255,225,150,1)');
     core.addColorStop(1, 'rgba(255,150,70,1)');
     ctx.shadowColor = 'rgba(255,190,110,1)';
-    ctx.shadowBlur = 32;
+    ctx.shadowBlur = 32 * sunAlpha;
     ctx.fillStyle = core;
     ctx.beginPath();
     ctx.arc(sunX, sunY, SUN_RADIUS, 0, Math.PI * 2);
@@ -477,7 +484,7 @@ export function OrbitalCanvas({
     ctx.shadowBlur = 0;
 
     // Animated flare arcs
-    ctx.globalAlpha = 0.28;
+    ctx.globalAlpha = 0.28 * sunAlpha;
     ctx.lineWidth = 1.6;
     ctx.strokeStyle = 'rgba(255,200,120,0.70)';
     for (let i = 0; i < 8; i++) {
@@ -730,24 +737,24 @@ export function OrbitalCanvas({
       const fux = fdx / fd;
       const fuy = fdy / fd;
 
-      // Small offset circles
+      // Small offset circles (scaled by sunIntensity)
       ctx.save();
       for (let fi = 1; fi <= 5; fi++) {
         const k = fi / 6;
         const fx = sunScrX - fux * k * 340;
         const fy = sunScrY - fuy * k * 340;
         const fr = (1 - k) * 14 + 4;
-        ctx.globalAlpha = 0.035 * (1 - k);
+        ctx.globalAlpha = 0.035 * (1 - k) * sunAlpha;
         ctx.fillStyle = 'rgba(138,166,255,0.5)';
         ctx.shadowColor = 'rgba(138,166,255,1)';
-        ctx.shadowBlur = 16;
+        ctx.shadowBlur = 16 * sunAlpha;
         ctx.beginPath();
         ctx.arc(fx, fy, fr, 0, Math.PI * 2);
         ctx.fill();
       }
 
       // Faint diffraction ring
-      ctx.globalAlpha = 0.05;
+      ctx.globalAlpha = 0.05 * sunAlpha;
       ctx.strokeStyle = 'rgba(109,255,218,0.25)';
       ctx.lineWidth = 1.1;
       ctx.shadowBlur = 0;

@@ -178,6 +178,11 @@ export interface SettingsState {
   /** Directly set push-to-talk enabled state. */
   setPttEnabled: (enabled: boolean) => void;
 
+  /** Sun brightness in the orbital view (0.0–1.0). Default: 1.0 */
+  sunIntensity: number;
+  /** Set the sun brightness (clamped 0.0–1.0). */
+  setSunIntensity: (intensity: number) => void;
+
   /** Whether the Comms Center floating chat panel is open. */
   commsCenterOpen: boolean;
   /** Toggle the Comms Center open/closed. */
@@ -301,6 +306,9 @@ export const useSettingsStore = create<SettingsState>()(
       togglePtt: () => set((s) => ({ pttEnabled: !s.pttEnabled })),
       setPttEnabled: (enabled) => set({ pttEnabled: enabled }),
 
+      sunIntensity: 1.0,
+      setSunIntensity: (intensity) => set({ sunIntensity: Math.max(0.0, Math.min(1.0, intensity)) }),
+
       commsCenterOpen: false,
       toggleCommsCenter: () => set((s) => ({ commsCenterOpen: !s.commsCenterOpen })),
       commsCenterPinned: false,
@@ -348,6 +356,7 @@ export const useSettingsStore = create<SettingsState>()(
         commsCenterPinned: state.commsCenterPinned,
         commsCenterPosition: state.commsCenterPosition,
         commsCenterSize: state.commsCenterSize,
+        sunIntensity: state.sunIntensity,
       }),
     },
   ),

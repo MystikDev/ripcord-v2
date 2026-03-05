@@ -255,6 +255,7 @@ export function SolarSystemView() {
   const setCommsCenterSize = useSettingsStore((s) => s.setCommsCenterSize);
   const isDeafened = useSettingsStore((s) => s.isDeafened);
   const toggleDeafen = useSettingsStore((s) => s.toggleDeafen);
+  const sunIntensity = useSettingsStore((s) => s.sunIntensity);
 
   const screenSharingUserIds = useVoiceStateStore((s) => s.screenSharingUserIds);
   const typingData = useTypingStore((s) => s.typing);
@@ -818,6 +819,7 @@ export function SolarSystemView() {
         hubName={activeHub.name}
         panOffset={panOffset}
         zoomLevel={zoomLevel}
+        sunIntensity={sunIntensity}
       />
 
       {/* ── Pannable content layer ── */}
