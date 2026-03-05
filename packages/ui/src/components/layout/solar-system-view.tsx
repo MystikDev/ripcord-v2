@@ -17,6 +17,7 @@ import { OrbitalHud } from './orbital/orbital-hud';
 import { SplinterButton } from './orbital/splinter-button';
 import { OrbitContextMenu } from './orbital/orbit-context-menu';
 import { FloatingChatPanel } from './orbital/floating-chat-panel';
+import { FloatingFriendsPanel } from './orbital/floating-friends-panel';
 import { AdminConsole } from '../admin/admin-console';
 import { Permission } from '@ripcord/types';
 import { useHubStore, type Channel } from '../../stores/server-store';
@@ -256,6 +257,15 @@ export function SolarSystemView() {
   const isDeafened = useSettingsStore((s) => s.isDeafened);
   const toggleDeafen = useSettingsStore((s) => s.toggleDeafen);
   const sunIntensity = useSettingsStore((s) => s.sunIntensity);
+
+  const friendsPanelOpen = useSettingsStore((s) => s.friendsPanelOpen);
+  const toggleFriendsPanel = useSettingsStore((s) => s.toggleFriendsPanel);
+  const friendsPanelPinned = useSettingsStore((s) => s.friendsPanelPinned);
+  const toggleFriendsPanelPin = useSettingsStore((s) => s.toggleFriendsPanelPin);
+  const friendsPanelPosition = useSettingsStore((s) => s.friendsPanelPosition);
+  const setFriendsPanelPosition = useSettingsStore((s) => s.setFriendsPanelPosition);
+  const friendsPanelSize = useSettingsStore((s) => s.friendsPanelSize);
+  const setFriendsPanelSize = useSettingsStore((s) => s.setFriendsPanelSize);
 
   const screenSharingUserIds = useVoiceStateStore((s) => s.screenSharingUserIds);
   const typingData = useTypingStore((s) => s.typing);
@@ -940,6 +950,8 @@ export function SolarSystemView() {
         commsCenterOpen={commsCenterOpen}
         onCommsCenterToggle={toggleCommsCenter}
         activeTextChannelName={activeTextChannelName}
+        friendsPanelOpen={friendsPanelOpen}
+        onFriendsPanelToggle={toggleFriendsPanel}
       />
 
       {/* Layer 7: Splinter New Orbit button */}
@@ -994,6 +1006,18 @@ export function SolarSystemView() {
           onSizeChange={setCommsCenterSize}
         />
       )}
+
+      {/* Layer 8b: Floating friends panel */}
+      <FloatingFriendsPanel
+        open={friendsPanelOpen}
+        onClose={toggleFriendsPanel}
+        pinned={friendsPanelPinned}
+        onTogglePin={toggleFriendsPanelPin}
+        savedPosition={friendsPanelPosition}
+        onPositionChange={setFriendsPanelPosition}
+        savedSize={friendsPanelSize}
+        onSizeChange={setFriendsPanelSize}
+      />
 
       {/* Layer 9: Tooltip (highest z-index) */}
       <UserTooltip

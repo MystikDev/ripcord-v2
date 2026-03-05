@@ -10,7 +10,6 @@
 import { useState, useCallback } from 'react';
 import clsx from 'clsx';
 import { CommsPopover } from './comms-popover';
-import { useHubStore } from '../../../stores/server-store';
 import { BugReportButton } from '../../ui/bug-report-dialog';
 
 // ---------------------------------------------------------------------------
@@ -51,6 +50,9 @@ interface OrbitalHudProps {
   onCommsCenterToggle: () => void;
   /** Active text channel name for Comms Center label */
   activeTextChannelName: string | null;
+  /** Friends panel */
+  friendsPanelOpen: boolean;
+  onFriendsPanelToggle: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +134,8 @@ export function OrbitalHud({
   commsCenterOpen,
   onCommsCenterToggle,
   activeTextChannelName,
+  friendsPanelOpen,
+  onFriendsPanelToggle,
 }: OrbitalHudProps) {
   const [commsOpen, setCommsOpen] = useState(false);
 
@@ -144,7 +148,6 @@ export function OrbitalHud({
   }, []);
 
   const isInVoice = voiceChannelName !== null;
-  const enterDmView = useHubStore((s) => s.enterDmView);
 
   return (
     <div
@@ -323,13 +326,15 @@ export function OrbitalHud({
       {/* ── 6. Friends / DMs ── */}
       <button
         type="button"
-        onClick={enterDmView}
+        onClick={onFriendsPanelToggle}
         title="Friends & Direct Messages"
         className={clsx(
           'flex items-center gap-1.5 px-3 py-1 rounded-full shrink-0',
           'font-mono text-[11px] transition-all duration-150',
           'border cursor-pointer',
-          'border-border bg-white/3 text-text-secondary hover:text-text-primary hover:border-white/15',
+          friendsPanelOpen
+            ? 'border-cyan/40 bg-cyan/10 text-cyan'
+            : 'border-border bg-white/3 text-text-secondary hover:text-text-primary hover:border-white/15',
         )}
       >
         {/* People icon */}

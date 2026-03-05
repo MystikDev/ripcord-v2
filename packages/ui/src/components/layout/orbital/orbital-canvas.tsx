@@ -100,20 +100,43 @@ interface ShootingStar {
 }
 
 // ---------------------------------------------------------------------------
-// Asteroid particle type
+// Star dust particle type (full-canvas ambient particles)
 // ---------------------------------------------------------------------------
 
-interface AsteroidParticle {
-  /** Orbital angle (radians) */
-  angle: number;
-  /** Distance from sun center (CSS px) */
-  dist: number;
+interface DustParticle {
+  /** Position as 0-1 viewport fraction */
+  x: number;
+  y: number;
   /** Particle size (CSS px) */
   size: number;
-  /** Orbital speed multiplier */
-  speed: number;
-  /** Brightness 0-1 */
+  /** Base brightness 0-1 */
   shade: number;
+  /** Colour hue */
+  hue: number;
+  /** Shimmer animation speed */
+  shimmerSpeed: number;
+  /** Shimmer phase offset */
+  shimmerPhase: number;
+}
+
+// ---------------------------------------------------------------------------
+// Decorative body type (ambient non-functional planets)
+// ---------------------------------------------------------------------------
+
+interface DecorativeBody {
+  /** Position as 0-1 viewport fraction */
+  cx: number;
+  cy: number;
+  /** Visual radius (CSS px) */
+  radius: number;
+  /** Base rotation speed (radians/sec) */
+  rotSpeed: number;
+  /** Seed string for texture generation */
+  seed: string;
+  /** Colour hex for texture */
+  color: string;
+  /** Base opacity 0-1 */
+  opacity: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,21 +192,40 @@ function makeStarLayer(count: number, spread: number, layer: number): Star[] {
 }
 
 // ---------------------------------------------------------------------------
-// Asteroid belt generation
+// Star dust generation (full-canvas ambient particles)
 // ---------------------------------------------------------------------------
 
-function makeAsteroidBelt(innerR: number, outerR: number, count: number): AsteroidParticle[] {
-  const particles: AsteroidParticle[] = [];
+function makeStarDust(count: number): DustParticle[] {
+  const particles: DustParticle[] = [];
   for (let i = 0; i < count; i++) {
+    const isBig = Math.random() < 0.12;
     particles.push({
-      angle: Math.random() * Math.PI * 2,
-      dist: lerp(innerR, outerR, Math.pow(Math.random(), 0.65)),
-      size: lerp(0.5, 1.8, Math.random()),
-      speed: lerp(0.12, 0.35, Math.random()),
-      shade: lerp(0.25, 0.75, Math.random()),
+      x: Math.random(),
+      y: Math.random(),
+      size: isBig ? lerp(1.5, 2.5, Math.random()) : lerp(0.3, 1.5, Math.random()),
+      shade: isBig ? lerp(0.08, 0.18, Math.random()) : lerp(0.04, 0.12, Math.random()),
+      hue: lerp(190, 280, Math.random()) + lerp(-40, 40, Math.random()),
+      shimmerSpeed: lerp(0.15, 0.6, Math.random()),
+      shimmerPhase: Math.random() * Math.PI * 2,
     });
   }
   return particles;
+}
+
+// ---------------------------------------------------------------------------
+// Decorative body generation (ambient non-functional celestial objects)
+// ---------------------------------------------------------------------------
+
+function makeDecorativeBodies(): DecorativeBody[] {
+  // Fixed positions at scene edges/corners — deterministic
+  return [
+    { cx: 0.08, cy: 0.12, radius: 7,  rotSpeed: 0.08, seed: 'deco-planet-a', color: '#7b68ee', opacity: 0.35 },
+    { cx: 0.92, cy: 0.18, radius: 5,  rotSpeed: 0.12, seed: 'deco-planet-b', color: '#ff8c69', opacity: 0.28 },
+    { cx: 0.05, cy: 0.82, radius: 9,  rotSpeed: 0.06, seed: 'deco-planet-c', color: '#5bc0de', opacity: 0.30 },
+    { cx: 0.94, cy: 0.78, radius: 6,  rotSpeed: 0.10, seed: 'deco-planet-d', color: '#98d175', opacity: 0.25 },
+    { cx: 0.18, cy: 0.92, radius: 4,  rotSpeed: 0.14, seed: 'deco-planet-e', color: '#dda0dd', opacity: 0.22 },
+    { cx: 0.85, cy: 0.06, radius: 8,  rotSpeed: 0.07, seed: 'deco-planet-f', color: '#f0c040', opacity: 0.30 },
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -227,11 +269,20 @@ export function OrbitalCanvas({
   // ── Shooting star pool ─────────────────────────────────────────
   const shootingRef = useRef<ShootingStar[]>([]);
 
-  // ── Asteroid belt particles ────────────────────────────────────
-  const beltRef = useRef<AsteroidParticle[] | null>(null);
-  if (beltRef.current === null) {
-    beltRef.current = makeAsteroidBelt(140, 520, 350);
+  // ── Star dust particles (full-canvas ambient) ─────────────────
+  const dustRef = useRef<DustParticle[] | null>(null);
+  if (dustRef.current === null) {
+    dustRef.current = makeStarDust(500);
   }
+
+  // ── Decorative bodies (ambient non-functional planets) ───────
+  const decoBodiesRef = useRef<DecorativeBody[] | null>(null);
+  if (decoBodiesRef.current === null) {
+    decoBodiesRef.current = makeDecorativeBodies();
+  }
+
+  // ── Decorative body texture cache ────────────────────────────
+  const decoTexRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
 
   // ── Planet texture cache (channelId → offscreen canvas) ────────
   const planetTexRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -292,6 +343,18 @@ export function OrbitalCanvas({
       if (!needed.has(key)) cache.delete(key);
     }
   }, [orbits]);
+
+  // ── Pre-generate decorative body textures (once) ──────────────
+  useEffect(() => {
+    const cache = decoTexRef.current;
+    const bodies = decoBodiesRef.current;
+    if (!bodies) return;
+    for (const body of bodies) {
+      if (!cache.has(body.seed)) {
+        cache.set(body.seed, generatePlanetTexture(body.seed, body.color, 48));
+      }
+    }
+  }, []);
 
   // ════════════════════════════════════════════════════════════════
   // Draw callback — reads current refs, no stale closures.
@@ -376,6 +439,20 @@ export function OrbitalCanvas({
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, W, H);
 
+    // ── 3b. Star dust (screen-space, static with shimmer) ────────
+    const dust = dustRef.current!;
+    for (const d of dust) {
+      const dx = d.x * W;
+      const dy = d.y * H;
+      const shimmer = 0.6 + 0.4 * Math.sin(T * d.shimmerSpeed + d.shimmerPhase);
+      ctx.globalAlpha = d.shade * shimmer;
+      ctx.fillStyle = `hsla(${d.hue},30%,80%,1)`;
+      ctx.beginPath();
+      ctx.arc(dx, dy, d.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
     // ══════════════════════════════════════════════════════════════
     // 4. World-space transform
     //    Mirrors the React pannable layer's CSS:
@@ -436,20 +513,40 @@ export function OrbitalCanvas({
       ctx.restore();
     }
 
-    // ── 4b. Asteroid belt (ring of micro-particles around sun) ───
-    const belt = beltRef.current!;
-    ctx.save();
-    for (const a of belt) {
-      const ang = a.angle + T * a.speed;
-      const bx = sunX + Math.cos(ang) * a.dist;
-      const by = sunY + Math.sin(ang) * a.dist * 0.6; // slight elliptical flatten
-      ctx.globalAlpha = 0.10 + a.shade * 0.14;
-      ctx.fillStyle = 'rgba(200,220,255,1)';
+    // ── 4b. Decorative bodies (ambient non-functional planets) ───
+    const decoBodies = decoBodiesRef.current!;
+    for (const body of decoBodies) {
+      const bx = body.cx * W;
+      const by = body.cy * H;
+      const tex = decoTexRef.current.get(body.seed);
+      if (!tex) continue;
+
+      const rot = T * body.rotSpeed;
+
+      // Draw textured planet
+      ctx.save();
+      ctx.globalAlpha = body.opacity;
       ctx.beginPath();
-      ctx.arc(bx, by, a.size, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.arc(bx, by, body.radius, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.translate(bx, by);
+      ctx.rotate(rot);
+      ctx.translate(-bx, -by);
+      ctx.drawImage(tex, bx - body.radius, by - body.radius, body.radius * 2, body.radius * 2);
+      ctx.restore();
+
+      // Faint atmosphere glow
+      ctx.save();
+      ctx.globalAlpha = body.opacity * 0.4;
+      ctx.strokeStyle = body.color;
+      ctx.lineWidth = 0.8;
+      ctx.shadowColor = body.color;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(bx, by, body.radius * 1.15, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     }
-    ctx.restore();
 
     // ── 4c. Sun (corona → core → flares → hub icon) ─────────────
     ctx.save();

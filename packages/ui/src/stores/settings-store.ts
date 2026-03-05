@@ -199,6 +199,23 @@ export interface SettingsState {
   commsCenterSize: { width: number; height: number };
   /** Set the Comms Center size. */
   setCommsCenterSize: (size: { width: number; height: number }) => void;
+
+  /** Whether the floating Friends panel is open in the orbital view. */
+  friendsPanelOpen: boolean;
+  /** Toggle the Friends panel open/closed. */
+  toggleFriendsPanel: () => void;
+  /** Whether the Friends panel position is pinned (persists across toggle). */
+  friendsPanelPinned: boolean;
+  /** Toggle the Friends panel pin state. */
+  toggleFriendsPanelPin: () => void;
+  /** Saved Friends panel position, null = default. */
+  friendsPanelPosition: { x: number; y: number } | null;
+  /** Set the Friends panel position. */
+  setFriendsPanelPosition: (pos: { x: number; y: number }) => void;
+  /** Friends panel size in pixels. Default: 420×550. */
+  friendsPanelSize: { width: number; height: number };
+  /** Set the Friends panel size. */
+  setFriendsPanelSize: (size: { width: number; height: number }) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -317,6 +334,15 @@ export const useSettingsStore = create<SettingsState>()(
       setCommsCenterPosition: (pos) => set({ commsCenterPosition: pos }),
       commsCenterSize: { width: 480, height: 600 },
       setCommsCenterSize: (size) => set({ commsCenterSize: size }),
+
+      friendsPanelOpen: false,
+      toggleFriendsPanel: () => set((s) => ({ friendsPanelOpen: !s.friendsPanelOpen })),
+      friendsPanelPinned: false,
+      toggleFriendsPanelPin: () => set((s) => ({ friendsPanelPinned: !s.friendsPanelPinned })),
+      friendsPanelPosition: null,
+      setFriendsPanelPosition: (pos) => set({ friendsPanelPosition: pos }),
+      friendsPanelSize: { width: 420, height: 550 },
+      setFriendsPanelSize: (size) => set({ friendsPanelSize: size }),
     }),
     {
       name: 'ripcord-settings',
@@ -357,6 +383,9 @@ export const useSettingsStore = create<SettingsState>()(
         commsCenterPosition: state.commsCenterPosition,
         commsCenterSize: state.commsCenterSize,
         sunIntensity: state.sunIntensity,
+        friendsPanelPinned: state.friendsPanelPinned,
+        friendsPanelPosition: state.friendsPanelPosition,
+        friendsPanelSize: state.friendsPanelSize,
       }),
     },
   ),
