@@ -88,6 +88,8 @@ export function MessageList({ channelId }: MessageListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevChannelRef = useRef(channelId);
+  // Tracks whether we need to scroll to bottom when messages first load
+  const pendingScrollRef = useRef(false);
 
   // Track whether the user has scrolled away from the bottom
   const [showJumpButton, setShowJumpButton] = useState(false);
@@ -111,21 +113,36 @@ export function MessageList({ channelId }: MessageListProps) {
   // Auto-scroll to bottom on channel switch (instant) or new messages (smooth),
   // but only if the user is already near the bottom.
   useEffect(() => {
-    const el = scrollContainerRef.current;
     const isChannelSwitch = prevChannelRef.current !== channelId;
     prevChannelRef.current = channelId;
 
     if (isChannelSwitch) {
-      // Always jump instantly when switching channels
-      bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+      // Mark a pending scroll — the messages might not be in the DOM yet
+      // (component shows skeleton while isLoading). The scroll will fire
+      // either now (if messages are already available) or when they load.
+      pendingScrollRef.current = true;
       setShowJumpButton(false);
-    } else if (el) {
-      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-      if (distanceFromBottom <= BOTTOM_THRESHOLD) {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Consume pending scroll once messages are available and bottomRef exists
+    if (pendingScrollRef.current && !isLoading && bottomRef.current) {
+      pendingScrollRef.current = false;
+      bottomRef.current.scrollIntoView({ behavior: 'instant' });
+      setShowJumpButton(false);
+      return;
+    }
+
+    // For new messages on the current channel, smooth-scroll if already at bottom
+    if (!isChannelSwitch && !isLoading) {
+      const el = scrollContainerRef.current;
+      if (el) {
+        const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+        if (distanceFromBottom <= BOTTOM_THRESHOLD) {
+          bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
       }
     }
-  }, [channelId, messages.length]);
+  }, [channelId, messages.length, isLoading]);
 
   const groups = useMemo(() => buildMessageGroups(messages), [messages]);
 

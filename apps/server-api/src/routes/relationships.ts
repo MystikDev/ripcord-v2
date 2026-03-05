@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { ApiError, type ApiResponse } from '@ripcord/types';
 import { requireAuth } from '../middleware/require-auth.js';
 import * as relRepo from '../repositories/relationship.repo.js';
+import * as userRepo from '../repositories/user.repo.js';
 import { redis } from '../redis.js';
 
 export const relationshipRouter: Router = Router();
@@ -79,19 +80,27 @@ relationshipRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const auth = req.auth!;
-      const { targetUserId } = req.body as { targetUserId?: string };
+      const { targetUserId, targetHandle } = req.body as { targetUserId?: string; targetHandle?: string };
 
-      if (!targetUserId || typeof targetUserId !== 'string') {
-        throw ApiError.badRequest('targetUserId is required');
+      // Resolve target — accept either userId or handle
+      let resolvedTargetId = targetUserId;
+      if (!resolvedTargetId && targetHandle && typeof targetHandle === 'string') {
+        const user = await userRepo.findByHandle(targetHandle.trim());
+        if (!user) throw ApiError.notFound('User not found');
+        resolvedTargetId = user.id;
       }
-      if (targetUserId === auth.sub) {
+
+      if (!resolvedTargetId || typeof resolvedTargetId !== 'string') {
+        throw ApiError.badRequest('targetUserId or targetHandle is required');
+      }
+      if (resolvedTargetId === auth.sub) {
         throw ApiError.badRequest('Cannot send a friend request to yourself');
       }
 
-      await relRepo.sendRequest(auth.sub, targetUserId);
+      await relRepo.sendRequest(auth.sub, resolvedTargetId);
 
       // Notify the target user in real-time via Redis → gateway
-      await redis.publish(`user:${targetUserId}`, JSON.stringify({
+      await redis.publish(`user:${resolvedTargetId}`, JSON.stringify({
         type: 'RELATIONSHIP_UPDATE',
         data: { fromUserId: auth.sub, action: 'request_received' },
       })).catch(() => {});

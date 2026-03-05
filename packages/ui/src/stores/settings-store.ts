@@ -195,7 +195,7 @@ export interface SettingsState {
   commsCenterPosition: { x: number; y: number } | null;
   /** Set the Comms Center position. */
   setCommsCenterPosition: (pos: { x: number; y: number }) => void;
-  /** Comms Center size in pixels. Default: 480×600. */
+  /** Comms Center size in pixels. Default: 420×550. */
   commsCenterSize: { width: number; height: number };
   /** Set the Comms Center size. */
   setCommsCenterSize: (size: { width: number; height: number }) => void;
@@ -332,7 +332,7 @@ export const useSettingsStore = create<SettingsState>()(
       toggleCommsCenterPin: () => set((s) => ({ commsCenterPinned: !s.commsCenterPinned })),
       commsCenterPosition: null,
       setCommsCenterPosition: (pos) => set({ commsCenterPosition: pos }),
-      commsCenterSize: { width: 480, height: 600 },
+      commsCenterSize: { width: 420, height: 550 },
       setCommsCenterSize: (size) => set({ commsCenterSize: size }),
 
       friendsPanelOpen: false,

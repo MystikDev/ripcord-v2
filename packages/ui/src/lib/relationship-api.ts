@@ -64,11 +64,20 @@ export async function fetchBlockedUsers(): Promise<FriendResponse[]> {
 // Mutations
 // ---------------------------------------------------------------------------
 
-/** Send a friend request to a user. */
+/** Send a friend request to a user by ID. */
 export async function sendFriendRequest(targetUserId: string): Promise<{ ok: boolean; error?: string }> {
   const res = await apiFetch('/v1/relationships/request', {
     method: 'POST',
     body: JSON.stringify({ targetUserId }),
+  });
+  return { ok: res.ok, error: res.error };
+}
+
+/** Send a friend request to a user by handle. */
+export async function sendFriendRequestByHandle(handle: string): Promise<{ ok: boolean; error?: string }> {
+  const res = await apiFetch('/v1/relationships/request', {
+    method: 'POST',
+    body: JSON.stringify({ targetHandle: handle }),
   });
   return { ok: res.ok, error: res.error };
 }

@@ -52,6 +52,20 @@ export async function findById(id: string): Promise<UserRecord | null> {
 }
 
 /**
+ * Find a user by their handle (case-insensitive).
+ *
+ * @param handle - User handle string.
+ * @returns The user, or null if not found.
+ */
+export async function findByHandle(handle: string): Promise<UserRecord | null> {
+  const row = await queryOne<UserRow>(
+    `SELECT id, handle, avatar_url, status, created_at FROM users WHERE LOWER(handle) = LOWER($1)`,
+    [handle],
+  );
+  return row ? toUser(row) : null;
+}
+
+/**
  * Update a user's avatar URL (the storage key in MinIO).
  *
  * @param id - User UUID.

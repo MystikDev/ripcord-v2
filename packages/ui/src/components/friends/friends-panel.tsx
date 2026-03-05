@@ -21,6 +21,7 @@ import {
   fetchFriends,
   fetchPendingRequests,
   fetchBlockedUsers,
+  sendFriendRequestByHandle,
 } from '../../lib/relationship-api';
 import { createDmChannel } from '../../lib/hub-api';
 
@@ -351,6 +352,105 @@ function SectionHeader({ label, count }: { label: string; count: number }) {
 }
 
 // ---------------------------------------------------------------------------
+// Add Friend bar
+// ---------------------------------------------------------------------------
+
+function AddFriendBar() {
+  const [handle, setHandle] = useState('');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = handle.trim();
+    if (!trimmed) return;
+
+    setStatus('sending');
+    setErrorMsg('');
+    const res = await sendFriendRequestByHandle(trimmed);
+    if (res.ok) {
+      setStatus('success');
+      setHandle('');
+      // Refresh pending list
+      const { incoming, outgoing } = await fetchPendingRequests();
+      useFriendStore.getState().setPending(
+        incoming.map((r) => ({ userId: r.userId, handle: r.handle, avatarUrl: r.avatarUrl ?? undefined, createdAt: r.createdAt })),
+        outgoing.map((r) => ({ userId: r.userId, handle: r.handle, avatarUrl: r.avatarUrl ?? undefined, createdAt: r.createdAt })),
+      );
+      // Also refresh friends in case auto-accepted (mutual request)
+      const friends = await fetchFriends();
+      useFriendStore.getState().setFriends(
+        friends.map((f) => ({ userId: f.userId, handle: f.handle, avatarUrl: f.avatarUrl ?? undefined })),
+      );
+      setTimeout(() => setStatus('idle'), 2000);
+    } else {
+      setStatus('error');
+      setErrorMsg(res.error ?? 'Failed to send request');
+      setTimeout(() => setStatus('idle'), 3000);
+    }
+  }, [handle]);
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="relative flex items-center gap-2 px-3 py-2.5 border-b border-white/5"
+    >
+      <input
+        type="text"
+        value={handle}
+        onChange={(e) => { setHandle(e.target.value); if (status !== 'idle') setStatus('idle'); }}
+        placeholder="Enter a username..."
+        className={clsx(
+          'flex-1 min-w-0 bg-white/5 border rounded-lg px-3 py-1.5',
+          'font-mono text-[12px] text-text-primary placeholder:text-text-muted/50',
+          'focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30',
+          'transition-all duration-150',
+          status === 'error' ? 'border-red-500/30' : 'border-white/8',
+        )}
+      />
+      <button
+        type="submit"
+        disabled={!handle.trim() || status === 'sending'}
+        className={clsx(
+          'shrink-0 flex items-center gap-1.5 rounded-lg px-3.5 py-1.5',
+          'font-mono text-[10px] transition-all duration-150',
+          'focus:outline-none focus:ring-2 focus:ring-accent/40',
+          status === 'success'
+            ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+            : status === 'error'
+              ? 'border border-red-500/30 bg-red-500/10 text-red-400'
+              : 'border border-accent/30 bg-accent/10 text-accent hover:bg-accent/20 hover:border-accent/50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
+        )}
+      >
+        {status === 'success' ? (
+          <>
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="2 6 5 9 10 3" />
+            </svg>
+            Sent!
+          </>
+        ) : status === 'sending' ? (
+          'Sending...'
+        ) : (
+          <>
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="6" y1="2" x2="6" y2="10" />
+              <line x1="2" y1="6" x2="10" y2="6" />
+            </svg>
+            Add Friend
+          </>
+        )}
+      </button>
+      {status === 'error' && errorMsg && (
+        <span className="absolute top-full left-3 mt-0.5 font-mono text-[9px] text-red-400">
+          {errorMsg}
+        </span>
+      )}
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main panel
 // ---------------------------------------------------------------------------
 
@@ -519,6 +619,7 @@ export function FriendsPanel() {
 
   return (
     <div className="flex h-full flex-1 flex-col bg-surface-1/80 backdrop-blur-sm">
+      <AddFriendBar />
       <TabBar active={activeTab} counts={counts} onChange={setActiveTab} />
       <ScrollArea className="flex-1">
         {renderContent()}
