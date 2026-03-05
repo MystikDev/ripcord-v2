@@ -6,6 +6,7 @@ import {
   AuditAction,
 } from '@ripcord/types';
 import { requireAuth } from '../middleware/require-auth.js';
+import { validate } from '../middleware/validate.js';
 import * as memberRepo from '../repositories/member.repo.js';
 import * as banRepo from '../repositories/ban.repo.js';
 import * as roleRepo from '../repositories/role.repo.js';
@@ -15,8 +16,14 @@ import * as auditRepo from '../repositories/audit.repo.js';
 import * as permissionService from '../services/permission.service.js';
 import { logger } from '../logger.js';
 import { redis } from '../redis.js';
+import { z } from 'zod';
 
 export const membersRouter: Router = Router();
+
+const BanMemberSchema = z.object({
+  userId: z.string().min(1, 'userId is required'),
+  reason: z.string().max(500).optional(),
+});
 
 // ---------------------------------------------------------------------------
 // GET /v1/hubs/:hubId/presence — Bulk presence for all hub members
@@ -106,7 +113,7 @@ membersRouter.get(
         throw ApiError.forbidden('You are not a member of this hub');
       }
 
-      const limit = Math.min(Number(req.query['limit']) || 50, 100);
+      const limit = Math.min(Math.max(1, Number(req.query['limit']) || 50), 100);
       const cursor = req.query['cursor'] as string | undefined;
 
       const members = await memberRepo.findByHub(hubId, limit, cursor);
@@ -214,11 +221,12 @@ membersRouter.delete(
 membersRouter.post(
   '/hubs/:hubId/bans',
   requireAuth,
+  validate(BanMemberSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const auth = req.auth!;
       const hubId = req.params['hubId'] as string | undefined;
-      const { userId: targetUserId, reason } = req.body as { userId?: string; reason?: string };
+      const { userId: targetUserId, reason } = req.body as { userId: string; reason?: string };
 
       if (!hubId || !targetUserId) {
         throw ApiError.badRequest('Hub ID and userId are required');

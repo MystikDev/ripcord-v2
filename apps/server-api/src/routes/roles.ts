@@ -191,8 +191,8 @@ rolesRouter.patch(
           ? Math.min(...actorRoles.map((r) => r.priority))
           : Infinity;
 
-        if (existingRole.priority < actorHighestPriority) {
-          throw ApiError.forbidden('Cannot edit a role with higher rank than your own');
+        if (existingRole.priority <= actorHighestPriority) {
+          throw ApiError.forbidden('Cannot edit a role with equal or higher rank than your own');
         }
       }
 
@@ -296,8 +296,8 @@ rolesRouter.delete(
           ? Math.min(...actorRoles.map((r) => r.priority))
           : Infinity;
 
-        if (existingRole.priority < actorHighestPriority) {
-          throw ApiError.forbidden('Cannot delete a role with higher rank than your own');
+        if (existingRole.priority <= actorHighestPriority) {
+          throw ApiError.forbidden('Cannot delete a role with equal or higher rank than your own');
         }
       }
 

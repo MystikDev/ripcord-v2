@@ -7,8 +7,10 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { env } from '@ripcord/config';
 import { requireAuth } from '../middleware/require-auth.js';
+import { validate } from '../middleware/validate.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { logger } from '../logger.js';
+import { z } from 'zod';
 
 export const feedbackRouter: Router = Router();
 
@@ -19,6 +21,12 @@ export const feedbackRouter: Router = Router();
 const VALID_COMPONENTS = ['UI', 'BUG', 'Voice', 'Chat', 'Friends list', 'Other'] as const;
 const MAX_DESCRIPTION_LENGTH = 1000;
 const BUG_REPORT_RECIPIENT = 'ripcordtheapp@gmail.com';
+
+const FeedbackSchema = z.object({
+  component: z.enum(VALID_COMPONENTS),
+  description: z.string().min(1, 'description is required').max(MAX_DESCRIPTION_LENGTH),
+  screenshot: z.string().optional(),
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -79,36 +87,10 @@ feedbackRouter.post(
   '/',
   requireAuth,
   rateLimit({ windowMs: 60_000, max: 5, keyPrefix: 'rl:feedback' }),
+  validate(FeedbackSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { component, description, screenshot } = req.body ?? {};
-
-      // --- Validation ---
-      if (!component || !VALID_COMPONENTS.includes(component)) {
-        res.status(400).json({
-          ok: false,
-          error: `component must be one of: ${VALID_COMPONENTS.join(', ')}`,
-        });
-        return;
-      }
-
-      if (!description || typeof description !== 'string') {
-        res.status(400).json({ ok: false, error: 'description is required' });
-        return;
-      }
-
-      if (description.length > MAX_DESCRIPTION_LENGTH) {
-        res.status(400).json({
-          ok: false,
-          error: `description must be ${MAX_DESCRIPTION_LENGTH} characters or fewer`,
-        });
-        return;
-      }
-
-      if (screenshot && typeof screenshot !== 'string') {
-        res.status(400).json({ ok: false, error: 'screenshot must be a base64 string' });
-        return;
-      }
+      const { component, description, screenshot } = req.body as z.infer<typeof FeedbackSchema>;
 
       // --- Build email ---
       const bugId = generateBugId();

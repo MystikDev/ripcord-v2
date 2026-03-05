@@ -206,23 +206,23 @@ invitesRouter.post(
         throw ApiError.badRequest('Invite code is required');
       }
 
-      // Find invite
+      // Find invite — use generic error to prevent code enumeration
       const invite = await inviteRepo.findByCode(code);
       if (!invite) {
-        throw ApiError.notFound('Invalid invite code');
+        throw ApiError.notFound('Invalid or expired invite');
       }
 
-      // Check expiry
+      // Check expiry — same generic error to prevent leaking valid-but-expired codes
       if (invite.expiresAt) {
         const expiresAt = new Date(invite.expiresAt);
         if (expiresAt < new Date()) {
-          throw ApiError.badRequest('Invite has expired');
+          throw ApiError.notFound('Invalid or expired invite');
         }
       }
 
       // Check max uses (preliminary check; the atomic claim below is authoritative)
       if (invite.maxUses !== null && invite.uses >= invite.maxUses) {
-        throw ApiError.badRequest('Invite has been used the maximum number of times');
+        throw ApiError.notFound('Invalid or expired invite');
       }
 
       // Verify hub exists

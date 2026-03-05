@@ -169,6 +169,13 @@ attachmentsRouter.put(
       if (!body || body.length === 0) throw ApiError.badRequest('Empty file body');
       if (body.length > MAX_FILE_SIZE) throw ApiError.badRequest('File too large');
 
+      // Verify actual upload size matches the declared fileSize from metadata
+      if (body.length !== attachment.fileSize) {
+        throw ApiError.badRequest(
+          `File size mismatch: expected ${attachment.fileSize} bytes, received ${body.length}`,
+        );
+      }
+
       await storage.uploadDirect(attachment.storageKey, body, 'application/octet-stream');
 
       res.status(204).end();

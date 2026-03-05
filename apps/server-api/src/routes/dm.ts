@@ -31,9 +31,12 @@ dmRouter.post(
         throw ApiError.badRequest('Cannot create a DM with yourself');
       }
 
-      // Prevent DMs between blocked users
-      const blocked = await isBlocked(auth.sub, targetUserId);
-      if (blocked) {
+      // Prevent DMs between blocked users (check both directions)
+      const [blocked, blockedBy] = await Promise.all([
+        isBlocked(auth.sub, targetUserId),
+        isBlocked(targetUserId, auth.sub),
+      ]);
+      if (blocked || blockedBy) {
         throw ApiError.forbidden('Cannot create a DM with this user');
       }
 

@@ -15,8 +15,13 @@ import * as hubRepo from '../repositories/server.repo.js';
 import * as auditRepo from '../repositories/audit.repo.js';
 import * as permissionService from '../services/permission.service.js';
 import { logger } from '../logger.js';
+import { z } from 'zod';
 
 export const channelsRouter: Router = Router({ mergeParams: true });
+
+const UpdateChannelSchema = z.object({
+  name: z.string().min(1, 'Channel name is required').max(100),
+});
 
 /**
  * POST /v1/hubs/:hubId/channels
@@ -225,18 +230,16 @@ channelsRouter.delete(
 channelsRouter.patch(
   '/:channelId',
   requireAuth,
+  validate(UpdateChannelSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const auth = req.auth!;
       const hubId = req.params['hubId'] as string | undefined;
       const channelId = req.params['channelId'] as string | undefined;
-      const { name } = req.body as { name?: string };
+      const { name } = req.body as { name: string };
 
       if (!hubId) throw ApiError.badRequest('Hub ID is required');
       if (!channelId) throw ApiError.badRequest('Channel ID is required');
-      if (!name || typeof name !== 'string' || name.trim().length < 1) {
-        throw ApiError.badRequest('Channel name is required');
-      }
 
       // Verify hub exists
       const hub = await hubRepo.findById(hubId);
