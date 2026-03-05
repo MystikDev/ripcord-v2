@@ -304,6 +304,30 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
         >
           Reset to Defaults
         </button>
+
+        {/* ── Tutorial ── */}
+        <div className="space-y-3 mt-6">
+          <h3 className="font-mono text-[9px] uppercase tracking-[0.14em] text-white/35">
+            Tutorial
+          </h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-mono text-[12px] text-text-primary">Quick Tour</p>
+              <p className="font-mono text-[10px] text-text-muted">Replay the onboarding tutorial</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                useSettingsStore.getState().setTutorialCompleted(false);
+                // The onboarding flow will re-trigger when the user navigates
+                // to a state where hubs.length === 0, or we can show just the tour
+              }}
+              className="rounded-lg border border-white/8 bg-white/5 px-4 py-2 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-accent/30 hover:bg-accent/10 hover:text-accent cursor-pointer"
+            >
+              Replay Tour
+            </button>
+          </div>
+        </div>
       </div>
     </div>,
     document.body,

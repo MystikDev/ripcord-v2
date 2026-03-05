@@ -104,6 +104,11 @@ export interface SettingsState {
   /** Record that the user has seen the What's New dialog for a given version. */
   setLastSeenVersion: (version: string) => void;
 
+  /** Whether the user has completed the onboarding quick tour. */
+  tutorialCompleted: boolean;
+  /** Set the tutorial completed state. */
+  setTutorialCompleted: (completed: boolean) => void;
+
   /** Base font size in pixels (12-20). Default: 14 */
   fontSize: number;
   /** Custom text color override (hex string) or null for default. */
@@ -255,6 +260,9 @@ export const useSettingsStore = create<SettingsState>()(
       setHideWhatsNew: (hide) => set({ hideWhatsNew: hide }),
       setLastSeenVersion: (version) => set({ lastSeenVersion: version }),
 
+      tutorialCompleted: false,
+      setTutorialCompleted: (completed) => set({ tutorialCompleted: completed }),
+
       fontSize: 14,
       fontColor: null,
       iconSize: 32,
@@ -321,6 +329,7 @@ export const useSettingsStore = create<SettingsState>()(
         eqTreble: state.eqTreble,
         hideWhatsNew: state.hideWhatsNew,
         lastSeenVersion: state.lastSeenVersion,
+        tutorialCompleted: state.tutorialCompleted,
         fontSize: state.fontSize,
         fontColor: state.fontColor,
         iconSize: state.iconSize,

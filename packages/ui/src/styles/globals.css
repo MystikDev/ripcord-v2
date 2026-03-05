@@ -380,3 +380,36 @@ body {
   0%, 100% { transform: translate(0, 0); opacity: 0.3; }
   50%      { transform: translate(var(--dx), var(--dy)); opacity: 0.5; }
 }
+
+/* ── Onboarding animations ────────────────────────────────────────── */
+
+@keyframes onboard-slide-in {
+  0% { opacity: 0; transform: translateX(60px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes onboard-slide-out {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(-60px); }
+}
+
+@keyframes onboard-success-burst {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes onboard-title-reveal {
+  0% { opacity: 0; transform: translateY(20px); filter: blur(8px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes step-dot-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(0, 240, 255, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(0, 240, 255, 0.8); }
+}
+
+@keyframes planet-orbit {
+  0% { transform: rotate(0deg) translateX(var(--orbit-r)) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg); }
+}

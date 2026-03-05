@@ -44,12 +44,14 @@ export function AppLayout() {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        setQuickSwitcherOpen((prev) => !prev);
+        if (!showOnboarding) {
+          setQuickSwitcherOpen((prev) => !prev);
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [showOnboarding]);
 
   if (!isAuthenticated) {
     return (
