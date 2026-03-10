@@ -21,6 +21,9 @@ import { DmCallPanel } from '../voice/dm-call-panel';
 import { VoicePanel } from '../voice/voice-panel';
 import { BugReportButton } from '../ui/bug-report-dialog';
 import { ToastContainer } from '../ui/toast';
+import { KeyboardShortcutsDialog } from '../ui/keyboard-shortcuts-dialog';
+import { SettingsView } from '../settings/settings-view';
+import { AdminConsoleView } from '../admin/admin-console';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useHubStore } from '../../stores/server-store';
 import { useThemeOverrides } from '../../hooks/use-theme-overrides';
@@ -31,6 +34,8 @@ import { useThemeOverrides } from '../../hooks/use-theme-overrides';
 
 export function AppShell() {
   const memberListVisible = useSettingsStore((s) => s.memberListVisible);
+  const settingsOpen = useSettingsStore((s) => s.settingsOpen);
+  const adminOpen = useSettingsStore((s) => s.adminOpen);
   const isDmView = useHubStore((s) => s.isDmView);
   const systemViewActive = useHubStore((s) => s.systemViewActive);
   const activeHubId = useHubStore((s) => s.activeHubId);
@@ -89,11 +94,18 @@ export function AppShell() {
             {/* Middle: channel list */}
             <ChannelSidebar />
 
-            {/* Center: chat area */}
-            <ChatArea />
-
-            {/* Right: member list panel (not shown in DM view) */}
-            {memberListVisible && !isDmView && <MemberListPanel />}
+            {/* Center: chat area, settings view, or admin console */}
+            {settingsOpen ? (
+              <SettingsView />
+            ) : adminOpen ? (
+              <AdminConsoleView />
+            ) : (
+              <>
+                <ChatArea />
+                {/* Right: member list panel (not shown in DM view) */}
+                {memberListVisible && !isDmView && <MemberListPanel />}
+              </>
+            )}
           </>
         )}
 
@@ -115,6 +127,7 @@ export function AppShell() {
           the app, including stores and non-React contexts. z-[500] sits above all
           other overlays. Always mounted so toasts fire regardless of view mode. */}
       <ToastContainer />
+      <KeyboardShortcutsDialog />
     </div>
   );
 }

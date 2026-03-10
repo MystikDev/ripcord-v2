@@ -10,6 +10,9 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import { CosmosCanvasBg } from './cosmos/cosmos-canvas-bg';
 import { HubNebula } from './cosmos/hub-nebula';
 import { useHubStore, type Hub } from '../../stores/server-store';
+import { usePresenceStore } from '../../stores/presence-store';
+import { useMessageStore } from '../../stores/message-store';
+import { useReadStateStore } from '../../stores/read-state-store';
 import { AddHubDialog } from '../hub/create-hub-dialog';
 
 // ---------------------------------------------------------------------------
@@ -93,8 +96,62 @@ function computePositions(
 export function CosmosView() {
   const hubs = useHubStore((s) => s.hubs);
   const setActiveHub = useHubStore((s) => s.setActiveHub);
+  const hubChannelCache = useHubStore((s) => s.hubChannelCache);
+  const hubMemberIds = useHubStore((s) => s.hubMemberIds);
+  const presence = usePresenceStore((s) => s.presence);
+  const allMessages = useMessageStore((s) => s.messages);
+  const readStates = useReadStateStore((s) => s.readStates);
 
   const positions = useMemo(() => computePositions(hubs), [hubs]);
+
+  // -- Per-hub online counts (from cached member IDs + presence) -------------
+  const hubOnlineCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const [hubId, memberIds] of Object.entries(hubMemberIds)) {
+      counts[hubId] = memberIds.filter(
+        (uid) => presence[uid] === 'online' || presence[uid] === 'idle' || presence[uid] === 'dnd',
+      ).length;
+    }
+    return counts;
+  }, [hubMemberIds, presence]);
+
+  // -- Per-hub unread status (from cached channels + messages + read states) --
+  const hubUnreadMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    // Build channelId -> hubId from the channel cache
+    const channelToHub: Record<string, string> = {};
+    for (const [hubId, channels] of Object.entries(hubChannelCache)) {
+      for (const ch of channels) {
+        channelToHub[ch.id] = hubId;
+      }
+    }
+    // Check all channels in the message store
+    for (const [channelId, msgs] of Object.entries(allMessages)) {
+      if (!msgs || msgs.length === 0) continue;
+      const hubId = channelToHub[channelId];
+      if (!hubId) continue;
+      if (map[hubId]) continue; // already marked unread
+      const lastReadId = readStates[channelId]?.lastReadMessageId;
+      if (!lastReadId) {
+        map[hubId] = true;
+      } else {
+        const lastReadIdx = msgs.findIndex((m) => m.id === lastReadId);
+        if (lastReadIdx === -1 || lastReadIdx < msgs.length - 1) {
+          map[hubId] = true;
+        }
+      }
+    }
+    return map;
+  }, [hubChannelCache, allMessages, readStates]);
+
+  // -- Per-hub channel counts -------------------------------------------------
+  const hubChannelCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const [hubId, channels] of Object.entries(hubChannelCache)) {
+      counts[hubId] = channels.length;
+    }
+    return counts;
+  }, [hubChannelCache]);
 
   const [zoomTarget, setZoomTarget] = useState<{
     hubId: string;
@@ -291,6 +348,9 @@ export function CosmosView() {
                 y={overridden.y}
                 onSelect={handleSelect}
                 onDragMove={handleHubDrag}
+                onlineCount={hubOnlineCounts[hub.id] ?? 0}
+                hasUnread={!!hubUnreadMap[hub.id]}
+                channelCount={hubChannelCounts[hub.id]}
               />
             );
           })}

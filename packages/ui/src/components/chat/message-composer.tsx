@@ -19,6 +19,7 @@ import { OpenAIClient } from '../../lib/ai/openai-client';
 import { AnthropicClient } from '../../lib/ai/anthropic-client';
 import { buildSummarizePrompt, buildCatchUpPrompt, buildDraftPrompt } from '../../lib/ai/prompt-builder';
 import type { SlashCommand } from '../../lib/ai/commands';
+import { MessageContent } from './message-content';
 
 const EMPTY_MESSAGES: Message[] = [];
 
@@ -80,6 +81,7 @@ function MessageComposer({ channelId, channelName }, ref) {
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
 
   const userId = useAuthStore((s) => s.userId);
@@ -87,6 +89,8 @@ function MessageComposer({ channelId, channelName }, ref) {
   const deviceId = useAuthStore((s) => s.deviceId);
   const addMessage = useMessageStore((s) => s.addMessage);
   const messages = useMessageStore((s) => s.messages[channelId] ?? EMPTY_MESSAGES);
+  const replyingTo = useMessageStore((s) => s.replyingTo);
+  const clearReply = useMessageStore((s) => s.setReplyingTo);
   const startResponse = useAIStore((s) => s.startResponse);
   const appendResponse = useAIStore((s) => s.appendResponse);
   const setAIError = useAIStore((s) => s.setError);
@@ -200,6 +204,9 @@ function MessageComposer({ channelId, channelName }, ref) {
 
     setSending(true);
 
+    // Capture reply state before clearing
+    const currentReply = useMessageStore.getState().replyingTo;
+
     // Capture and clear pending attachments
     const attachmentsToSend = [...pendingAttachments];
     const attachmentIds = attachmentsToSend.map((a) => a.attachmentId);
@@ -213,6 +220,11 @@ function MessageComposer({ channelId, channelName }, ref) {
       authorHandle: handle ?? 'You',
       content: messageContent,
       createdAt: new Date().toISOString(),
+      ...(currentReply ? {
+        replyToId: currentReply.messageId,
+        replyToAuthor: currentReply.authorHandle,
+        replyToContent: currentReply.contentPreview,
+      } : {}),
       ...(attachmentsToSend.length > 0
         ? {
             attachments: attachmentsToSend.map((a) => ({
@@ -228,6 +240,7 @@ function MessageComposer({ channelId, channelName }, ref) {
     addMessage(channelId, optimistic);
     setContent('');
     setPendingAttachments([]);
+    useMessageStore.getState().setReplyingTo(null);
 
     // Send via REST API (server persists and publishes to Redis for gateway fanout)
     try {
@@ -299,6 +312,28 @@ function MessageComposer({ channelId, channelName }, ref) {
       />
 
       <div className="max-w-3xl mx-auto">
+        {/* Reply preview bar */}
+        {replyingTo && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-accent/5 border border-accent/20 px-3 py-2 text-xs">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-accent">
+              <path d="M6 8L2 5l4-3" />
+              <path d="M2 5h8a4 4 0 014 4v2" />
+            </svg>
+            <span className="text-accent font-medium">Replying to {replyingTo.authorHandle}</span>
+            <span className="text-text-muted truncate flex-1">{replyingTo.contentPreview}</span>
+            <button
+              type="button"
+              onClick={() => clearReply(null)}
+              className="shrink-0 text-text-muted hover:text-text-primary transition-colors"
+              title="Cancel reply"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M1 1l10 10M11 1L1 11" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Pending attachments strip */}
         {hasPendingAttachments && (
           <div className="mb-2 flex flex-wrap gap-2">
@@ -322,6 +357,16 @@ function MessageComposer({ channelId, channelName }, ref) {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Markdown preview */}
+        {showPreview && content.trim() && (
+          <div className="mb-2 rounded-xl glass-card p-3 max-h-40 overflow-y-auto">
+            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-white/35 mb-1.5">Preview</p>
+            <div className="text-white/80" style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-chat-text, var(--color-text-primary))' }}>
+              <MessageContent content={content} />
+            </div>
           </div>
         )}
 
@@ -402,6 +447,18 @@ function MessageComposer({ channelId, channelName }, ref) {
           >
             <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M4 4l4 4-4 4M8 12h4" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Snippet
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPreview((p) => !p)}
+            className={`px-3 py-1.5 rounded-lg border text-xs transition-colors whitespace-nowrap ${
+              showPreview
+                ? 'bg-accent/10 border-accent/30 text-accent'
+                : 'bg-white/5 border-white/10 text-white/60 hover:text-accent hover:border-accent/30'
+            }`}
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="inline mr-1 -mt-0.5 opacity-60"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" /><circle cx="8" cy="8" r="2" /></svg>
+            Preview
           </button>
         </div>
       </div>

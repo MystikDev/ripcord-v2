@@ -95,7 +95,7 @@ export function JoinLoadingStep({ hubName }: JoinLoadingStepProps) {
             width: '12px',
             height: '12px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, #00e5ff, #8338ec)',
+            background: 'radial-gradient(circle, #00e5ff, var(--color-accent-violet))',
             boxShadow: '0 0 20px rgba(0, 229, 255, 0.8), 0 0 40px rgba(0, 229, 255, 0.4)',
             position: 'relative',
             zIndex: 1,

@@ -93,7 +93,7 @@ export function JoinSuccessStep({ hubName, onContinue }: JoinSuccessStepProps) {
           className="font-display font-light tracking-[0.08em] uppercase select-none"
           style={{
             fontSize: '24px',
-            background: 'linear-gradient(135deg, #00e5ff 0%, #8338ec 50%, #ff006e 100%)',
+            background: 'linear-gradient(135deg, #00e5ff 0%, var(--color-accent-violet) 50%, var(--color-accent-magenta) 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',

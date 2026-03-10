@@ -173,6 +173,7 @@ function SpatialMap({ onlineCount, totalCount, orbitalUsers }: { onlineCount: nu
 
 function MemberRow({ member, offline, roleColor }: { member: MemberInfo; offline?: boolean; roleColor?: string }) {
   const status = usePresenceStore((s) => s.getStatus(member.userId));
+  const customStatus = usePresenceStore((s) => s.getCustomStatus(member.userId));
   const currentUserId = useAuthStore((s) => s.userId);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -202,7 +203,7 @@ function MemberRow({ member, offline, roleColor }: { member: MemberInfo; offline
           <StatusDot status={status} />
         </div>
 
-        {/* Handle */}
+        {/* Handle + custom status */}
         <div className="flex-1 min-w-0">
           <span
             className={clsx(
@@ -216,6 +217,9 @@ function MemberRow({ member, offline, roleColor }: { member: MemberInfo; offline
           >
             {member.handle}
           </span>
+          {customStatus && (
+            <p className="text-[10px] text-text-muted truncate">{customStatus}</p>
+          )}
         </div>
 
         {/* Activity indicator */}

@@ -10,12 +10,14 @@
 import { useEffect, useState } from 'react';
 import { useAppRouter } from '../../lib/router';
 import { useAuthStore } from '../../stores/auth-store';
+import { useSettingsStore } from '../../stores/settings-store';
 import { useGateway } from '../../hooks/use-gateway';
 import { useHubData } from '../../hooks/use-hub-data';
 import { TooltipProvider } from '../ui/tooltip';
 import { ToastProvider } from '../ui/toast';
 import { AppShell } from './app-shell';
 import { OnboardingFlow } from '../onboarding/onboarding-flow';
+import { QuickTourOverlay } from '../onboarding/quick-tour/quick-tour-overlay';
 import { QuickSwitcher } from '../ui/quick-switcher';
 
 /**
@@ -36,6 +38,10 @@ export function AppLayout() {
       router.replace('/login');
     }
   }, [isAuthenticated, router]);
+
+  // ---- Standalone Tour Replay (triggered from Settings) ----
+  const showTour = useSettingsStore((s) => s.showTour);
+  const dismissTour = useSettingsStore((s) => s.dismissTour);
 
   // ---- Quick Switcher (Ctrl+K / Cmd+K) ----
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
@@ -70,6 +76,10 @@ export function AppLayout() {
           open={showOnboarding}
           onComplete={() => setShowOnboarding(false)}
         />
+        {/* Standalone tour replay — shown when triggered from Settings */}
+        {showTour && !showOnboarding && (
+          <QuickTourOverlay onComplete={dismissTour} />
+        )}
       </TooltipProvider>
     </ToastProvider>
   );

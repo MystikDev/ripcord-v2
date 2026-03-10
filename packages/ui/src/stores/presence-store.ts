@@ -18,6 +18,9 @@ export interface PresenceState {
   /** User ID -> presence status */
   presence: Record<string, PresenceStatus>;
 
+  /** User ID -> custom status text (client-side only, in-memory) */
+  customStatuses: Record<string, string>;
+
   /** Update a single user's presence. */
   setPresence: (userId: string, status: PresenceStatus) => void;
 
@@ -26,6 +29,12 @@ export interface PresenceState {
 
   /** Get a user's status, defaulting to 'offline'. */
   getStatus: (userId: string) => PresenceStatus;
+
+  /** Set a custom status text for a user. Pass empty string to clear. */
+  setCustomStatus: (userId: string, status: string) => void;
+
+  /** Get a user's custom status text, or undefined if not set. */
+  getCustomStatus: (userId: string) => string | undefined;
 
   /** Reset all presence data. */
   reset: () => void;
@@ -37,6 +46,7 @@ export interface PresenceState {
 
 export const usePresenceStore = create<PresenceState>()((set, get) => ({
   presence: {},
+  customStatuses: {},
 
   setPresence: (userId, status) =>
     set((state) => ({
@@ -54,5 +64,18 @@ export const usePresenceStore = create<PresenceState>()((set, get) => ({
 
   getStatus: (userId) => get().presence[userId] ?? 'offline',
 
-  reset: () => set({ presence: {} }),
+  setCustomStatus: (userId, status) =>
+    set((state) => {
+      if (!status) {
+        // Clear the status
+        const next = { ...state.customStatuses };
+        delete next[userId];
+        return { customStatuses: next };
+      }
+      return { customStatuses: { ...state.customStatuses, [userId]: status } };
+    }),
+
+  getCustomStatus: (userId) => get().customStatuses[userId],
+
+  reset: () => set({ presence: {}, customStatuses: {} }),
 }));

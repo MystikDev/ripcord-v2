@@ -20,6 +20,7 @@ import { sendMessage } from '../../lib/hub-api';
 import { getDmVoiceToken } from '../../lib/voice-api';
 import { gateway } from '../../lib/gateway-client';
 import { FriendsPanel } from '../friends/friends-panel';
+import { EmptyState, CompassIcon } from '../ui/empty-state';
 import clsx from 'clsx';
 
 // Gateway opcodes for call signaling
@@ -136,25 +137,11 @@ export function ChatArea() {
 
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-transparent">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 border border-white/10">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-text-muted">
-              <path
-                d="M16 4C9.373 4 4 9.373 4 16c0 2.12.55 4.114 1.516 5.846L4.1 27.1a1.5 1.5 0 001.8 1.8l5.254-1.416A11.94 11.94 0 0016 28c6.627 0 12-5.373 12-12S22.627 4 16 4z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold display-text text-text-primary">
-            Select a channel
-          </h3>
-          <p className="mt-1 text-sm text-text-muted">
-            Pick a channel from the sidebar to start chatting
-          </p>
-        </div>
+        <EmptyState
+          icon={<CompassIcon />}
+          title="Select a channel"
+          subtitle="Choose a channel from the sidebar to begin"
+        />
       </div>
     );
   }

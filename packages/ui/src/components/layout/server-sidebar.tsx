@@ -17,6 +17,7 @@ import { AddHubDialog } from '../hub/create-hub-dialog';
 import { HubContextMenu } from '../hub/hub-context-menu';
 import { Avatar } from '../ui/avatar';
 import { IconCropDialog } from '../admin/icon-crop-dialog';
+import { NotificationCenter } from '../ui/notification-center';
 import { uploadUserAvatar, getUserAvatarUrl } from '../../lib/user-api';
 import { useToast } from '../ui/toast';
 import clsx from 'clsx';
@@ -167,7 +168,19 @@ function UserAvatarButton() {
 // Hub Icon
 // ---------------------------------------------------------------------------
 
-function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
+interface HubIconProps {
+  hub: Hub;
+  isActive: boolean;
+  hasUnread: boolean;
+  index: number;
+  isDragging: boolean;
+  onDragStart: (index: number) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: (index: number) => void;
+  onDragEnd: () => void;
+}
+
+function HubIcon({ hub, isActive, hasUnread, index, isDragging, onDragStart, onDragOver, onDrop, onDragEnd }: HubIconProps) {
   const setActiveHub = useHubStore((s) => s.setActiveHub);
   const currentUserId = useAuthStore((s) => s.userId);
 
@@ -177,6 +190,11 @@ function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
     <>
       <Tooltip content={hub.name} side="right">
         <button
+          draggable
+          onDragStart={() => onDragStart(index)}
+          onDragOver={onDragOver}
+          onDrop={() => onDrop(index)}
+          onDragEnd={onDragEnd}
           onClick={() => setActiveHub(hub.id)}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -187,6 +205,7 @@ function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
             isActive
               ? 'rounded-2xl bg-accent text-black shadow-lg shadow-accent/20'
               : 'rounded-xl bg-white/5 text-text-secondary border border-white/10 hover:rounded-2xl hover:bg-white/10 hover:border-accent/50 hover:text-accent',
+            isDragging && 'opacity-40',
           )}
         >
           {/* Active indicator pill — cyan glow */}
@@ -211,6 +230,11 @@ function HubIcon({ hub, isActive }: { hub: Hub; isActive: boolean }) {
             <span className="text-sm font-semibold">
               {hub.name.slice(0, 2).toUpperCase()}
             </span>
+          )}
+
+          {/* Unread indicator dot */}
+          {hasUnread && (
+            <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-accent-magenta border-2 border-void" />
           )}
         </button>
       </Tooltip>
@@ -326,10 +350,78 @@ function PinButton({ pinned, onToggle }: { pinned: boolean; onToggle: () => void
 export function HubSidebar() {
   const hubs = useHubStore((s) => s.hubs);
   const activeHubId = useHubStore((s) => s.activeHubId);
+  const channels = useHubStore((s) => s.channels);
   const hubPinned = useSettingsStore((s) => s.hubSidebarPinned);
   const togglePin = useSettingsStore((s) => s.toggleHubSidebarPin);
+  const readStates = useReadStateStore((s) => s.readStates);
+  const allMessages = useMessageStore((s) => s.messages);
   const [hovered, setHovered] = useState(false);
   const expanded = hubPinned || hovered;
+
+  // --- Drag-to-reorder state ---
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [hubOrder, setHubOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ripcord-hub-order');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  const sortedHubs = useMemo(() => {
+    return [...hubs].sort((a, b) => {
+      const ai = hubOrder.indexOf(a.id);
+      const bi = hubOrder.indexOf(b.id);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }, [hubs, hubOrder]);
+
+  const handleDrop = useCallback((targetIndex: number) => {
+    if (dragIndex === null) return;
+    const newOrder = sortedHubs.map((h) => h.id);
+    const [moved] = newOrder.splice(dragIndex, 1);
+    newOrder.splice(targetIndex, 0, moved!);
+    setHubOrder(newOrder);
+    localStorage.setItem('ripcord-hub-order', JSON.stringify(newOrder));
+    setDragIndex(null);
+  }, [dragIndex, sortedHubs]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  // --- Unread per-hub computation ---
+  // We only have channel data for the active hub, so approximate:
+  // For the active hub, check its channels. For other hubs, check if any
+  // channel in the message store (keyed by channelId) that belongs to a
+  // known channel has unread messages.
+  const hubUnreadMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    // Build a hubId lookup from the active hub's channels
+    const channelToHub: Record<string, string> = {};
+    for (const ch of channels) {
+      channelToHub[ch.id] = ch.hubId;
+    }
+    // Check all channels in the message store
+    for (const [channelId, msgs] of Object.entries(allMessages)) {
+      if (!msgs || msgs.length === 0) continue;
+      const hubId = channelToHub[channelId];
+      if (!hubId) continue; // channel not in active hub's list — skip
+      if (map[hubId]) continue; // already marked unread
+      const lastReadId = readStates[channelId]?.lastReadMessageId;
+      if (!lastReadId) {
+        map[hubId] = true;
+      } else {
+        const lastReadIdx = msgs.findIndex((m) => m.id === lastReadId);
+        if (lastReadIdx === -1 || lastReadIdx < msgs.length - 1) {
+          map[hubId] = true;
+        }
+      }
+    }
+    return map;
+  }, [channels, allMessages, readStates]);
 
   return (
     <div
@@ -354,16 +446,26 @@ export function HubSidebar() {
       >
         <HomeButton />
 
+        {/* Notification bell */}
+        <NotificationCenter />
+
         {/* Gradient divider */}
         <div className="w-10 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
 
         <ScrollArea className="flex-1 w-full">
           <div className="flex flex-col items-center gap-4 px-4">
-            {hubs.map((hub) => (
+            {sortedHubs.map((hub, index) => (
               <HubIcon
                 key={hub.id}
                 hub={hub}
                 isActive={hub.id === activeHubId}
+                hasUnread={!!(hubUnreadMap[hub.id]) && hub.id !== activeHubId}
+                index={index}
+                isDragging={dragIndex === index}
+                onDragStart={setDragIndex}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                onDragEnd={() => setDragIndex(null)}
               />
             ))}
 

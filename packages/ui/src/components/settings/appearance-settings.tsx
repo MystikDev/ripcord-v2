@@ -6,9 +6,10 @@
  */
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSettingsStore } from '../../stores/settings-store';
+import { ConfirmDialog } from '../ui/confirm-dialog';
 
 // ---------------------------------------------------------------------------
 // Color presets
@@ -70,6 +71,16 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
   const setChatTextColor = useSettingsStore((s) => s.setChatTextColor);
   const compactMode = useSettingsStore((s) => s.compactMode);
   const setCompactMode = useSettingsStore((s) => s.setCompactMode);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleResetConfirm = () => {
+    setFontSize(14);
+    setFontColor(null);
+    setIconSize(32);
+    setUsernameColor(null);
+    setChatTextColor(null);
+    setShowResetConfirm(false);
+  };
 
   // Close on outside click
   useEffect(() => {
@@ -292,14 +303,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
 
         {/* Reset */}
         <button
-          onClick={() => {
-            if (!window.confirm('Reset all appearance settings to defaults?')) return;
-            setFontSize(14);
-            setFontColor(null);
-            setIconSize(32);
-            setUsernameColor(null);
-            setChatTextColor(null);
-          }}
+          onClick={() => setShowResetConfirm(true)}
           className="w-full rounded-lg border border-border px-4 py-2 text-sm text-text-muted transition-colors hover:bg-surface-2 hover:text-text-secondary"
         >
           Reset to Defaults
@@ -318,9 +322,7 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
             <button
               type="button"
               onClick={() => {
-                useSettingsStore.getState().setTutorialCompleted(false);
-                // The onboarding flow will re-trigger when the user navigates
-                // to a state where hubs.length === 0, or we can show just the tour
+                useSettingsStore.getState().triggerTour();
               }}
               className="rounded-lg border border-white/8 bg-white/5 px-4 py-2 font-mono text-[10px] text-text-secondary transition-all duration-150 hover:border-accent/30 hover:bg-accent/10 hover:text-accent cursor-pointer"
             >
@@ -328,6 +330,16 @@ export function AppearanceSettings({ open, onClose }: AppearanceSettingsProps) {
             </button>
           </div>
         </div>
+
+        <ConfirmDialog
+          open={showResetConfirm}
+          onOpenChange={setShowResetConfirm}
+          title="Reset Appearance"
+          description="All appearance settings will be restored to their default values."
+          confirmLabel="Reset"
+          variant="danger"
+          onConfirm={handleResetConfirm}
+        />
       </div>
     </div>,
     document.body,

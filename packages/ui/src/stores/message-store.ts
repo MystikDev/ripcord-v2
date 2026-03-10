@@ -23,6 +23,12 @@ export interface Message {
   pinnedAt?: string;
   /** User ID of who pinned the message. */
   pinnedBy?: string;
+  /** ID of the message this is replying to. */
+  replyToId?: string;
+  /** Denormalized author handle of the replied-to message. */
+  replyToAuthor?: string;
+  /** Denormalized content preview of the replied-to message. */
+  replyToContent?: string;
   attachments?: Array<{
     id: string;
     fileNameEncrypted: string;
@@ -37,6 +43,11 @@ export interface Message {
 export interface MessageState {
   /** Channel ID to ordered message array. */
   messages: Record<string, Message[]>;
+
+  /** The message the user is currently composing a reply to, or null. */
+  replyingTo: { messageId: string; authorHandle: string; contentPreview: string } | null;
+  /** Set or clear the reply-to target for the composer. */
+  setReplyingTo: (reply: { messageId: string; authorHandle: string; contentPreview: string } | null) => void;
 
   /** Append a message, deduplicating optimistic sends. */
   addMessage: (channelId: string, message: Message) => void;
@@ -56,6 +67,9 @@ export interface MessageState {
 
 export const useMessageStore = create<MessageState>()((set) => ({
   messages: {},
+
+  replyingTo: null,
+  setReplyingTo: (reply) => set({ replyingTo: reply }),
 
   addMessage: (channelId, message) =>
     set((state) => {

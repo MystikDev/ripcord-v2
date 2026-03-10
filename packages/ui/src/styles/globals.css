@@ -33,6 +33,14 @@
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
+  /* Typography Scale */
+  --font-size-caption: 10px;
+  --font-size-body-sm: 12px;
+  --font-size-body: 14px;
+  --font-size-heading: 16px;
+  --font-size-title: 20px;
+  --font-size-display: 24px;
+
   /* ORBIT animations */
   --animate-float: float 6s ease-in-out infinite;
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
@@ -56,6 +64,14 @@
  * 400  - Modal overlays
  */
 
+/* ─── Typography Scale Utilities ─── */
+.text-caption { font-size: var(--font-size-caption); }
+.text-body-sm { font-size: var(--font-size-body-sm); }
+.text-body { font-size: var(--font-size-body); }
+.text-heading { font-size: var(--font-size-heading); }
+.text-title { font-size: var(--font-size-title); }
+.text-display { font-size: var(--font-size-display); }
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text-primary);
@@ -70,9 +86,9 @@ body {
 .transition-slow { transition-duration: 200ms; }
 
 /* ─── Custom Scrollbar (ORBIT cyan tint) ─── */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 2px; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0, 240, 255, 0.5); }
 
 /* ─── Selection ─── */

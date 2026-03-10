@@ -16,7 +16,7 @@ export function OnboardingWelcome({ onChooseCreate, onChooseJoin }: WelcomeProps
         style={{
           fontSize: '28px',
           animation: 'onboard-title-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both',
-          background: 'linear-gradient(135deg, #00e5ff 0%, #8338ec 50%, #ff006e 100%)',
+          background: 'linear-gradient(135deg, #00e5ff 0%, var(--color-accent-violet) 50%, var(--color-accent-magenta) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',

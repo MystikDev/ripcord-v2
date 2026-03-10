@@ -1,22 +1,25 @@
 /**
  * @module QuickTourOverlay
- * Full-screen tutorial overlay with three slides. Renders a glass panel with
- * slide navigation, step dots, and a "Skip Tour" escape hatch.
+ * Full-screen tutorial overlay with five slides explaining the spatial metaphor.
+ * Renders a glass panel with slide navigation, step dots, and a "Skip Tour"
+ * escape hatch.
  */
 'use client';
 
 import { useState } from 'react';
 import clsx from 'clsx';
 import { Button } from '../../ui/button';
+import { TourSlideWelcome } from './tour-slide-welcome';
 import { TourSlideCosmos } from './tour-slide-cosmos';
 import { TourSlideOrbits } from './tour-slide-orbits';
+import { TourSlideChannels } from './tour-slide-channels';
 import { TourSlideReady } from './tour-slide-ready';
 
 // ---------------------------------------------------------------------------
-// Types
+// Constants
 // ---------------------------------------------------------------------------
 
-type SlideIndex = 1 | 2 | 3;
+const TOTAL_SLIDES = 5;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -31,15 +34,15 @@ interface QuickTourOverlayProps {
 // ---------------------------------------------------------------------------
 
 export function QuickTourOverlay({ onComplete }: QuickTourOverlayProps) {
-  const [currentSlide, setCurrentSlide] = useState<SlideIndex>(1);
+  const [currentSlide, setCurrentSlide] = useState(1);
 
   const goNext = () => {
-    if (currentSlide < 3) setCurrentSlide((prev) => (prev + 1) as SlideIndex);
+    if (currentSlide < TOTAL_SLIDES) setCurrentSlide((prev) => prev + 1);
     else onComplete();
   };
 
   const goBack = () => {
-    if (currentSlide > 1) setCurrentSlide((prev) => (prev - 1) as SlideIndex);
+    if (currentSlide > 1) setCurrentSlide((prev) => prev - 1);
   };
 
   return (
@@ -50,7 +53,7 @@ export function QuickTourOverlay({ onComplete }: QuickTourOverlayProps) {
     >
       {/* Central glass panel */}
       <div
-        className="relative mx-auto mt-[15vh] w-full max-w-xl rounded-2xl"
+        className="relative mx-auto mt-[12vh] w-full max-w-xl rounded-2xl"
         style={{
           background: 'rgba(7, 9, 13, 0.95)',
           border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -68,10 +71,12 @@ export function QuickTourOverlay({ onComplete }: QuickTourOverlayProps) {
         </button>
 
         {/* Slide area */}
-        <div className="min-h-[340px]">
-          {currentSlide === 1 && <TourSlideCosmos />}
-          {currentSlide === 2 && <TourSlideOrbits />}
-          {currentSlide === 3 && <TourSlideReady />}
+        <div className="min-h-[360px]">
+          {currentSlide === 1 && <TourSlideWelcome />}
+          {currentSlide === 2 && <TourSlideCosmos />}
+          {currentSlide === 3 && <TourSlideOrbits />}
+          {currentSlide === 4 && <TourSlideChannels />}
+          {currentSlide === 5 && <TourSlideReady />}
         </div>
 
         {/* Bottom navigation bar */}
@@ -81,7 +86,7 @@ export function QuickTourOverlay({ onComplete }: QuickTourOverlayProps) {
         >
           {/* Step dots */}
           <div className="flex items-center gap-2">
-            {([1, 2, 3] as SlideIndex[]).map((dot) => (
+            {Array.from({ length: TOTAL_SLIDES }, (_, i) => i + 1).map((dot) => (
               <span
                 key={dot}
                 className={clsx(
@@ -102,7 +107,7 @@ export function QuickTourOverlay({ onComplete }: QuickTourOverlayProps) {
 
           {/* Navigation buttons */}
           <div className="flex items-center gap-2">
-            {/* Back — visible on slides 2 and 3 */}
+            {/* Back — visible on slides 2+ */}
             {currentSlide > 1 && (
               <button
                 type="button"
@@ -114,7 +119,7 @@ export function QuickTourOverlay({ onComplete }: QuickTourOverlayProps) {
             )}
 
             {/* Next / Get Started */}
-            {currentSlide < 3 ? (
+            {currentSlide < TOTAL_SLIDES ? (
               <button
                 type="button"
                 onClick={goNext}

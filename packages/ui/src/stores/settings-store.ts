@@ -109,6 +109,13 @@ export interface SettingsState {
   /** Set the tutorial completed state. */
   setTutorialCompleted: (completed: boolean) => void;
 
+  /** Whether the standalone quick tour overlay should be shown (e.g. replay from settings). */
+  showTour: boolean;
+  /** Trigger the quick tour overlay to open (used by Replay Tour). */
+  triggerTour: () => void;
+  /** Dismiss the standalone quick tour overlay. */
+  dismissTour: () => void;
+
   /** Base font size in pixels (12-20). Default: 14 */
   fontSize: number;
   /** Custom text color override (hex string) or null for default. */
@@ -200,6 +207,30 @@ export interface SettingsState {
   /** Set the Comms Center size. */
   setCommsCenterSize: (size: { width: number; height: number }) => void;
 
+  /** Whether the full settings view is open. */
+  settingsOpen: boolean;
+  /** The active tab in the settings view. */
+  settingsTab: string;
+  /** Open the settings view, optionally jumping to a specific tab. */
+  openSettings: (tab?: string) => void;
+  /** Close the settings view. */
+  closeSettings: () => void;
+
+  /** Whether the full admin console view is open. */
+  adminOpen: boolean;
+  /** The active tab in the admin console view. */
+  adminTab: string;
+  /** Hub ID for the admin console (set when opened). */
+  adminHubId: string | null;
+  /** Hub name for the admin console (set when opened). */
+  adminHubName: string | null;
+  /** Open the admin console, optionally jumping to a specific tab. */
+  openAdmin: (hubId: string, hubName: string, tab?: string) => void;
+  /** Close the admin console. */
+  closeAdmin: () => void;
+  /** Switch the active admin tab. */
+  setAdminTab: (tab: string) => void;
+
   /** Whether the floating Friends panel is open in the orbital view. */
   friendsPanelOpen: boolean;
   /** Toggle the Friends panel open/closed. */
@@ -285,6 +316,10 @@ export const useSettingsStore = create<SettingsState>()(
       tutorialCompleted: false,
       setTutorialCompleted: (completed) => set({ tutorialCompleted: completed }),
 
+      showTour: false,
+      triggerTour: () => set({ showTour: true, settingsOpen: false }),
+      dismissTour: () => set({ showTour: false, tutorialCompleted: true }),
+
       fontSize: 14,
       fontColor: null,
       iconSize: 32,
@@ -334,6 +369,19 @@ export const useSettingsStore = create<SettingsState>()(
       setCommsCenterPosition: (pos) => set({ commsCenterPosition: pos }),
       commsCenterSize: { width: 420, height: 550 },
       setCommsCenterSize: (size) => set({ commsCenterSize: size }),
+
+      settingsOpen: false,
+      settingsTab: 'account',
+      openSettings: (tab) => set({ settingsOpen: true, settingsTab: tab ?? 'account' }),
+      closeSettings: () => set({ settingsOpen: false }),
+
+      adminOpen: false,
+      adminTab: 'overview',
+      adminHubId: null,
+      adminHubName: null,
+      openAdmin: (hubId, hubName, tab) => set({ adminOpen: true, adminHubId: hubId, adminHubName: hubName, adminTab: tab ?? 'overview', settingsOpen: false }),
+      closeAdmin: () => set({ adminOpen: false }),
+      setAdminTab: (tab) => set({ adminTab: tab }),
 
       friendsPanelOpen: false,
       toggleFriendsPanel: () => set((s) => ({ friendsPanelOpen: !s.friendsPanelOpen })),

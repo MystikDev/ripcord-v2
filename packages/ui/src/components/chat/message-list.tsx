@@ -10,11 +10,21 @@ import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { useMessageStore, type Message } from '../../stores/message-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { MessageItem } from './message-item';
+import { EmptyState, RadioWavesIcon } from '../ui/empty-state';
 
 const EMPTY_MESSAGES: Message[] = [];
 
 // Distance from bottom (px) at which we consider the user "at the bottom"
 const BOTTOM_THRESHOLD = 80;
+
+// ---------------------------------------------------------------------------
+// Virtualization — render-window constants
+// ---------------------------------------------------------------------------
+
+/** Max messages to render initially (most recent N). Below this count we render all. */
+const INITIAL_RENDER_LIMIT = 150;
+/** How many additional messages to show when the user clicks "Load earlier". */
+const LOAD_MORE_BATCH = 100;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -94,6 +104,21 @@ export function MessageList({ channelId }: MessageListProps) {
   // Track whether the user has scrolled away from the bottom
   const [showJumpButton, setShowJumpButton] = useState(false);
 
+  // ── Render-window state ──────────────────────────────────────────────
+  const [renderLimit, setRenderLimit] = useState(INITIAL_RENDER_LIMIT);
+
+  // Reset the render window whenever the channel changes so we don't carry
+  // a large window from a busy channel into a quiet one.
+  useEffect(() => {
+    setRenderLimit(INITIAL_RENDER_LIMIT);
+  }, [channelId]);
+
+  // Only materialise the tail of the messages array to keep the DOM small.
+  const visibleMessages = messages.length > renderLimit
+    ? messages.slice(-renderLimit)
+    : messages;
+  const hasOlderMessages = messages.length > renderLimit;
+
   // True when the channel key exists in the store but has no messages yet,
   // OR when we have never received data for this channel at all (initial mount).
   const isLoading = useMessageStore((s) => !(channelId in s.messages));
@@ -144,7 +169,7 @@ export function MessageList({ channelId }: MessageListProps) {
     }
   }, [channelId, messages.length, isLoading]);
 
-  const groups = useMemo(() => buildMessageGroups(messages), [messages]);
+  const groups = useMemo(() => buildMessageGroups(visibleMessages), [visibleMessages]);
 
   // Loading skeleton — shown when the channel has no data yet
   if (isLoading) {
@@ -163,19 +188,11 @@ export function MessageList({ channelId }: MessageListProps) {
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 border border-white/10">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-text-muted">
-            <path
-              d="M8 12h.01M12 12h.01M16 12h.01"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-        <p className="text-sm text-text-muted">
-          No messages yet. Start the conversation!
-        </p>
+        <EmptyState
+          icon={<RadioWavesIcon />}
+          title="First transmission awaits"
+          subtitle="Say something to break the silence..."
+        />
       </div>
     );
   }
@@ -188,6 +205,20 @@ export function MessageList({ channelId }: MessageListProps) {
         className="h-full overflow-y-auto"
       >
         <div className="max-w-3xl mx-auto py-4 px-6 space-y-1">
+          {/* Load earlier messages — only shown when the render window is truncated */}
+          {hasOlderMessages && (
+            <div className="flex justify-center">
+              <button
+                onClick={() => setRenderLimit((prev) => prev + LOAD_MORE_BATCH)}
+                className="mx-auto my-3 flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-xs text-text-muted hover:text-accent hover:border-accent/30 transition-colors cursor-pointer"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 12V4M4 8l4-4 4 4" />
+                </svg>
+                Load earlier messages ({messages.length - renderLimit} more)
+              </button>
+            </div>
+          )}
           {groups.map((group) => (
             <div key={group.root.id}>
               {/* Root message — full glass-card node */}

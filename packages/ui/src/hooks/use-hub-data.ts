@@ -60,6 +60,7 @@ export function useHubData() {
   const setRolesStore = useRoleStore((s) => s.setRoles);
   const setPresenceMany = usePresenceStore((s) => s.setMany);
   const setPermissions = usePermissionStore((s) => s.setPermissions);
+  const setHubMemberIds = useHubStore((s) => s.setHubMemberIds);
 
   // Onboarding flag — true when user has zero hubs
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -243,6 +244,8 @@ export function useHubData() {
           joinedAt: m.joinedAt,
           roles: m.roles,
         })));
+        // Cache member IDs for cosmos view online counts
+        setHubMemberIds(activeHubId, members.map((m) => m.userId));
       })
       .catch((err) => {
         if (!cancelled) console.error('Failed to load members:', err);
@@ -335,7 +338,7 @@ export function useHubData() {
     return () => {
       cancelled = true;
     };
-  }, [activeHubId, setChannels, setVoiceStates, setMembersStore, setRolesStore, setPresenceMany, setPermissions]);
+  }, [activeHubId, setChannels, setVoiceStates, setMembersStore, setRolesStore, setPresenceMany, setPermissions, setHubMemberIds]);
 
   // Re-subscribe channels & re-hydrate voice states on gateway reconnect
   useEffect(() => {

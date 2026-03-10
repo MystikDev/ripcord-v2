@@ -18,7 +18,7 @@ import { SplinterButton } from './orbital/splinter-button';
 import { OrbitContextMenu } from './orbital/orbit-context-menu';
 import { FloatingChatPanel } from './orbital/floating-chat-panel';
 import { FloatingFriendsPanel } from './orbital/floating-friends-panel';
-import { AdminConsole } from '../admin/admin-console';
+import { useSettingsStore } from '../../stores/settings-store';
 import { Permission } from '@ripcord/types';
 import { useHubStore, type Channel } from '../../stores/server-store';
 import { useHasPermission } from '../../hooks/use-has-permission';
@@ -26,7 +26,6 @@ import { useVoiceStateStore, EMPTY_PARTICIPANTS } from '../../stores/voice-state
 import { usePresenceStore, type PresenceStatus } from '../../stores/presence-store';
 import { useMemberStore, type MemberInfo } from '../../stores/member-store';
 import { useAuthStore } from '../../stores/auth-store';
-import { useSettingsStore } from '../../stores/settings-store';
 import { useTypingStore } from '../../stores/typing-store';
 import { useOrbitLayoutStore } from '../../stores/orbit-layout-store';
 
@@ -291,7 +290,7 @@ export function SolarSystemView() {
     channelName: string;
     position: { x: number; y: number };
   } | null>(null);
-  const [adminConsoleOpen, setAdminConsoleOpen] = useState(false);
+  const openAdmin = useSettingsStore((s) => s.openAdmin);
 
   // -- First-time zoom/pan hint overlay --------------------------------------
   const HINT_KEY = 'ripcord:orbital:pan-zoom-hint-seen';
@@ -974,22 +973,19 @@ export function SolarSystemView() {
           onClose={() => setOrbitCtxMenu(null)}
           onOpenSettings={() => {
             setOrbitCtxMenu(null);
-            setAdminConsoleOpen(true);
+            if (activeHub) {
+              openAdmin(activeHub.id, activeHub.name);
+              // Exit solar system view so admin page is visible
+              useHubStore.getState().setSystemViewActive(false);
+            }
           }}
           onChannelDeleted={handleOrbitChannelDeleted}
           onChannelRenamed={handleOrbitChannelRenamed}
         />
       )}
 
-      {/* Layer 7c: Admin console (controlled, opened from orbit context menu) */}
-      {activeHub && (
-        <AdminConsole
-          hubId={activeHub.id}
-          hubName={activeHub.name}
-          open={adminConsoleOpen}
-          onOpenChange={setAdminConsoleOpen}
-        />
-      )}
+      {/* Layer 7c: Admin console — now a full-page view rendered in AppShell.
+          Opening is handled via the settings store (openAdmin). */}
 
       {/* Layer 8: Floating chat panel (Comms Center) */}
       {activeChannelId && activeTextChannelName && (

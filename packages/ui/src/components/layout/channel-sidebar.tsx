@@ -22,8 +22,8 @@ import { CreateChannelDialog } from '../hub/create-channel-dialog';
 import { AdminConsole } from '../admin/admin-console';
 import { DmChannelList } from '../dm/dm-channel-list';
 
-import { AppearanceSettings } from '../settings/appearance-settings';
 import { Tooltip } from '../ui/tooltip';
+import { EmptyState, SatelliteIcon } from '../ui/empty-state';
 
 import { gateway } from '../../lib/gateway-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -102,6 +102,7 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
   const participants = useVoiceStateStore((s) => s.voiceStates[channel.id] ?? EMPTY_PARTICIPANTS);
   const speakingUserIds = useVoiceStateStore((s) => s.speakingUserIds);
   const screenSharingUserIds = useVoiceStateStore((s) => s.screenSharingUserIds);
+  const connectedChannelId = useVoiceStateStore((s) => s.connectedChannelId);
   const members = useMemberStore((s) => s.members);
   const currentUserId = useAuthStore((s) => s.userId);
 
@@ -139,7 +140,7 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
   } | null>(null);
 
   return (
-    <div>
+    <div className="group">
       <button
         onClick={() => setActiveChannel(channel.id)}
         onDoubleClick={() => setPendingVoiceJoin(channel.id)}
@@ -169,6 +170,18 @@ function VoiceChannelItem({ channel, isActive }: { channel: Channel; isActive: b
           <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/20 px-1.5 text-[10px] font-medium text-accent">
             {participants.length}
           </span>
+        )}
+        {/* Join button — shown on hover when not connected to this channel */}
+        {connectedChannelId !== channel.id && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setPendingVoiceJoin(channel.id);
+            }}
+            className="ml-auto hidden group-hover:flex h-6 items-center gap-1 rounded-md bg-accent/20 px-2 text-[10px] font-medium text-accent hover:bg-accent/30 transition-colors"
+          >
+            Join
+          </button>
         )}
       </button>
 
@@ -292,7 +305,10 @@ function UserPanel({ pinned, onTogglePin }: { pinned: boolean; onTogglePin: () =
   const userId = useAuthStore((s) => s.userId);
   const logout = useAuthStore((s) => s.logout);
   const status = usePresenceStore((s) => userId ? s.presence[userId] ?? 'online' : 'online');
-  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const customStatus = usePresenceStore((s) => userId ? s.getCustomStatus(userId) : undefined);
+  const setCustomStatus = usePresenceStore((s) => s.setCustomStatus);
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [statusDraft, setStatusDraft] = useState('');
 
   // Voice control state (bridged from LiveKit via store)
   const connectedChannelId = useVoiceStateStore((s) => s.connectedChannelId);
@@ -332,6 +348,38 @@ function UserPanel({ pinned, onTogglePin }: { pinned: boolean; onTogglePin: () =
             {handle ?? 'Unknown'}
           </p>
           <p className="text-accent/80 capitalize" style={{ fontSize: 'var(--font-size-xs, 10px)' }}>{status}</p>
+          {editingStatus ? (
+            <input
+              autoFocus
+              value={statusDraft}
+              onChange={(e) => setStatusDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (userId) setCustomStatus(userId, statusDraft.trim());
+                  setEditingStatus(false);
+                }
+                if (e.key === 'Escape') setEditingStatus(false);
+              }}
+              onBlur={() => {
+                if (userId && statusDraft.trim()) setCustomStatus(userId, statusDraft.trim());
+                setEditingStatus(false);
+              }}
+              placeholder="Set a status..."
+              maxLength={100}
+              className="w-full bg-transparent text-[10px] text-text-muted outline-none placeholder:text-white/20"
+            />
+          ) : (
+            <p
+              onClick={() => {
+                setEditingStatus(true);
+                setStatusDraft(customStatus ?? '');
+              }}
+              className="text-[10px] text-text-muted truncate cursor-pointer hover:text-text-secondary transition-colors"
+              title="Click to set status"
+            >
+              {customStatus || 'Set a status...'}
+            </p>
+          )}
         </div>
 
         {/* Mic / Deafen buttons (visible when in voice) */}
@@ -394,11 +442,11 @@ function UserPanel({ pinned, onTogglePin }: { pinned: boolean; onTogglePin: () =
           </button>
         </Tooltip>
 
-        <Tooltip content="Appearance" side="top">
+        <Tooltip content="Settings" side="top">
           <button
-            onClick={() => setAppearanceOpen(true)}
+            onClick={() => useSettingsStore.getState().openSettings('appearance')}
             className="rounded-md p-1.5 text-text-muted hover:bg-white/5 hover:text-accent transition-colors"
-            title="Appearance settings"
+            title="Settings"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="8" cy="8" r="3" />
@@ -417,8 +465,6 @@ function UserPanel({ pinned, onTogglePin }: { pinned: boolean; onTogglePin: () =
           </svg>
         </button>
 
-        {/* Appearance settings dialog */}
-        <AppearanceSettings open={appearanceOpen} onClose={() => setAppearanceOpen(false)} />
       </div>
 
       {/* Version footer */}
@@ -442,6 +488,8 @@ export function ChannelSidebar() {
   const activeChannelId = useHubStore((s) => s.activeChannelId);
   const isDmView = useHubStore((s) => s.isDmView);
   const activeDmChannelId = useHubStore((s) => s.activeDmChannelId);
+  const connectedChannelId = useVoiceStateStore((s) => s.connectedChannelId);
+  const connectedChannelName = channels.find((c) => c.id === connectedChannelId)?.name ?? null;
 
   const sidebarWidth = useSettingsStore((s) => s.channelSidebarWidth);
   const setSidebarWidth = useSettingsStore((s) => s.setChannelSidebarWidth);
@@ -583,6 +631,14 @@ export function ChannelSidebar() {
         </div>
       )}
 
+      {/* Voice connection banner */}
+      {connectedChannelId && connectedChannelName && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 border-b border-success/20 text-success text-xs">
+          <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+          <span className="truncate">Connected to #{connectedChannelName}</span>
+        </div>
+      )}
+
       {/* Channel list or DM list */}
       <ScrollArea className="flex-1">
         {isDmView ? (
@@ -667,9 +723,11 @@ export function ChannelSidebar() {
             )}
 
             {channels.length === 0 && (
-              <p className="px-2 py-4 text-center text-sm text-text-muted">
-                No channels yet
-              </p>
+              <EmptyState
+                icon={<SatelliteIcon />}
+                title="No channels yet"
+                subtitle="Create a channel to start transmitting"
+              />
             )}
           </div>
         )}

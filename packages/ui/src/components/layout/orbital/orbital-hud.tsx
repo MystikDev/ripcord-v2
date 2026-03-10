@@ -106,7 +106,7 @@ function MiniAvatar({
       )}
       style={{
         background: `linear-gradient(135deg, ${gradientColors[0]}, ${gradientColors[1]})`,
-        border: isCurrentUser ? '1.5px solid #00f0ff' : '1.5px solid rgba(255,255,255,0.15)',
+        border: isCurrentUser ? '1.5px solid var(--color-accent)' : '1.5px solid rgba(255,255,255,0.15)',
         ...style,
       }}
     >

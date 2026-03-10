@@ -27,7 +27,7 @@ export function TourSlideCosmos({ className }: TourSlideCosmosProps) {
         className="font-display font-light tracking-[0.15em] uppercase select-none"
         style={{
           fontSize: '22px',
-          background: 'linear-gradient(135deg, #00e5ff 0%, #8338ec 50%, #ff006e 100%)',
+          background: 'linear-gradient(135deg, #00e5ff 0%, var(--color-accent-violet) 50%, var(--color-accent-magenta) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
@@ -44,8 +44,8 @@ export function TourSlideCosmos({ className }: TourSlideCosmosProps) {
 
       {/* Description */}
       <p className="font-mono text-[12px] text-white/50 max-w-md mx-auto leading-relaxed">
-        Your solar systems appear as nebulae floating in the cosmos. Click any nebula to enter
-        its orbital view and explore channels.
+        Your hubs appear as nebulae floating in the cosmos. Each nebula is a community — a
+        solar system full of channels and friends. Click one to enter its solar system.
       </p>
     </div>
   );

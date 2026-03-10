@@ -73,6 +73,11 @@ export interface HubState {
   /** Whether the full-screen solar system view is active (true = immersive, false = 3-column chat). */
   systemViewActive: boolean;
 
+  /** Cached channel lists keyed by hubId, accumulated as hubs are visited. */
+  hubChannelCache: Record<string, Channel[]>;
+  /** Cached member user IDs per hub, accumulated as hubs are visited. */
+  hubMemberIds: Record<string, string[]>;
+
   /** Replace the hub list. */
   setHubs: (hubs: Hub[]) => void;
   /** Switch the active hub, clearing channels and selection. Exits DM view. */
@@ -100,6 +105,9 @@ export interface HubState {
   /** Set the solar system immersive view active state. */
   setSystemViewActive: (active: boolean) => void;
 
+  /** Cache member user IDs for a hub (for cosmos view online counts). */
+  setHubMemberIds: (hubId: string, userIds: string[]) => void;
+
   /** Reset all hub/channel state. */
   reset: () => void;
 }
@@ -119,6 +127,8 @@ export const useHubStore = create<HubState>()((set, get) => ({
   isDmView: false,
   previousHubId: null,
   systemViewActive: true,
+  hubChannelCache: {},
+  hubMemberIds: {},
 
   setHubs: (hubs) => set({ hubs }),
 
@@ -139,7 +149,15 @@ export const useHubStore = create<HubState>()((set, get) => ({
     });
   },
 
-  setChannels: (channels) => set({ channels }),
+  setChannels: (channels) => {
+    const hubId = get().activeHubId;
+    set((state) => ({
+      channels,
+      hubChannelCache: hubId
+        ? { ...state.hubChannelCache, [hubId]: channels }
+        : state.hubChannelCache,
+    }));
+  },
 
   setActiveChannel: (id) => set({ activeChannelId: id, systemViewActive: false }),
 
@@ -180,6 +198,11 @@ export const useHubStore = create<HubState>()((set, get) => ({
 
   setSystemViewActive: (active) => set({ systemViewActive: active }),
 
+  setHubMemberIds: (hubId, userIds) =>
+    set((state) => ({
+      hubMemberIds: { ...state.hubMemberIds, [hubId]: userIds },
+    })),
+
   reset: () =>
     set({
       hubs: [],
@@ -192,5 +215,7 @@ export const useHubStore = create<HubState>()((set, get) => ({
       isDmView: false,
       previousHubId: null,
       systemViewActive: true,
+      hubChannelCache: {},
+      hubMemberIds: {},
     }),
 }));

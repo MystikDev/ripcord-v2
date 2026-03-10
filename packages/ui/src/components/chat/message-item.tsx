@@ -18,9 +18,12 @@ import { useHubStore } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useBookmarkStore } from '../../stores/bookmark-store';
+import { usePresenceStore } from '../../stores/presence-store';
 import { UserContextMenu } from '../ui/user-context-menu';
+import { UserProfileCard } from '../ui/user-profile-card';
+import { ConfirmDialog } from '../ui/confirm-dialog';
 import { pinMessage, unpinMessage } from '../../lib/hub-api';
-import type { Message } from '../../stores/message-store';
+import { useMessageStore, type Message } from '../../stores/message-store';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -39,20 +42,54 @@ export interface MessageItemProps {
 
 function formatRelativeTime(iso: string): string {
   try {
-    const now = Date.now();
-    const then = new Date(iso).getTime();
-    const diffSec = Math.floor((now - then) / 1000);
-    if (diffSec < 0) return 'T-0s';
-    if (diffSec < 60) return `T-${diffSec}s`;
+    const now = new Date();
+    const then = new Date(iso);
+    const diffMs = now.getTime() - then.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 0) return 'just now';
+    if (diffSec < 60) return 'just now';
     const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `T-${diffMin}m`;
+    if (diffMin < 60) return `${diffMin}m`;
     const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `T-${diffHr}H`;
-    return `T-${Math.floor(diffHr / 24)}D`;
+    if (diffHr < 24) return `${diffHr}h`;
+    // Check if yesterday
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (then.toDateString() === yesterday.toDateString()) {
+      return `Yesterday ${then.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+    }
+    // Same year — show month and day
+    if (then.getFullYear() === now.getFullYear()) {
+      return then.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    // Different year
+    return then.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return '';
   }
 }
+
+function formatFullTimestamp(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString([], {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+const PRESENCE_COLORS: Record<string, string> = {
+  online: 'bg-success',
+  idle: 'bg-warning',
+  dnd: 'bg-danger',
+  offline: 'bg-text-muted',
+};
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -103,6 +140,16 @@ function TrashIcon() {
   );
 }
 
+/** Reply arrow icon for the action button. */
+function ReplyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8L2 5l4-3" />
+      <path d="M2 5h8a4 4 0 014 4v2" />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -122,11 +169,16 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
   const isBookmarked = useBookmarkStore((s) => s.isBookmarked(message.id));
   const addBookmark = useBookmarkStore((s) => s.addBookmark);
   const removeBookmark = useBookmarkStore((s) => s.removeBookmark);
+  const presenceStatus = usePresenceStore((s) => s.getStatus(message.authorId));
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  // Profile card state (left-click on username)
+  const [profileCard, setProfileCard] = useState<{ x: number; y: number } | null>(null);
   // Local editing state (wire up to real edit API when ready)
   const [isEditing, setIsEditing] = useState(false);
+  // Delete confirmation dialog state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isPinned = !!message.pinnedAt;
 
@@ -162,10 +214,13 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
   }, [message.id]);
 
   const handleDelete = useCallback(() => {
-    if (window.confirm('Delete this message?')) {
-      console.log('Delete message:', message.id);
-      // TODO: wire up to deleteMessage API action
-    }
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const doDelete = useCallback(() => {
+    console.log('Delete message:', message.id);
+    // TODO: wire up to deleteMessage API action
+    setShowDeleteConfirm(false);
   }, [message.id]);
 
   // ---- Compact mode: single-line layout, no avatar ----
@@ -180,7 +235,7 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
         }`}
         tabIndex={0}
       >
-        <span className="shrink-0 text-text-muted font-mono" style={{ fontSize: 'var(--font-size-xs, 10px)', minWidth: '3.5em', textAlign: 'right' }}>
+        <span className="shrink-0 text-text-muted font-mono" style={{ fontSize: 'var(--font-size-xs, 10px)', minWidth: '3.5em', textAlign: 'right' }} title={formatFullTimestamp(message.createdAt)}>
           {formatRelativeTime(message.createdAt)}
         </span>
         <div className="min-w-0 flex-1">
@@ -188,6 +243,10 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
             <span
               className="font-medium display-text cursor-pointer hover:underline mr-1.5"
               style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-username, var(--color-text-primary))' }}
+              onClick={(e) => {
+                if (message.authorId === currentUserId) return;
+                setProfileCard({ x: e.clientX, y: e.clientY });
+              }}
               onContextMenu={(e) => {
                 if (message.authorId === currentUserId) return;
                 e.preventDefault();
@@ -202,6 +261,16 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
               </span>
             )}
           </span>
+          {message.replyToId && (
+            <div className="flex items-center gap-1.5 mb-1 text-[11px] text-text-muted">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M6 8L2 5l4-3" />
+                <path d="M2 5h8a4 4 0 014 4v2" />
+              </svg>
+              <span className="font-medium text-accent/80">{message.replyToAuthor}</span>
+              <span className="truncate max-w-xs">{message.replyToContent}</span>
+            </div>
+          )}
           <MessageContent content={message.content} />
           {message.content && extractUrls(message.content).length > 0 && (
             <div className="flex flex-col gap-1">
@@ -232,6 +301,20 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
           className="absolute right-2 top-0 hidden items-center gap-0.5 rounded-xl glass-panel px-1 group-hover:flex group-focus-within:flex"
           tabIndex={-1}
         >
+          <button
+            tabIndex={0}
+            onClick={() => {
+              useMessageStore.getState().setReplyingTo({
+                messageId: message.id,
+                authorHandle: displayHandle,
+                contentPreview: message.content.slice(0, 100),
+              });
+            }}
+            className="rounded-lg p-1 transition-colors text-text-muted hover:bg-white/10 hover:text-accent"
+            title="Reply"
+          >
+            <ReplyIcon />
+          </button>
           <button
             tabIndex={0}
             onClick={handleToggleBookmark}
@@ -287,6 +370,26 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
             onClose={() => setContextMenu(null)}
           />
         )}
+
+        {/* User profile card (left-click) */}
+        {profileCard && (
+          <UserProfileCard
+            userId={message.authorId}
+            displayName={displayHandle}
+            position={profileCard}
+            onClose={() => setProfileCard(null)}
+          />
+        )}
+
+        <ConfirmDialog
+          open={showDeleteConfirm}
+          onOpenChange={setShowDeleteConfirm}
+          title="Delete Message"
+          description="This action cannot be undone. The message will be permanently removed."
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={doDelete}
+        />
       </motion.div>
     );
   }
@@ -315,8 +418,10 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
                 style={{ width: 'var(--icon-size-base, 32px)', height: 'var(--icon-size-base, 32px)', fontSize: 'calc(var(--icon-size-base, 32px) * 0.35)' }}
               />
             </div>
-            {/* Online dot */}
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-accent rounded-full border-2 border-void" />
+            {/* Presence dot */}
+            {presenceStatus !== 'offline' && (
+              <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-void ${PRESENCE_COLORS[presenceStatus] ?? 'bg-text-muted'}`} />
+            )}
           </div>
         )}
 
@@ -327,6 +432,10 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
               <span
                 className="display-text font-semibold cursor-pointer hover:underline"
                 style={{ fontSize: 'var(--font-size-base, 14px)', color: 'var(--color-username, var(--color-text-primary))' }}
+                onClick={(e) => {
+                  if (message.authorId === currentUserId) return;
+                  setProfileCard({ x: e.clientX, y: e.clientY });
+                }}
                 onContextMenu={(e) => {
                   if (message.authorId === currentUserId) return;
                   e.preventDefault();
@@ -335,7 +444,7 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
               >
                 {displayHandle}
               </span>
-              <span className="text-xs text-white/40 font-mono">
+              <span className="text-xs text-white/40 font-mono" title={formatFullTimestamp(message.createdAt)}>
                 {formatRelativeTime(message.createdAt)}
               </span>
               {message.editedAt && (
@@ -347,6 +456,16 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
                   <span>pinned</span>
                 </span>
               )}
+            </div>
+          )}
+          {message.replyToId && (
+            <div className="flex items-center gap-1.5 mb-1 text-[11px] text-text-muted">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M6 8L2 5l4-3" />
+                <path d="M2 5h8a4 4 0 014 4v2" />
+              </svg>
+              <span className="font-medium text-accent/80">{message.replyToAuthor}</span>
+              <span className="truncate max-w-xs">{message.replyToContent}</span>
             </div>
           )}
           <div className="text-white/80">
@@ -382,6 +501,20 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
         className="absolute right-3 top-3 hidden items-center gap-0.5 rounded-xl glass-panel px-1 group-hover:flex group-focus-within:flex"
         tabIndex={-1}
       >
+        <button
+          tabIndex={0}
+          onClick={() => {
+            useMessageStore.getState().setReplyingTo({
+              messageId: message.id,
+              authorHandle: displayHandle,
+              contentPreview: message.content.slice(0, 100),
+            });
+          }}
+          className="rounded-lg p-1.5 transition-colors text-text-muted hover:bg-white/10 hover:text-accent"
+          title="Reply"
+        >
+          <ReplyIcon />
+        </button>
         <button
           tabIndex={0}
           onClick={handleToggleBookmark}
@@ -430,7 +563,7 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
 
       {/* Timestamp on hover for consecutive messages */}
       {isConsecutive && (
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 hidden text-xs text-white/30 font-mono group-hover:block">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 hidden text-xs text-white/30 font-mono group-hover:block" title={formatFullTimestamp(message.createdAt)}>
           {formatRelativeTime(message.createdAt)}
         </span>
       )}
@@ -444,6 +577,26 @@ export function MessageItem({ message, isConsecutive, isOwnMessage = false }: Me
           onClose={() => setContextMenu(null)}
         />
       )}
+
+      {/* User profile card (left-click) */}
+      {profileCard && (
+        <UserProfileCard
+          userId={message.authorId}
+          displayName={displayHandle}
+          position={profileCard}
+          onClose={() => setProfileCard(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Message"
+        description="This action cannot be undone. The message will be permanently removed."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={doDelete}
+      />
     </motion.div>
   );
 }

@@ -8,6 +8,9 @@
 'use client';
 
 import { useState, useCallback, useRef, useMemo } from 'react';
+import {
+  Tooltip,
+} from '../../ui/tooltip';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,6 +25,12 @@ export interface HubNebulaProps {
   onSelect: (hubId: string, pos: { x: number; y: number }) => void;
   /** Called during drag with new viewport-fraction coordinates */
   onDragMove?: (hubId: string, x: number, y: number) => void;
+  /** Number of members currently online in this hub */
+  onlineCount?: number;
+  /** Whether this hub has unread messages */
+  hasUnread?: boolean;
+  /** Number of channels in this hub (if known) */
+  channelCount?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,7 +115,7 @@ function generateParticles(id: string, count: number): Particle[] {
 
 const DRAG_THRESHOLD = 5;
 
-export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
+export function HubNebula({ hub, x, y, onSelect, onDragMove, onlineCount = 0, hasUnread = false, channelCount }: HubNebulaProps) {
   const [hovered, setHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; dragging: boolean } | null>(null);
@@ -120,6 +129,15 @@ export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
     for (let i = 0; i < hub.id.length; i++) h = hub.id.charCodeAt(i) + ((h << 5) - h);
     return 55 + (h % 25); // 55-80 degree tilt
   }, [hub.id]);
+
+  // Build tooltip text
+  const tooltipText = useMemo(() => {
+    const parts: string[] = [hub.name];
+    if (onlineCount > 0) parts.push(`${onlineCount} online`);
+    if (channelCount !== undefined && channelCount > 0)
+      parts.push(`${channelCount} channel${channelCount !== 1 ? 's' : ''}`);
+    return parts.join(' \u2022 ');
+  }, [hub.name, onlineCount, channelCount]);
 
   const handleClick = useCallback(() => {
     if (dragRef.current?.dragging) return;
@@ -163,6 +181,7 @@ export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
   }, []);
 
   return (
+    <Tooltip content={tooltipText} side="top">
     <div
       ref={containerRef}
       className="absolute flex flex-col items-center cursor-grab active:cursor-grabbing"
@@ -183,6 +202,19 @@ export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* ── Unread magenta glow ── */}
+      {hasUnread && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            inset: '-30%',
+            background: 'radial-gradient(circle, rgba(255, 0, 110, 0.25) 0%, rgba(255, 0, 110, 0.08) 40%, transparent 70%)',
+            filter: 'blur(20px)',
+            animation: 'cosmos-core-pulse 3s ease-in-out infinite',
+          }}
+        />
+      )}
+
       {/* ── Deep ambient glow ── */}
       <div
         className="absolute pointer-events-none"
@@ -330,24 +362,48 @@ export function HubNebula({ hub, x, y, onSelect, onDragMove }: HubNebulaProps) {
             {getInitials(hub.name)}
           </span>
         )}
+
+        {/* ── Unread badge dot ── */}
+        {hasUnread && (
+          <div
+            className="absolute"
+            style={{
+              top: '2px',
+              right: '2px',
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: 'rgb(255, 0, 110)',
+              boxShadow: '0 0 8px rgba(255, 0, 110, 0.7), 0 0 16px rgba(255, 0, 110, 0.3)',
+              border: '2px solid rgba(0, 0, 0, 0.4)',
+              zIndex: 2,
+            }}
+          />
+        )}
       </div>
 
-      {/* ── Hub name label ── */}
-      <div
-        className="mt-auto font-mono uppercase tracking-[0.12em] text-[10px] whitespace-nowrap"
-        style={{
-          background: hovered ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-          border: `1px solid ${hovered ? `${colors.ring}40` : 'rgba(255, 255, 255, 0.06)'}`,
-          padding: '3px 12px',
-          borderRadius: '9999px',
-          color: hovered ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.6)',
-          transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-          backdropFilter: 'blur(8px)',
-          textShadow: hovered ? `0 0 8px ${colors.glow}40` : 'none',
-        }}
-      >
-        {hub.name}
+      {/* ── Hub name label + online count ── */}
+      <div className="mt-auto flex flex-col items-center gap-0.5">
+        <div
+          className="font-mono uppercase tracking-[0.12em] text-[10px] whitespace-nowrap"
+          style={{
+            background: hovered ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+            border: `1px solid ${hovered ? `${colors.ring}40` : 'rgba(255, 255, 255, 0.06)'}`,
+            padding: '3px 12px',
+            borderRadius: '9999px',
+            color: hovered ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.6)',
+            transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+            backdropFilter: 'blur(8px)',
+            textShadow: hovered ? `0 0 8px ${colors.glow}40` : 'none',
+          }}
+        >
+          {hub.name}
+        </div>
+        <span className="text-[10px] text-white/40 font-mono mt-0.5">
+          {onlineCount > 0 ? `${onlineCount} online` : 'No activity'}
+        </span>
       </div>
     </div>
+    </Tooltip>
   );
 }

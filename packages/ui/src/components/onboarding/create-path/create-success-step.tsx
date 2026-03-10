@@ -109,7 +109,7 @@ export function CreateSuccessStep({ hubName, onContinue }: CreateSuccessStepProp
           className="font-display font-light tracking-[0.08em] uppercase select-none"
           style={{
             fontSize: '24px',
-            background: 'linear-gradient(135deg, #fff 0%, #00f0ff 50%, #ff006e 100%)',
+            background: 'linear-gradient(135deg, #fff 0%, var(--color-accent) 50%, var(--color-accent-magenta) 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',

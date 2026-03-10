@@ -1,20 +1,10 @@
 /**
  * @module TourSlideOrbits
- * Quick Tour slide 2 — explains the three channel types via orbit diagrams.
+ * Quick Tour slide 3 — explains the solar system view with orbits as channels.
  */
 'use client';
 
-import { OrbitDiagramSVG } from '../illustrations/orbit-diagram-svg';
-
-// ---------------------------------------------------------------------------
-// Orbit diagram variants with labels
-// ---------------------------------------------------------------------------
-
-const ORBIT_ITEMS = [
-  { variant: 'channels' as const, label: 'Text Channels' },
-  { variant: 'voice' as const,    label: 'Voice Channels' },
-  { variant: 'chat' as const,     label: 'Floating Chat' },
-] as const;
+import { SolarSystemSVG } from '../illustrations/solar-system-svg';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -28,32 +18,25 @@ export function TourSlideOrbits() {
         className="font-display font-light tracking-[0.15em] uppercase select-none"
         style={{
           fontSize: '22px',
-          background: 'linear-gradient(135deg, #00e5ff 0%, #8338ec 50%, #ff006e 100%)',
+          background: 'linear-gradient(135deg, #00e5ff 0%, var(--color-accent-violet) 50%, var(--color-accent-magenta) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
           filter: 'drop-shadow(0 0 20px rgba(0, 229, 255, 0.3))',
         }}
       >
-        Orbits Are Channels
+        Solar System View
       </h2>
 
-      {/* Three orbit diagram mini-illustrations */}
-      <div className="flex justify-center gap-6 my-6">
-        {ORBIT_ITEMS.map(({ variant, label }) => (
-          <div key={variant} className="flex flex-col items-center gap-2">
-            <OrbitDiagramSVG variant={variant} className="w-[80px] h-[80px]" />
-            <span className="font-mono text-[10px] text-white/40 uppercase tracking-wider">
-              {label}
-            </span>
-          </div>
-        ))}
+      {/* Solar system illustration */}
+      <div className="mx-auto my-6 w-[200px] h-[200px]">
+        <SolarSystemSVG className="w-full h-full" />
       </div>
 
       {/* Description */}
-      <p className="font-mono text-[12px] text-white/50 max-w-md mx-auto mt-4 leading-relaxed">
-        Each orbit ring is a channel. Join voice by clicking a voice orbit, or open text chat
-        from any channel.
+      <p className="font-mono text-[12px] text-white/50 max-w-md mx-auto mt-2 leading-relaxed">
+        Each hub is a solar system. Voice channels are orbits — users appear as nodes orbiting
+        the sun when they join. Drag to pan, scroll to zoom, and click orbits to interact.
       </p>
     </div>
   );
