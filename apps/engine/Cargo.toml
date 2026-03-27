@@ -14,9 +14,20 @@ windows = { version = "0.58", features = [
     "Win32_System_LibraryLoader",
     "Win32_UI_Shell",
     "Win32_UI_HiDpi",
+    "Win32_Media_Audio",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Threading",
+    "Win32_System_Variant",
+    "Win32_Security",
+    "Win32_Devices_Properties",
+    "Win32_Devices_FunctionDiscovery",
+    "Win32_UI_Shell_PropertiesSystem",
 ] }
 webview2-com = "0.33"
 crossbeam-channel = "0.5"
+ringbuf = "0.4"
+nnnoiseless = "0.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
@@ -27,6 +38,7 @@ engine-core = { path = "crates/engine-core" }
 engine-webview = { path = "crates/engine-webview" }
 engine-window = { path = "crates/engine-window" }
 engine-ipc = { path = "crates/engine-ipc" }
+engine-audio = { path = "crates/engine-audio" }
 
 [package]
 name = "ripcord-engine"

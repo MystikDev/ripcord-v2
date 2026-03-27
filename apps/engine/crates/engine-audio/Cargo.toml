@@ -1,13 +1,13 @@
 [package]
-name = "engine-core"
+name = "engine-audio"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-engine-window = { workspace = true }
-engine-webview = { workspace = true }
-engine-ipc = { workspace = true }
-engine-audio = { workspace = true }
+windows = { workspace = true }
 crossbeam-channel = { workspace = true }
+ringbuf = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
+nnnoiseless = { workspace = true }
