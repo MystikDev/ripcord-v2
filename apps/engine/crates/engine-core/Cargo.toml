@@ -1,0 +1,12 @@
+[package]
+name = "engine-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+engine-window = { workspace = true }
+engine-webview = { workspace = true }
+engine-ipc = { workspace = true }
+crossbeam-channel = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }

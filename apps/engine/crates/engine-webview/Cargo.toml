@@ -1,0 +1,13 @@
+[package]
+name = "engine-webview"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+windows = { workspace = true }
+webview2-com = { workspace = true }
+crossbeam-channel = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+engine-ipc = { workspace = true }

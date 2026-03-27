@@ -1,0 +1,9 @@
+[package]
+name = "engine-window"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+windows = { workspace = true }
+crossbeam-channel = { workspace = true }
+log = { workspace = true }

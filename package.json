@@ -14,7 +14,10 @@
     "typecheck": "tsc --build",
     "test": "vitest run",
     "db:migrate": "tsx scripts/run-migrations.ts",
-    "clean": "pnpm -r exec rm -rf dist .next"
+    "clean": "pnpm -r exec rm -rf dist .next",
+    "dev:engine:vite": "cd apps/desktop && pnpm run dev",
+    "dev:engine:run": "cd apps/engine && cargo run",
+    "build:engine": "cd apps/engine && cargo build --release"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
