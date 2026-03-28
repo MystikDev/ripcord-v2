@@ -56,42 +56,10 @@ export interface UsePushToTalkReturn {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — cached Tauri imports
+// Helpers — platform bridge
 // ---------------------------------------------------------------------------
 
-/** Resolved `invoke` function from `@tauri-apps/api/core`, or `null` if not
- *  running inside Tauri. Cached after the first (async) resolution. */
-let cachedInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
-let invokeResolved = false;
-
-async function getInvoke() {
-  if (invokeResolved) return cachedInvoke;
-  invokeResolved = true;
-  try {
-    const mod = await import('@tauri-apps/api/core');
-    cachedInvoke = mod.invoke;
-    return cachedInvoke;
-  } catch {
-    // Not running in Tauri
-    return null;
-  }
-}
-
-/** Resolved `listen` function from `@tauri-apps/api/event`, or `null`. */
-let cachedListen: ((event: string, handler: (event: { payload: unknown }) => void) => Promise<() => void>) | null = null;
-let listenResolved = false;
-
-async function getListen() {
-  if (listenResolved) return cachedListen;
-  listenResolved = true;
-  try {
-    const mod = await import('@tauri-apps/api/event');
-    cachedListen = mod.listen;
-    return cachedListen;
-  } catch {
-    return null;
-  }
-}
+import { startPttHook, checkKeyPressed, type PttHookHandle } from '../lib/platform';
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -256,26 +224,23 @@ export function usePushToTalk({
 
     // ----- Native background PTT setup (async) -----
     //
-    // Strategy: try the WH_KEYBOARD_LL hook first (Windows). If that fails
-    // or returns false (non-Windows), fall back to Tauri global shortcut.
-    // Serialized to prevent both from registering on the same platform.
+    // Strategy: use the platform bridge which tries Engine (WH_KEYBOARD_LL)
+    // first, then Tauri (WH_KEYBOARD_LL), then falls back to global shortcut.
 
-    let hookCleanup: (() => void) | null = null;
+    let hookHandle: PttHookHandle | null = null;
     let tauriCleanup: (() => void) | null = null;
 
-    // Polling fallback — WebView2 may throttle Tauri event delivery when the
-    // window is minimized. GetAsyncKeyState polling bypasses this limitation.
+    // Polling fallback — WebView2 may throttle event delivery when the
+    // window is minimized. GetAsyncKeyState polling bypasses this.
     let pollTimer: ReturnType<typeof setInterval> | null = null;
-    let pollInvoke: typeof cachedInvoke = null;
     let pollVk: number | null = null;
 
     function startPoll() {
-      if (pollTimer || !pollInvoke || pollVk === null) return;
-      const inv = pollInvoke;
+      if (pollTimer || pollVk === null) return;
       const vk = pollVk;
       pollTimer = setInterval(async () => {
         try {
-          const state = (await inv('check_key_pressed', { keyCode: vk })) as number;
+          const state = await checkKeyPressed(vk);
           if (state === 1 && !activeRef.current) activate();
           else if (state === 0 && activeRef.current) deactivate();
         } catch { /* ignore */ }
@@ -289,64 +254,29 @@ export function usePushToTalk({
     (async () => {
       if (cancelled || isMouse) return;
 
-      const invoke = await getInvoke();
-      const listen = await getListen();
+      // --- Try platform native hook (Engine or Tauri WH_KEYBOARD_LL) ---
+      if (vkCode !== null) {
+        const handle = await startPttHook(vkCode, activate, deactivate);
 
-      // --- Try WH_KEYBOARD_LL hook first (Windows) ---
-      if (invoke && listen && vkCode !== null) {
-        try {
-          const success = (await invoke('start_ptt_hook', { keyCode: vkCode })) as boolean;
+        if (handle && !cancelled) {
+          hookActive = true;
+          hookHandle = handle;
 
-          if (success && !cancelled) {
-            hookActive = true;
+          // Set up polling fallback
+          pollVk = vkCode;
+          if (!isFocusedRef.current) startPoll();
 
-            // Listen for hook-emitted press/release events
-            const unlistenDown = await listen('ptt-hook-down', () => {
-              // Always honour hook events — activate() is a no-op if already
-              // active (e.g. DOM keydown fired first while focused).
-              activate();
-            });
+          // Hook handles everything — skip global shortcut
+          return;
+        }
 
-            const unlistenUp = await listen('ptt-hook-up', () => {
-              // Always honour release regardless of focus to prevent stuck
-              // key state. The deactivate() guard is a no-op if not active.
-              deactivate();
-            });
-
-            if (cancelled) {
-              // Effect was cleaned up while we were setting up — tear down
-              unlistenDown();
-              unlistenUp();
-              invoke('stop_ptt_hook').catch(() => {});
-              hookActive = false;
-              return;
-            }
-
-            // Store refs for polling fallback
-            pollInvoke = invoke;
-            pollVk = vkCode;
-            if (!isFocusedRef.current) startPoll();
-
-            hookCleanup = () => {
-              hookActive = false;
-              stopPoll();
-              unlistenDown();
-              unlistenUp();
-              invoke('stop_ptt_hook').catch(() => { /* best-effort */ });
-            };
-
-            // Hook handles everything on Windows — skip global shortcut
-            return;
-          }
-        } catch {
-          // start_ptt_hook command not available — fall through
+        if (handle && cancelled) {
+          handle.cleanup();
+          return;
         }
       }
 
       // --- Fallback: Tauri global shortcut (macOS/Linux) ---
-      // On these platforms the global shortcut plugin delivers both Pressed
-      // and Released events natively (unlike Windows where only Pressed
-      // fires, which is why we need the LL hook on Windows).
 
       if (cancelled) return;
 
@@ -401,7 +331,7 @@ export function usePushToTalk({
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
 
-      hookCleanup?.();
+      hookHandle?.cleanup();
       tauriCleanup?.();
     };
   }, [key, enabled, onActivate, onDeactivate, shouldIgnoreKeyboard]);

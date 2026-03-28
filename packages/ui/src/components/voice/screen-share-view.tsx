@@ -15,6 +15,8 @@ import { useVoiceStateStore } from '../../stores/voice-state-store';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useMemberStore } from '../../stores/member-store';
 import { getSharedAudioContext } from './voice-audio-renderer';
+import { isNativeScreenShareAvailable, stopNativeScreenShare } from '../../lib/platform';
+import { getMediaStatus } from '../../lib/engine-ipc';
 import clsx from 'clsx';
 
 // ---------------------------------------------------------------------------
@@ -386,6 +388,16 @@ export function ScreenShareView() {
   }, []);
 
   const handleStopSharing = useCallback(async () => {
+    // Stop native pipeline if active, otherwise stop LiveKit
+    if (isNativeScreenShareAvailable()) {
+      try {
+        const status = await getMediaStatus();
+        if (status.running) {
+          await stopNativeScreenShare();
+          return;
+        }
+      } catch { /* fall through to LiveKit */ }
+    }
     await localParticipant.setScreenShareEnabled(false);
   }, [localParticipant]);
 
@@ -538,6 +550,50 @@ export function ScreenShareView() {
 function SharerName({ identity }: { identity: string }) {
   const cachedHandle = useMemberStore((s) => s.members[identity]?.handle);
   return <>{cachedHandle ?? identity}</>;
+}
+
+/**
+ * Overlay shown when viewing a screen share via the native Ripcord Engine pipeline.
+ * The actual video is rendered by the DirectComposition compositor, not a <video> element,
+ * so this component just shows metadata and controls.
+ */
+export function NativeScreenShareOverlay({ sharerUserId }: { sharerUserId: string }) {
+  const localScreenSharing = useVoiceStateStore((s) => s.localScreenSharing);
+
+  const handleStop = useCallback(async () => {
+    await stopNativeScreenShare();
+  }, []);
+
+  return (
+    <div className="relative rounded-lg overflow-hidden bg-surface-1 border border-border">
+      <div className="flex items-center justify-between bg-gradient-to-b from-black/70 via-black/40 to-transparent px-3 py-2">
+        <span className="text-xs font-medium text-text-primary">
+          <SharerName identity={sharerUserId} />&apos;s screen
+          <span className="ml-2 text-[10px] text-cyan/80 font-mono">native</span>
+        </span>
+        {localScreenSharing && (
+          <button
+            onClick={handleStop}
+            className="flex items-center gap-1 rounded-md bg-danger/80 px-2 py-0.5 text-[10px] font-medium text-white transition-colors hover:bg-danger"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+              <rect width="10" height="10" rx="1.5" />
+            </svg>
+            Stop
+          </button>
+        )}
+      </div>
+      {!localScreenSharing && (
+        <div className="flex items-center justify-center py-8 text-xs text-text-muted">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="mr-1.5">
+            <rect x="1" y="2" width="14" height="10" rx="1.5" />
+            <path d="M5 15h6M8 12v3" strokeLinecap="round" />
+          </svg>
+          Rendered by native compositor
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** A single tab in the stream switcher bar. */

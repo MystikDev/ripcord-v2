@@ -8,6 +8,7 @@ use windows::Win32::System::Threading::{
 
 use crate::device;
 use crate::rnnoise::RnnoiseState;
+use crate::vst3::{PluginSlot, MAX_SLOTS};
 
 /// Processing block size in samples (must match RNNoise frame size = 480 samples at 48kHz = 10ms).
 pub const BLOCK_SIZE: usize = 480;
@@ -26,13 +27,19 @@ pub struct AudioProcessor {
 pub struct ProcessorControls {
     pub suppression_enabled: Arc<AtomicBool>,
     pub gain_db: Arc<std::sync::atomic::AtomicI32>, // gain in dB * 10 (e.g. -30 = -3.0dB)
+    pub vst_slots: Arc<std::sync::Mutex<Vec<PluginSlot>>>,
 }
 
 impl ProcessorControls {
     pub fn new() -> Self {
+        let mut slots = Vec::with_capacity(MAX_SLOTS);
+        for _ in 0..MAX_SLOTS {
+            slots.push(PluginSlot::new());
+        }
         Self {
             suppression_enabled: Arc::new(AtomicBool::new(true)),
             gain_db: Arc::new(std::sync::atomic::AtomicI32::new(0)),
+            vst_slots: Arc::new(std::sync::Mutex::new(slots)),
         }
     }
 }
@@ -139,8 +146,12 @@ fn process_loop(
             }
         }
 
-        // 2. VST3 plugin slots (placeholder — will be implemented in Phase 4)
-        // Each slot would call: vst_plugin.process(&mut block);
+        // 2. VST3 plugin slots
+        if let Ok(mut slots) = controls.vst_slots.try_lock() {
+            for slot in slots.iter_mut() {
+                slot.process(&mut block);
+            }
+        }
 
         // 3. Apply gain
         let gain_db = controls.gain_db.load(Ordering::Relaxed) as f32 / 10.0;

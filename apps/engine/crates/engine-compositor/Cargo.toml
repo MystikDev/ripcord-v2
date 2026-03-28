@@ -1,0 +1,8 @@
+[package]
+name = "engine-compositor"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+windows = { workspace = true }
+log = { workspace = true }

@@ -76,6 +76,52 @@ function validateImageMagicBytes(buf: Buffer, claimedType: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// GET /v1/users/stats — registration stats (auth required)
+// ---------------------------------------------------------------------------
+
+usersRouter.get(
+  '/stats',
+  requireAuth,
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const now = new Date();
+
+      // Start of today (midnight UTC)
+      const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+      // Start of this week (Monday midnight UTC)
+      const weekStart = new Date(todayStart);
+      const dayOfWeek = weekStart.getUTCDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      weekStart.setUTCDate(weekStart.getUTCDate() - daysToMonday);
+
+      // Start of this month
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+      const [totalUsers, registeredToday, registeredThisWeek, registeredThisMonth] = await Promise.all([
+        userRepo.countAll(),
+        userRepo.countSince(todayStart),
+        userRepo.countSince(weekStart),
+        userRepo.countSince(monthStart),
+      ]);
+
+      const body: ApiResponse<{
+        totalUsers: number;
+        registeredToday: number;
+        registeredThisWeek: number;
+        registeredThisMonth: number;
+      }> = {
+        ok: true,
+        data: { totalUsers, registeredToday, registeredThisWeek, registeredThisMonth },
+      };
+      res.json(body);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
 // POST /v1/users/:id/avatar
 // ---------------------------------------------------------------------------
 

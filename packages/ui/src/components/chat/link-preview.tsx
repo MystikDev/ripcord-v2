@@ -45,12 +45,8 @@ export function LinkPreview({ url }: LinkPreviewProps) {
   }, [url]);
 
   const handleClick = useCallback(async () => {
-    try {
-      const { open } = await import('@tauri-apps/plugin-shell');
-      await open(url);
-    } catch {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
+    const { shellOpen } = await import('../../lib/platform');
+    await shellOpen(url);
   }, [url]);
 
   // Nothing useful to show

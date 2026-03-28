@@ -1,4 +1,4 @@
-import { queryOne } from '@ripcord/db';
+import { queryOne, query } from '@ripcord/db';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -63,6 +63,25 @@ export async function findByHandle(handle: string): Promise<UserRecord | null> {
     [handle],
   );
   return row ? toUser(row) : null;
+}
+
+/**
+ * Count total registered users.
+ */
+export async function countAll(): Promise<number> {
+  const row = await queryOne<{ count: string }>(`SELECT COUNT(*) AS count FROM users`);
+  return row ? parseInt(row.count, 10) : 0;
+}
+
+/**
+ * Count users registered since a given date.
+ */
+export async function countSince(since: Date): Promise<number> {
+  const row = await queryOne<{ count: string }>(
+    `SELECT COUNT(*) AS count FROM users WHERE created_at >= $1`,
+    [since.toISOString()],
+  );
+  return row ? parseInt(row.count, 10) : 0;
 }
 
 /**

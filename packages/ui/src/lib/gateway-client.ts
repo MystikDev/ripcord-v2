@@ -46,7 +46,12 @@ export type GatewayEvent =
   | 'CALL_DECLINE'
   | 'CALL_END'
   | 'RELATIONSHIP_UPDATE'
-  | 'ROLE_UPDATED';
+  | 'ROLE_UPDATED'
+  | 'SCREEN_SHARE_OFFER'
+  | 'SCREEN_SHARE_ANSWER'
+  | 'SCREEN_SHARE_ICE'
+  | 'SCREEN_SHARE_START'
+  | 'SCREEN_SHARE_STOP';
 
 export interface GatewayPayload {
   op: number;

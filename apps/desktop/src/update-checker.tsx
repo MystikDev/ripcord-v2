@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { check, type Update } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import {
-  isPermissionGranted,
-  requestPermission,
-  sendNotification,
-} from '@tauri-apps/plugin-notification';
-import { getVersion } from '@tauri-apps/api/app';
+// Tauri-specific plugins — loaded dynamically so the engine build doesn't fail
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Update = any;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -39,6 +34,12 @@ type UpdateState =
 
 async function notifyUser(version: string): Promise<void> {
   try {
+    const {
+      isPermissionGranted,
+      requestPermission,
+      sendNotification,
+    } = await import('@tauri-apps/plugin-notification');
+
     let allowed = await isPermissionGranted();
     if (!allowed) {
       const perm = await requestPermission();
@@ -75,11 +76,26 @@ export function UpdateChecker() {
     setState({ status: 'checking' });
 
     try {
-      const currentVersion = await getVersion();
+      let currentVersion = 'unknown';
+      try {
+        const { getVersion } = await import('@tauri-apps/api/app');
+        currentVersion = await getVersion();
+      } catch { /* engine or web — no version API */ }
       console.log(`[UpdateChecker] Current version: ${currentVersion}, checking for updates...`);
 
+      // Tauri updater — only available in Tauri builds
+      let checkFn: (() => Promise<Update | null>) | null = null;
+      try {
+        const updater = await import('@tauri-apps/plugin-updater');
+        checkFn = updater.check as () => Promise<Update | null>;
+      } catch {
+        // Not in Tauri — no auto-updater available
+        setState({ status: 'idle' });
+        return;
+      }
+
       const update = await Promise.race([
-        check(),
+        checkFn!(),
         new Promise<null>((_, reject) =>
           setTimeout(() => reject(new Error('Update check timed out')), CHECK_TIMEOUT_MS),
         ),
@@ -125,7 +141,8 @@ export function UpdateChecker() {
       let downloaded = 0;
       let total = 0;
 
-      await update.downloadAndInstall((event) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await update.downloadAndInstall((event: any) => {
         if (cancelledRef.current) return;
         if (event.event === 'Started' && event.data.contentLength) {
           total = event.data.contentLength;
@@ -205,7 +222,7 @@ export function UpdateChecker() {
               // Remember-me credentials (saved handle/password) are preserved —
               // only auth tokens are wiped by clear-session.ts on next launch.
               localStorage.setItem('ripcord-force-logout', 'true');
-              relaunch();
+              import('@tauri-apps/plugin-process').then(m => m.relaunch()).catch(() => {});
             }}
             className="rounded bg-white/20 px-2 py-0.5 font-medium transition-colors hover:bg-white/30"
           >

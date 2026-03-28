@@ -52,6 +52,9 @@ export {
   type VoiceParticipant,
   type MessagePinPayload,
   type CallSignalPayload,
+  type ScreenShareSignalPayload,
+  type ScreenShareIcePayload,
+  type ScreenShareStatePayload,
 } from "./gateway.js";
 
 // Authentication request / response types

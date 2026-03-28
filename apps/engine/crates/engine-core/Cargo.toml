@@ -8,6 +8,10 @@ engine-window = { workspace = true }
 engine-webview = { workspace = true }
 engine-ipc = { workspace = true }
 engine-audio = { workspace = true }
+engine-capture = { workspace = true }
+engine-transport = { workspace = true }
+engine-compositor = { workspace = true }
+windows = { workspace = true }
 crossbeam-channel = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }

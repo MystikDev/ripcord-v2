@@ -1,5 +1,5 @@
 import { GatewayOpcode } from '@ripcord/types';
-import type { AuthPayload, SubscribePayload, TypingPayload, VoiceStatePayload, CallSignalPayload } from '@ripcord/types';
+import type { AuthPayload, SubscribePayload, TypingPayload, VoiceStatePayload, CallSignalPayload, ScreenShareSignalPayload, ScreenShareIcePayload, ScreenShareStatePayload } from '@ripcord/types';
 import { Permission, hasPermission } from '@ripcord/types';
 import { verifyAccessToken } from '@ripcord/crypto';
 import { query, queryOne } from '@ripcord/db';
@@ -475,5 +475,113 @@ export function handleCallSignal(
   log.debug(
     { from: conn.userId, to: payload.toUserId, event: eventName, roomId: payload.roomId },
     'Call signal forwarded',
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Native Screen Share Signaling
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle screen share SDP signaling (SCREEN_SHARE_OFFER, SCREEN_SHARE_ANSWER).
+ *
+ * Peer-to-peer signals routed via sendToUser() — same pattern as call signaling.
+ */
+export function handleScreenShareSignal(
+  conn: ClientConnection,
+  opcode: GatewayOpcode,
+  payload: ScreenShareSignalPayload,
+  manager: ConnectionManager,
+): void {
+  if (!conn.authenticated || !conn.userId) {
+    conn.send(GatewayOpcode.ERROR, { message: 'Not authenticated' });
+    return;
+  }
+
+  if (!payload.toUserId || !payload.channelId || !payload.sdp) {
+    conn.send(GatewayOpcode.ERROR, { message: 'toUserId, channelId, and sdp are required' });
+    return;
+  }
+
+  const signalPayload: ScreenShareSignalPayload = {
+    ...payload,
+    fromUserId: conn.userId,
+  };
+
+  const eventName = opcode === GatewayOpcode.SCREEN_SHARE_OFFER
+    ? 'SCREEN_SHARE_OFFER'
+    : 'SCREEN_SHARE_ANSWER';
+
+  manager.sendToUser(payload.toUserId, opcode, signalPayload, eventName);
+
+  log.debug(
+    { from: conn.userId, to: payload.toUserId, event: eventName, channelId: payload.channelId },
+    'Screen share signal forwarded',
+  );
+}
+
+/**
+ * Handle screen share ICE candidate exchange (SCREEN_SHARE_ICE).
+ */
+export function handleScreenShareIce(
+  conn: ClientConnection,
+  payload: ScreenShareIcePayload,
+  manager: ConnectionManager,
+): void {
+  if (!conn.authenticated || !conn.userId) {
+    conn.send(GatewayOpcode.ERROR, { message: 'Not authenticated' });
+    return;
+  }
+
+  if (!payload.toUserId || !payload.channelId || !payload.candidate) {
+    conn.send(GatewayOpcode.ERROR, { message: 'toUserId, channelId, and candidate are required' });
+    return;
+  }
+
+  const icePayload: ScreenShareIcePayload = {
+    ...payload,
+    fromUserId: conn.userId,
+  };
+
+  manager.sendToUser(payload.toUserId, GatewayOpcode.SCREEN_SHARE_ICE, icePayload, 'SCREEN_SHARE_ICE');
+}
+
+/**
+ * Handle screen share start/stop (SCREEN_SHARE_START, SCREEN_SHARE_STOP).
+ *
+ * These are broadcast to the entire voice channel so all members see
+ * who is sharing their screen.
+ */
+export function handleScreenShareState(
+  conn: ClientConnection,
+  opcode: GatewayOpcode,
+  payload: ScreenShareStatePayload,
+  manager: ConnectionManager,
+): void {
+  if (!conn.authenticated || !conn.userId) {
+    conn.send(GatewayOpcode.ERROR, { message: 'Not authenticated' });
+    return;
+  }
+
+  if (!payload.channelId) {
+    conn.send(GatewayOpcode.ERROR, { message: 'channelId is required' });
+    return;
+  }
+
+  const statePayload: ScreenShareStatePayload = {
+    ...payload,
+    userId: conn.userId,
+  };
+
+  const eventName = opcode === GatewayOpcode.SCREEN_SHARE_START
+    ? 'SCREEN_SHARE_START'
+    : 'SCREEN_SHARE_STOP';
+
+  // Broadcast to all subscribers of the channel
+  manager.broadcastToChannel(payload.channelId, opcode, statePayload, eventName);
+
+  log.debug(
+    { userId: conn.userId, channelId: payload.channelId, event: eventName },
+    'Screen share state broadcast',
   );
 }

@@ -471,3 +471,52 @@ voiceRouter.get(
     }
   },
 );
+
+/**
+ * POST /v1/voice/ice-servers
+ *
+ * Returns a list of STUN/TURN servers for native WebRTC screen sharing.
+ * TURN credentials are sourced from environment variables.
+ * Requires a valid session (authenticated user).
+ *
+ * Response: { ok: true, data: { iceServers: IceServerEntry[] } }
+ */
+interface IceServerEntry {
+  urls: string[];
+  username?: string;
+  credential?: string;
+}
+
+voiceRouter.post(
+  '/ice-servers',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const iceServers: IceServerEntry[] = [
+        // Public Google STUN servers (always available)
+        { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+      ];
+
+      // Add TURN server if configured
+      const turnServer = process.env.TURN_SERVER;
+      const turnUsername = process.env.TURN_USERNAME;
+      const turnPassword = process.env.TURN_PASSWORD;
+
+      if (turnServer && turnUsername && turnPassword) {
+        iceServers.push({
+          urls: [`turn:${turnServer}`],
+          username: turnUsername,
+          credential: turnPassword,
+        });
+      }
+
+      const responseBody: ApiResponse<{ iceServers: IceServerEntry[] }> = {
+        ok: true,
+        data: { iceServers },
+      };
+      res.json(responseBody);
+    } catch (err) {
+      next(err);
+    }
+  },
+);

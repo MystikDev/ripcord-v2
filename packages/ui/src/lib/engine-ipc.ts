@@ -57,8 +57,10 @@ function handleEvent(raw: string) {
 
 // Register global handlers that the native side calls
 if (typeof window !== 'undefined') {
-  (window as Record<string, unknown>).__ripcord_ipc_recv = handleResponse;
-  (window as Record<string, unknown>).__ripcord_ipc_event = handleEvent;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).__ripcord_ipc_recv = handleResponse;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).__ripcord_ipc_event = handleEvent;
 }
 
 /**
@@ -68,8 +70,10 @@ export function isEngine(): boolean {
   return (
     typeof window !== 'undefined' &&
     'chrome' in window &&
-    typeof (window as Record<string, unknown>).chrome === 'object' &&
-    (window as Record<string, Record<string, unknown>>).chrome?.webview?.postMessage !== undefined
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    typeof (window as any).chrome === 'object' &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).chrome?.webview?.postMessage !== undefined
   );
 }
 
@@ -97,8 +101,8 @@ export function invoke<T = unknown>(
     });
 
     const message = JSON.stringify({ method, params, id });
-    (window as Record<string, Record<string, Record<string, (msg: string) => void>>>)
-      .chrome.webview.postMessage(message);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).chrome.webview.postMessage(message);
   });
 }
 
@@ -123,6 +127,56 @@ export function onEvent(event: string, callback: (data: unknown) => void): () =>
       eventListeners.delete(event);
     }
   };
+}
+
+// ---------------------------------------------------------------------------
+// Typed wrappers for media pipeline IPC
+// ---------------------------------------------------------------------------
+
+export interface IceServerConfig {
+  urls: string[];
+  username?: string;
+  credential?: string;
+}
+
+/** Configure ICE servers for the next transport session. */
+export function setIceServers(iceServers: IceServerConfig[]): Promise<{ configured: number }> {
+  return invoke('transport.setIceServers', { iceServers });
+}
+
+/** Create a WebRTC offer for screen sharing. */
+export function createOffer(userId: string, target: string): Promise<{ sdp: string; type: string }> {
+  return invoke('transport.createOffer', { userId, target });
+}
+
+/** Accept a WebRTC offer and return an answer SDP. */
+export function acceptOffer(sdp: string, userId: string, target: string): Promise<{ sdp: string; type: string }> {
+  return invoke('transport.acceptOffer', { sdp, userId, target });
+}
+
+/** Stop the transport session. */
+export function stopTransport(): Promise<{ stopped: boolean }> {
+  return invoke('transport.stop');
+}
+
+/** Start the sender media pipeline (capture → encode → transport). */
+export function startMediaSender(monitorIndex = 0, profile = 'performance-1080'): Promise<{ sending: boolean }> {
+  return invoke('media.startSender', { monitorIndex, profile });
+}
+
+/** Start the receiver media pipeline (transport → decode → compositor). */
+export function startMediaReceiver(surfaceIndex = 0): Promise<{ receiving: boolean }> {
+  return invoke('media.startReceiver', { surfaceIndex });
+}
+
+/** Stop the media pipeline. */
+export function stopMedia(): Promise<{ stopped: boolean }> {
+  return invoke('media.stop');
+}
+
+/** Get media pipeline status. */
+export function getMediaStatus(): Promise<{ running: boolean }> {
+  return invoke('media.getStatus');
 }
 
 /**

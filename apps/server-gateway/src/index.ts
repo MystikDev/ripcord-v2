@@ -3,13 +3,13 @@ import { WebSocketServer, WebSocket } from 'ws';
 import type { RawData } from 'ws';
 import { env } from '@ripcord/config';
 import { GatewayOpcode } from '@ripcord/types';
-import type { GatewayMessage, AuthPayload, SubscribePayload, TypingPayload, VoiceStatePayload, CallSignalPayload } from '@ripcord/types';
+import type { GatewayMessage, AuthPayload, SubscribePayload, TypingPayload, VoiceStatePayload, CallSignalPayload, ScreenShareSignalPayload, ScreenShareIcePayload, ScreenShareStatePayload } from '@ripcord/types';
 
 import { log } from './logger.js';
 import { connectRedis, disconnectRedis, redisSub, redisPub, redis } from './redis.js';
 import { ClientConnection } from './connection.js';
 import { ConnectionManager } from './connection-manager.js';
-import { handleAuth, handleSubscribe, handleUnsubscribe, handleHeartbeat, handleTypingStart, handleVoiceStateUpdate, handleCallSignal } from './handlers.js';
+import { handleAuth, handleSubscribe, handleUnsubscribe, handleHeartbeat, handleTypingStart, handleVoiceStateUpdate, handleCallSignal, handleScreenShareSignal, handleScreenShareIce, handleScreenShareState } from './handlers.js';
 import { setPresence } from './presence.js';
 import { cleanupUserVoiceStates } from './voice-state.js';
 import { scheduleOffline } from './presence-grace.js';
@@ -193,6 +193,20 @@ wss.on('connection', (ws: WebSocket) => {
         handleCallSignal(conn, msg.op, msg.d as CallSignalPayload, manager);
         break;
 
+      case GatewayOpcode.SCREEN_SHARE_OFFER:
+      case GatewayOpcode.SCREEN_SHARE_ANSWER:
+        handleScreenShareSignal(conn, msg.op, msg.d as ScreenShareSignalPayload, manager);
+        break;
+
+      case GatewayOpcode.SCREEN_SHARE_ICE:
+        handleScreenShareIce(conn, msg.d as ScreenShareIcePayload, manager);
+        break;
+
+      case GatewayOpcode.SCREEN_SHARE_START:
+      case GatewayOpcode.SCREEN_SHARE_STOP:
+        handleScreenShareState(conn, msg.op, msg.d as ScreenShareStatePayload, manager);
+        break;
+
       default:
         // Unknown or server-only opcode received from client
         conn.send(GatewayOpcode.ERROR, {
@@ -262,6 +276,8 @@ const EVENT_TYPE_TO_OPCODE: Record<string, GatewayOpcode> = {
   MESSAGE_PINNED: GatewayOpcode.MESSAGE_PINNED,
   MESSAGE_UNPINNED: GatewayOpcode.MESSAGE_UNPINNED,
   RELATIONSHIP_UPDATE: GatewayOpcode.RELATIONSHIP_UPDATE,
+  SCREEN_SHARE_START: GatewayOpcode.SCREEN_SHARE_START,
+  SCREEN_SHARE_STOP: GatewayOpcode.SCREEN_SHARE_STOP,
 };
 
 /**
@@ -279,6 +295,8 @@ const EVENT_TYPE_TO_NAME: Record<string, string> = {
   MESSAGE_PINNED: 'MESSAGE_PINNED',
   MESSAGE_UNPINNED: 'MESSAGE_UNPINNED',
   RELATIONSHIP_UPDATE: 'RELATIONSHIP_UPDATE',
+  SCREEN_SHARE_START: 'SCREEN_SHARE_START',
+  SCREEN_SHARE_STOP: 'SCREEN_SHARE_STOP',
 };
 
 redisSub.on('message', (redisChannel: string, message: string) => {

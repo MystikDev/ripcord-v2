@@ -3,6 +3,9 @@ pub mod device;
 pub mod playback;
 pub mod processor;
 pub mod rnnoise;
+pub mod vst3;
+
+use std::path::Path;
 
 use capture::AudioCapture;
 use device::{AudioDevice, DeviceDirection};
@@ -117,6 +120,59 @@ impl AudioEngine {
     /// Returns a value from 0.0 to ~1.0.
     pub fn get_level(&self) -> f32 {
         f32::from_bits(AUDIO_LEVEL.load(Ordering::Relaxed))
+    }
+
+    /// Load a VST3 plugin into a slot.
+    pub fn load_vst(&self, slot: usize, path: &str) -> Result<vst3::Vst3PluginInfo, String> {
+        if slot >= vst3::MAX_SLOTS {
+            return Err(format!("Slot {slot} out of range (max {})", vst3::MAX_SLOTS));
+        }
+        let mut slots = self.controls.vst_slots.lock().map_err(|e| e.to_string())?;
+        slots[slot].load(Path::new(path), 48000.0, 480)
+    }
+
+    /// Unload a VST3 plugin from a slot.
+    pub fn unload_vst(&self, slot: usize) -> Result<(), String> {
+        if slot >= vst3::MAX_SLOTS {
+            return Err(format!("Slot {slot} out of range"));
+        }
+        let mut slots = self.controls.vst_slots.lock().map_err(|e| e.to_string())?;
+        slots[slot].unload();
+        Ok(())
+    }
+
+    /// List parameters for a loaded VST3 plugin.
+    pub fn list_vst_params(&self, slot: usize) -> Result<Vec<vst3::Vst3Param>, String> {
+        if slot >= vst3::MAX_SLOTS {
+            return Err(format!("Slot {slot} out of range"));
+        }
+        let slots = self.controls.vst_slots.lock().map_err(|e| e.to_string())?;
+        match &slots[slot].plugin {
+            Some(plugin) => Ok(plugin.get_parameters()),
+            None => Err(format!("No plugin loaded in slot {slot}")),
+        }
+    }
+
+    /// Set a VST3 parameter value (normalized 0.0-1.0).
+    pub fn set_vst_param(&self, slot: usize, param_id: u32, value: f64) -> Result<bool, String> {
+        if slot >= vst3::MAX_SLOTS {
+            return Err(format!("Slot {slot} out of range"));
+        }
+        let slots = self.controls.vst_slots.lock().map_err(|e| e.to_string())?;
+        match &slots[slot].plugin {
+            Some(plugin) => Ok(plugin.set_parameter(param_id, value)),
+            None => Err(format!("No plugin loaded in slot {slot}")),
+        }
+    }
+
+    /// Bypass/unbypass a VST3 plugin slot.
+    pub fn set_vst_bypass(&self, slot: usize, bypass: bool) -> Result<(), String> {
+        if slot >= vst3::MAX_SLOTS {
+            return Err(format!("Slot {slot} out of range"));
+        }
+        let mut slots = self.controls.vst_slots.lock().map_err(|e| e.to_string())?;
+        slots[slot].set_bypass(bypass);
+        Ok(())
     }
 }
 

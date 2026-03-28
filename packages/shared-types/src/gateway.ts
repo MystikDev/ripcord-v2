@@ -61,6 +61,16 @@ export const GatewayOpcode = {
   CALL_END: 33,
   /** A relationship change (friend request, accept, remove, block). */
   RELATIONSHIP_UPDATE: 40,
+  /** Native screen share: SDP offer from sender to receiver. */
+  SCREEN_SHARE_OFFER: 50,
+  /** Native screen share: SDP answer from receiver to sender. */
+  SCREEN_SHARE_ANSWER: 51,
+  /** Native screen share: ICE candidate exchange (bidirectional). */
+  SCREEN_SHARE_ICE: 52,
+  /** Native screen share: user started sharing (broadcast to channel). */
+  SCREEN_SHARE_START: 53,
+  /** Native screen share: user stopped sharing (broadcast to channel). */
+  SCREEN_SHARE_STOP: 54,
   /** Generic server-to-client error. */
   ERROR: 99,
 } as const;
@@ -214,6 +224,50 @@ export interface RelationshipPayload {
   fromUserId: string;
   /** The action that was performed. */
   action: 'request_received' | 'accepted' | 'removed' | 'blocked';
+}
+
+// ---------------------------------------------------------------------------
+// Screen Share Signaling
+// ---------------------------------------------------------------------------
+
+/** Payload for SCREEN_SHARE_OFFER and SCREEN_SHARE_ANSWER (peer-to-peer SDP exchange). */
+export interface ScreenShareSignalPayload {
+  /** The voice channel where the screen share is happening. */
+  channelId: string;
+  /** The user sending the signal. */
+  fromUserId: string;
+  /** Display handle of the sender. */
+  fromHandle?: string;
+  /** The target user receiving the signal. */
+  toUserId: string;
+  /** SDP offer or answer string. */
+  sdp: string;
+}
+
+/** Payload for SCREEN_SHARE_ICE (ICE candidate exchange). */
+export interface ScreenShareIcePayload {
+  /** The voice channel where the screen share is happening. */
+  channelId: string;
+  /** The user sending the candidate. */
+  fromUserId: string;
+  /** The target user receiving the candidate. */
+  toUserId: string;
+  /** Serialized ICE candidate. */
+  candidate: string;
+  /** SDP media description index. */
+  sdpMLineIndex?: number;
+  /** SDP mid attribute. */
+  sdpMid?: string;
+}
+
+/** Payload for SCREEN_SHARE_START and SCREEN_SHARE_STOP (channel broadcast). */
+export interface ScreenShareStatePayload {
+  /** The voice channel where the screen share is happening. */
+  channelId: string;
+  /** The user who started or stopped sharing. */
+  userId: string;
+  /** Display handle. */
+  handle?: string;
 }
 
 /** A single participant connected to a voice channel. */

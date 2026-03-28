@@ -87,35 +87,16 @@ async function doFetch(url: string): Promise<LinkMetadata | null> {
 }
 
 /**
- * Fetch HTML from an arbitrary URL. Tries Tauri HTTP plugin first (bypasses
- * CORS via Rust-side request), falls back to browser fetch for web client.
+ * Fetch HTML from an arbitrary URL. Uses the platform bridge which tries
+ * native fetch first (Tauri HTTP plugin, CORS-free), then browser fetch.
  */
 async function httpFetch(url: string): Promise<string> {
-  // Attempt Tauri HTTP plugin (CORS-free, desktop only)
-  try {
-    const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
-    const res = await tauriFetch(url, {
-      method: 'GET',
-      headers: { 'User-Agent': 'Ripcord-LinkPreview/1.0' },
-      connectTimeout: 5000,
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.text();
-  } catch (tauriErr) {
-    // Any failure (scope error, plugin missing, network error) — try browser fallback
-    console.debug('[LinkMetadata] Tauri fetch failed, trying browser fetch:', tauriErr);
-  }
-
-  // Fallback to browser fetch (works for CORS-permissive sites)
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.text();
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  const { nativeFetch } = await import('./platform');
+  return nativeFetch(url, {
+    method: 'GET',
+    headers: { 'User-Agent': 'Ripcord-LinkPreview/1.0' },
+    timeout: 5000,
+  });
 }
 
 // ---------------------------------------------------------------------------
