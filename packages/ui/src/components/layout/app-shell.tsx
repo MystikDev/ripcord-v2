@@ -58,7 +58,7 @@ export function AppShell() {
     prevHubRef.current = activeHubId;
   }, [activeHubId, isClassic]);
 
-  const showSystemView = !isClassic && systemViewActive && !isDmView && !!activeHubId;
+  const showSystemView = !isClassic && systemViewActive && !isDmView && !!activeHubId && !settingsOpen && !adminOpen;
   const showCosmosView = !isClassic && !activeHubId && !isDmView;
 
   return (
