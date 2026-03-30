@@ -11,6 +11,7 @@ import { useState, useCallback } from 'react';
 import clsx from 'clsx';
 import { CommsPopover } from './comms-popover';
 import { BugReportButton } from '../../ui/bug-report-dialog';
+import { useSettingsStore } from '../../../stores/settings-store';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -398,7 +399,37 @@ export function OrbitalHud({
         </span>
       </button>
 
-      {/* ── 7. User Pill ── */}
+      {/* ── 8. Settings ── */}
+      <button
+        type="button"
+        onClick={() => useSettingsStore.getState().openSettings('appearance')}
+        title="Settings"
+        className={clsx(
+          'flex items-center gap-1.5 px-3 py-1 rounded-full shrink-0',
+          'font-mono text-[11px] transition-all duration-150',
+          'border cursor-pointer',
+          'border-border bg-white/3 text-text-secondary hover:text-text-primary hover:border-white/15',
+        )}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 16 16"
+          fill="none"
+          className="text-current shrink-0"
+        >
+          <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+        <span className="whitespace-nowrap">Settings</span>
+      </button>
+
+      {/* ── 9. User Pill ── */}
       <div
         role="button"
         tabIndex={0}
