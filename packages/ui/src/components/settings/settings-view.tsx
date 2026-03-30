@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useAuthStore } from '../../stores/auth-store';
+import { useHubStore } from '../../stores/server-store';
 import { Avatar } from '../ui/avatar';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { getAppVersion } from '../../lib/constants';
@@ -181,7 +182,12 @@ function AppearanceTab() {
         <p className="text-xs text-text-muted mb-3">Choose between the spatial Universe experience or a traditional Classic layout.</p>
         <div className="flex gap-2">
           <button
-            onClick={() => setLayoutMode('universe')}
+            onClick={() => {
+              setLayoutMode('universe');
+              // Re-enable orbital view and close settings so the user sees the change
+              useHubStore.getState().setSystemViewActive(true);
+              useSettingsStore.getState().closeSettings();
+            }}
             className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
               layoutMode === 'universe'
                 ? 'border-accent bg-accent/10 text-accent'
@@ -192,7 +198,10 @@ function AppearanceTab() {
             <div className="mt-0.5 text-xs opacity-70">Cosmos, orbital views, spatial design</div>
           </button>
           <button
-            onClick={() => setLayoutMode('classic')}
+            onClick={() => {
+              setLayoutMode('classic');
+              useSettingsStore.getState().closeSettings();
+            }}
             className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
               layoutMode === 'classic'
                 ? 'border-accent bg-accent/10 text-accent'
