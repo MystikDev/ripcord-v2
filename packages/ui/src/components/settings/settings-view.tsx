@@ -158,6 +158,8 @@ function AppearanceTab() {
   const setChatTextColor = useSettingsStore((s) => s.setChatTextColor);
   const compactMode = useSettingsStore((s) => s.compactMode);
   const setCompactMode = useSettingsStore((s) => s.setCompactMode);
+  const layoutMode = useSettingsStore((s) => s.layoutMode);
+  const setLayoutMode = useSettingsStore((s) => s.setLayoutMode);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleResetConfirm = () => {
@@ -172,6 +174,36 @@ function AppearanceTab() {
   return (
     <div>
       <h3 className="text-lg font-semibold text-text-primary mb-6">Appearance</h3>
+
+      {/* Layout Mode */}
+      <div className="mb-6">
+        <label className="text-sm font-medium text-text-secondary mb-1 block">Layout Mode</label>
+        <p className="text-xs text-text-muted mb-3">Choose between the spatial Universe experience or a traditional Classic layout.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setLayoutMode('universe')}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              layoutMode === 'universe'
+                ? 'border-accent bg-accent/10 text-accent'
+                : 'border-white/10 bg-white/5 text-text-secondary hover:bg-white/10'
+            }`}
+          >
+            <div className="font-semibold">Universe</div>
+            <div className="mt-0.5 text-xs opacity-70">Cosmos, orbital views, spatial design</div>
+          </button>
+          <button
+            onClick={() => setLayoutMode('classic')}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              layoutMode === 'classic'
+                ? 'border-accent bg-accent/10 text-accent'
+                : 'border-white/10 bg-white/5 text-text-secondary hover:bg-white/10'
+            }`}
+          >
+            <div className="font-semibold">Classic</div>
+            <div className="mt-0.5 text-xs opacity-70">Traditional sidebar + chat layout</div>
+          </button>
+        </div>
+      </div>
 
       {/* Font Size */}
       <div className="mb-6">

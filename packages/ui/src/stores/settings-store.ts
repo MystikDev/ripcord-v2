@@ -129,6 +129,11 @@ export interface SettingsState {
   /** Whether compact mode is enabled (no avatars, single-line layout). Default: false */
   compactMode: boolean;
 
+  /** Layout mode: 'universe' (spatial cosmos/orbital views) or 'classic' (always 3-column). Default: 'universe' */
+  layoutMode: 'universe' | 'classic';
+  /** Set the layout mode. */
+  setLayoutMode: (mode: 'universe' | 'classic') => void;
+
   /** Screen share resolution preset. Default: '1080p' */
   screenShareResolution: '720p' | '1080p' | '1440p' | 'source';
   /** Screen share frame rate. Default: 30 */
@@ -327,6 +332,9 @@ export const useSettingsStore = create<SettingsState>()(
       chatTextColor: null,
       compactMode: false,
 
+      layoutMode: 'universe' as const,
+      setLayoutMode: (mode) => set({ layoutMode: mode }),
+
       screenShareResolution: '1080p',
       screenShareFrameRate: 30,
       screenShareAudioSource: 'system',
@@ -418,6 +426,7 @@ export const useSettingsStore = create<SettingsState>()(
         usernameColor: state.usernameColor,
         chatTextColor: state.chatTextColor,
         compactMode: state.compactMode,
+        layoutMode: state.layoutMode,
         screenShareResolution: state.screenShareResolution,
         screenShareFrameRate: state.screenShareFrameRate,
         screenShareAudioSource: state.screenShareAudioSource,

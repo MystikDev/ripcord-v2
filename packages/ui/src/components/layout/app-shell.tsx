@@ -36,31 +36,35 @@ export function AppShell() {
   const memberListVisible = useSettingsStore((s) => s.memberListVisible);
   const settingsOpen = useSettingsStore((s) => s.settingsOpen);
   const adminOpen = useSettingsStore((s) => s.adminOpen);
+  const layoutMode = useSettingsStore((s) => s.layoutMode);
   const isDmView = useHubStore((s) => s.isDmView);
   const systemViewActive = useHubStore((s) => s.systemViewActive);
   const activeHubId = useHubStore((s) => s.activeHubId);
   useThemeOverrides();
 
-  // Warp transition on hub switch
+  const isClassic = layoutMode === 'classic';
+
+  // Warp transition on hub switch (disabled in classic mode)
   const [warping, setWarping] = useState(false);
   const prevHubRef = useRef(activeHubId);
 
   useEffect(() => {
+    if (isClassic) return;
     if (prevHubRef.current && activeHubId && prevHubRef.current !== activeHubId) {
       setWarping(true);
       const t = setTimeout(() => setWarping(false), 600);
       return () => clearTimeout(t);
     }
     prevHubRef.current = activeHubId;
-  }, [activeHubId]);
+  }, [activeHubId, isClassic]);
 
-  const showSystemView = systemViewActive && !isDmView && !!activeHubId;
-  const showCosmosView = !activeHubId && !isDmView;
+  const showSystemView = !isClassic && systemViewActive && !isDmView && !!activeHubId;
+  const showCosmosView = !isClassic && !activeHubId && !isDmView;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-void">
-      {/* ORBIT ambient background layers — hidden during orbital/cosmos view (they have own canvas bg) */}
-      {!showSystemView && !showCosmosView && (
+      {/* ORBIT ambient background layers — hidden during orbital/cosmos view and classic mode */}
+      {!isClassic && !showSystemView && !showCosmosView && (
         <>
           <div className="orbit-ambient" />
           <div className="orbit-grid" />

@@ -493,6 +493,7 @@ export function ChannelSidebar() {
 
   const sidebarWidth = useSettingsStore((s) => s.channelSidebarWidth);
   const setSidebarWidth = useSettingsStore((s) => s.setChannelSidebarWidth);
+  const layoutMode = useSettingsStore((s) => s.layoutMode);
   const resizingRef = useRef(false);
 
   // Drag-to-resize handler — uses document-level mousemove/mouseup
@@ -586,7 +587,7 @@ export function ChannelSidebar() {
           )}
         </div>
         <div className="flex items-center gap-2">
-        {activeHub && !isDmView && (
+        {activeHub && !isDmView && layoutMode !== 'classic' && (
           <Tooltip content="Solar System View" side="bottom">
             <button
               onClick={() => useHubStore.getState().setSystemViewActive(true)}
