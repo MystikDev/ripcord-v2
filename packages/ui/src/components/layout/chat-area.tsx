@@ -5,11 +5,13 @@
  */
 'use client';
 
-import { useRef, useState, useCallback, useMemo, type DragEvent } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo, type DragEvent } from 'react';
 import { useHubStore } from '../../stores/server-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useCallStore } from '../../stores/call-store';
+import { useVoiceStateStore } from '../../stores/voice-state-store';
+import { useMemberStore } from '../../stores/member-store';
 import { MessageList } from '../chat/message-list';
 import { MessageComposer, type MessageComposerHandle } from '../chat/message-composer';
 import { TypingIndicator } from '../chat/typing-indicator';
@@ -41,6 +43,32 @@ export function ChatArea() {
   const toggleMemberList = useSettingsStore((s) => s.toggleMemberList);
 
   const callStatus = useCallStore((s) => s.status);
+
+  // Screen share awareness
+  const screenSharingUserIds = useVoiceStateStore((s) => s.screenSharingUserIds);
+  const connectedChannelId = useVoiceStateStore((s) => s.connectedChannelId);
+  const activeScreenShareId = useVoiceStateStore((s) => s.activeScreenShareId);
+  const [dismissedSharers, setDismissedSharers] = useState<Set<string>>(new Set());
+
+  // Clean up dismissed set when sharers leave (so re-sharing triggers banner again)
+  useEffect(() => {
+    setDismissedSharers((prev) => {
+      const active = new Set(screenSharingUserIds);
+      const cleaned = new Set([...prev].filter((id) => active.has(id)));
+      return cleaned.size === prev.size ? prev : cleaned;
+    });
+  }, [screenSharingUserIds]);
+
+  // Build sharer names for the banner
+  const sharerNames = useMemo(() => {
+    if (!connectedChannelId || screenSharingUserIds.length === 0) return [];
+    return screenSharingUserIds
+      .filter((id) => id !== currentUserId && !dismissedSharers.has(id))
+      .map((id) => ({
+        userId: id,
+        handle: useMemberStore.getState().getHandle(id) ?? 'Someone',
+      }));
+  }, [screenSharingUserIds, connectedChannelId, currentUserId, dismissedSharers]);
 
   const composerRef = useRef<MessageComposerHandle>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -292,6 +320,56 @@ export function ChatArea() {
             </button>
           </div>
         </div>
+
+        {/* Screen share banner — prominent notification when someone is sharing */}
+        {sharerNames.length > 0 && (
+          <div className="absolute top-[60px] left-4 right-4 z-20 flex flex-col gap-2">
+            {sharerNames.map(({ userId, handle }) => (
+              <div
+                key={userId}
+                className="flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/10 backdrop-blur-md px-4 py-2.5 shadow-lg animate-in slide-in-from-top-2 duration-300"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {/* Screen share icon */}
+                  <div className="shrink-0 rounded-lg bg-accent/20 p-2">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                      <rect x="1" y="2" width="14" height="10" rx="1.5" />
+                      <path d="M5 14h6" />
+                      <path d="M8 12v2" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-text-primary truncate">
+                    <span className="text-accent font-semibold">{handle}</span> is sharing their screen
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      useVoiceStateStore.getState().setActiveScreenShareId(userId);
+                    }}
+                    className={clsx(
+                      'rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                      activeScreenShareId === userId
+                        ? 'bg-accent/20 text-accent border border-accent/30'
+                        : 'bg-accent text-black hover:bg-accent/90',
+                    )}
+                  >
+                    {activeScreenShareId === userId ? 'Watching' : 'Watch'}
+                  </button>
+                  <button
+                    onClick={() => setDismissedSharers((prev) => new Set([...prev, userId]))}
+                    className="rounded-lg p-1 text-text-muted hover:text-text-secondary hover:bg-white/10 transition-colors"
+                    title="Dismiss"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                      <path d="M4 4l6 6M10 4l-6 6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Messages — with top padding for floating HUD */}
         <div className="flex-1 flex flex-col pt-16 min-h-0 overflow-hidden">
