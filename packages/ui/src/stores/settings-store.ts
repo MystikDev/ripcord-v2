@@ -332,7 +332,7 @@ export const useSettingsStore = create<SettingsState>()(
       chatTextColor: null,
       compactMode: false,
 
-      layoutMode: 'universe' as const,
+      layoutMode: 'classic' as const,
       setLayoutMode: (mode) => set({ layoutMode: mode }),
 
       screenShareResolution: '1080p',
