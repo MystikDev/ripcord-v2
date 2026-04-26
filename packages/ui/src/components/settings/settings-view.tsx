@@ -12,6 +12,7 @@ import { useHubStore } from '../../stores/server-store';
 import { Avatar } from '../ui/avatar';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { getAppVersion } from '../../lib/constants';
+import { ThemePicker } from './theme-picker';
 
 // ---------------------------------------------------------------------------
 // Color presets (shared with appearance-settings.tsx)
@@ -175,6 +176,9 @@ function AppearanceTab() {
   return (
     <div>
       <h3 className="text-lg font-semibold text-text-primary mb-6">Appearance</h3>
+
+      {/* Theme Picker — full palette swap */}
+      <ThemePicker />
 
       {/* Layout Mode */}
       <div className="mb-6">

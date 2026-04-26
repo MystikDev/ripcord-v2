@@ -27,6 +27,22 @@ import { AdminConsoleView } from '../admin/admin-console';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useHubStore } from '../../stores/server-store';
 import { useThemeOverrides } from '../../hooks/use-theme-overrides';
+import { applyTheme, THEMES } from '../../lib/themes';
+
+// Bootstrap the active theme synchronously at module load so the saved
+// palette is on the document root before the first paint. Without this,
+// users with a non-Orbit theme saved would see a one-frame flash of the
+// Orbit defaults (compiled into the @theme block) before useThemeOverrides
+// fires inside the first effect.
+if (typeof document !== 'undefined') {
+  try {
+    const id = useSettingsStore.getState().themeId;
+    applyTheme(THEMES[id] ?? THEMES.orbit);
+  } catch {
+    // Settings not yet rehydrated — first paint will use Orbit defaults,
+    // then useThemeOverrides will reconcile. Acceptable fallback.
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Component

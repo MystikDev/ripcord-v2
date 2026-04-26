@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { ThemeId } from '../lib/themes';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -133,6 +134,11 @@ export interface SettingsState {
   layoutMode: 'universe' | 'classic';
   /** Set the layout mode. */
   setLayoutMode: (mode: 'universe' | 'classic') => void;
+
+  /** Active theme palette. Default: 'orbit' */
+  themeId: ThemeId;
+  /** Set the active theme. */
+  setThemeId: (id: ThemeId) => void;
 
   /** Screen share resolution preset. Default: '1080p' */
   screenShareResolution: '720p' | '1080p' | '1440p' | 'source';
@@ -335,6 +341,9 @@ export const useSettingsStore = create<SettingsState>()(
       layoutMode: 'classic' as const,
       setLayoutMode: (mode) => set({ layoutMode: mode }),
 
+      themeId: 'orbit' as ThemeId,
+      setThemeId: (id) => set({ themeId: id }),
+
       screenShareResolution: '1080p',
       screenShareFrameRate: 30,
       screenShareAudioSource: 'system',
@@ -427,6 +436,7 @@ export const useSettingsStore = create<SettingsState>()(
         chatTextColor: state.chatTextColor,
         compactMode: state.compactMode,
         layoutMode: state.layoutMode,
+        themeId: state.themeId,
         screenShareResolution: state.screenShareResolution,
         screenShareFrameRate: state.screenShareFrameRate,
         screenShareAudioSource: state.screenShareAudioSource,
