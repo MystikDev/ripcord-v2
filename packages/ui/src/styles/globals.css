@@ -1,5 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-@import "tailwindcss";
+/* This stylesheet is a fragment — it expects the host to have already
+   imported `tailwindcss` and any required font URLs. Hosts: apps/web-client,
+   ripcord-ios. (apps/desktop has its own copy of these styles.) */
 
 @theme {
   /* ─── ORBIT Spatial Palette ─── */
