@@ -198,8 +198,19 @@ export function ChatArea() {
         )}
 
         {/* Floating HUD header */}
-        <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-6 py-4 pointer-events-none">
-          <div className="glass-panel px-5 py-2.5 rounded-2xl pointer-events-auto flex items-center gap-3">
+        <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-6 py-4 pointer-events-none max-md:px-3 max-md:py-2 max-md:pt-[max(0.5rem,env(safe-area-inset-top))]">
+          <div className="glass-panel px-5 py-2.5 rounded-2xl pointer-events-auto flex items-center gap-3 max-md:px-3 max-md:py-1.5 max-md:gap-2">
+            {/* Mobile hamburger — opens the channel drawer. Hidden on desktop. */}
+            <button
+              type="button"
+              onClick={() => useHubStore.getState().setMobileDrawerOpen(true)}
+              className="md:hidden -ml-1 mr-1 flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+              aria-label="Open channels"
+            >
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M2 4h12M2 8h12M2 12h12" />
+              </svg>
+            </button>
             {isDmView ? (
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent">
                 <path d="M8 14c3.866 0 7-2.686 7-6s-3.134-6-7-6-7 2.686-7 6c0 1.278.44 2.462 1.194 3.434L1.5 14.5l3.21-.92A7.576 7.576 0 008 14z" strokeLinecap="round" strokeLinejoin="round" />
@@ -289,12 +300,12 @@ export function ChatArea() {
               </svg>
             </button>
 
-            {/* Member list toggle (only for hub channels, not DMs) */}
+            {/* Member list toggle (only for hub channels, not DMs) — hidden on mobile since the panel itself is hidden there */}
             {!isDmView && (
               <button
                 onClick={toggleMemberList}
                 className={clsx(
-                  'w-9 h-9 rounded-xl flex items-center justify-center transition-colors',
+                  'w-9 h-9 rounded-xl flex items-center justify-center transition-colors max-md:hidden',
                   memberListVisible
                     ? 'bg-accent/20 text-accent'
                     : 'bg-white/5 hover:bg-white/10 text-text-muted hover:text-text-secondary',

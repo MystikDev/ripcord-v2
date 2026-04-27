@@ -56,6 +56,8 @@ export function AppShell() {
   const isDmView = useHubStore((s) => s.isDmView);
   const systemViewActive = useHubStore((s) => s.systemViewActive);
   const activeHubId = useHubStore((s) => s.activeHubId);
+  const mobileDrawerOpen = useHubStore((s) => s.mobileDrawerOpen);
+  const setMobileDrawerOpen = useHubStore((s) => s.setMobileDrawerOpen);
   useThemeOverrides();
 
   const isClassic = layoutMode === 'classic';
@@ -109,9 +111,20 @@ export function AppShell() {
           /* Cosmos landing — all hubs as nebulae */
           <CosmosView />
         ) : (
-          /* Normal 3-column layout */
+          /* Normal 3-column layout. On mobile (< md) the ChannelSidebar
+              becomes an off-canvas drawer; the chat area takes the full width
+              and the member list is hidden. */
           <>
-            {/* Middle: channel list */}
+            {/* Mobile backdrop — visible only when drawer open on narrow screens */}
+            {mobileDrawerOpen && (
+              <div
+                onClick={() => setMobileDrawerOpen(false)}
+                className="md:hidden fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
+                aria-label="Close menu"
+              />
+            )}
+
+            {/* Middle: channel list (drawer on mobile, fixed column on desktop) */}
             <ChannelSidebar />
 
             {/* Center: chat area, settings view, or admin console */}
@@ -122,8 +135,15 @@ export function AppShell() {
             ) : (
               <>
                 <ChatArea />
-                {/* Right: member list panel (not shown in DM view) */}
-                {memberListVisible && !isDmView && <MemberListPanel />}
+                {/* Right: member list panel — hidden on mobile and in DM view.
+                    `display: contents` on desktop lets MemberListPanel remain
+                    a direct flex child of the parent so its sibling layout
+                    still works. */}
+                {memberListVisible && !isDmView && (
+                  <div className="max-md:hidden md:contents">
+                    <MemberListPanel />
+                  </div>
+                )}
               </>
             )}
           </>

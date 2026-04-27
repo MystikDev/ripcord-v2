@@ -73,6 +73,10 @@ export interface HubState {
   /** Whether the full-screen solar system view is active (true = immersive, false = 3-column chat). */
   systemViewActive: boolean;
 
+  /** Mobile-only: whether the channel sidebar drawer is open (sliding over the chat).
+   *  No effect on desktop (the sidebar is always visible there). */
+  mobileDrawerOpen: boolean;
+
   /** Cached channel lists keyed by hubId, accumulated as hubs are visited. */
   hubChannelCache: Record<string, Channel[]>;
   /** Cached member user IDs per hub, accumulated as hubs are visited. */
@@ -105,6 +109,9 @@ export interface HubState {
   /** Set the solar system immersive view active state. */
   setSystemViewActive: (active: boolean) => void;
 
+  /** Open or close the mobile channel sidebar drawer. */
+  setMobileDrawerOpen: (open: boolean) => void;
+
   /** Cache member user IDs for a hub (for cosmos view online counts). */
   setHubMemberIds: (hubId: string, userIds: string[]) => void;
 
@@ -127,6 +134,7 @@ export const useHubStore = create<HubState>()((set, get) => ({
   isDmView: false,
   previousHubId: null,
   systemViewActive: true,
+  mobileDrawerOpen: false,
   hubChannelCache: {},
   hubMemberIds: {},
 
@@ -159,7 +167,7 @@ export const useHubStore = create<HubState>()((set, get) => ({
     }));
   },
 
-  setActiveChannel: (id) => set({ activeChannelId: id, systemViewActive: false }),
+  setActiveChannel: (id) => set({ activeChannelId: id, systemViewActive: false, mobileDrawerOpen: false }),
 
   setPendingVoiceJoin: (channelId) => set({ pendingVoiceJoin: channelId }),
 
@@ -172,6 +180,7 @@ export const useHubStore = create<HubState>()((set, get) => ({
       isDmView: true,
       activeHubId: null,
       channels: [],
+      mobileDrawerOpen: false,
     }),
 
   enterDmView: () => {
@@ -197,6 +206,8 @@ export const useHubStore = create<HubState>()((set, get) => ({
   }),
 
   setSystemViewActive: (active) => set({ systemViewActive: active }),
+
+  setMobileDrawerOpen: (open) => set({ mobileDrawerOpen: open }),
 
   setHubMemberIds: (hubId, userIds) =>
     set((state) => ({

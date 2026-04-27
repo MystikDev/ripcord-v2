@@ -530,8 +530,16 @@ export function ChannelSidebar() {
   const textChannels = channels.filter((c) => c.type === 'text');
   const voiceChannels = channels.filter((c) => c.type === 'voice');
 
+  // Mobile drawer state — on phones the sidebar slides in over the chat area.
+  const mobileDrawerOpen = useHubStore((s) => s.mobileDrawerOpen);
+
   return (
-    <div className="relative flex h-full flex-col glass-panel border-r border-white/5" style={{ width: sidebarWidth }}>
+    <div
+      className={`relative flex h-full flex-col glass-panel border-r border-white/5 max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:!w-[80vw] max-md:max-w-[320px] max-md:transition-transform max-md:duration-200 ${
+        mobileDrawerOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
+      }`}
+      style={{ width: sidebarWidth }}
+    >
       {/* Header */}
       <div className="flex h-12 items-center justify-between border-b border-white/5 px-4">
         <div className="flex items-center gap-2 min-w-0">
@@ -742,10 +750,10 @@ export function ChannelSidebar() {
         )}
       </div>
 
-      {/* Resize handle — cyan glow on hover */}
+      {/* Resize handle — cyan glow on hover. Hidden on mobile (touch can't drag a 2px handle, and the sidebar is a fixed-width drawer there). */}
       <div
         onMouseDown={handleResizeStart}
-        className="absolute top-0 right-0 z-10 h-full w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/50 transition-colors"
+        className="absolute top-0 right-0 z-10 h-full w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/50 transition-colors max-md:hidden"
       />
     </div>
   );
