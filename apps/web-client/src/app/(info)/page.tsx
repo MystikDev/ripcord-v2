@@ -1,36 +1,15 @@
-'use client';
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 // ---------------------------------------------------------------------------
 // Marketing landing page at https://ripcord.gg/
 //
 // Public-facing intro to Ripcord with primary CTAs to Sign Up / Log In.
-// If a logged-in user lands here we forward them straight to /app so the
-// landing page never blocks the authenticated experience.
+// We deliberately do NOT auto-redirect logged-in users to /app — stale auth
+// tokens in localStorage would trigger a /app → /login bounce and dump them
+// on the login page. Logged-in users can navigate via the buttons.
 // ---------------------------------------------------------------------------
 
 export default function HomePage() {
-  const router = useRouter();
-
-  // If the user is already logged in (auth token persisted by the desktop /
-  // iOS login flow shares the same key), bounce them into the app.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('ripcord-auth');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state?.userId) {
-          router.replace('/app');
-        }
-      }
-    } catch {
-      // localStorage unavailable — keep the marketing page visible.
-    }
-  }, [router]);
-
   return (
     <div>
       {/* ── Hero ───────────────────────────────────────────────────────── */}
