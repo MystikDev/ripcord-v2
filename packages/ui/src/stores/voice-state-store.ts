@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand';
-import { useAuthStore } from './auth-store.js';
+import { useAuthStore } from './auth-store';
 
 // ---------------------------------------------------------------------------
 // Types
