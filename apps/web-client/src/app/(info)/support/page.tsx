@@ -11,7 +11,7 @@ const PRIVACY_EMAIL = 'privacy@ripcord.gg';
 
 export default function SupportPage() {
   return (
-    <article className="prose prose-invert max-w-none">
+    <article className="prose prose-invert mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">Support</h1>
       <p className="mt-2 text-text-secondary">
         Need help with Ripcord? You're in the right place.

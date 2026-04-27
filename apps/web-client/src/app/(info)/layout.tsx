@@ -30,16 +30,27 @@ export default function InfoLayout({
             </div>
             <span className="text-lg font-semibold tracking-tight">Ripcord</span>
           </Link>
-          <nav className="flex items-center gap-6 text-sm text-text-secondary">
-            <Link href="/privacy" className="transition-colors hover:text-text-primary">Privacy</Link>
-            <Link href="/support" className="transition-colors hover:text-text-primary">Support</Link>
-            <Link href="/" className="transition-colors hover:text-text-primary">Home</Link>
+          <nav className="flex items-center gap-2 sm:gap-5 text-sm text-text-secondary">
+            <Link href="/privacy" className="hidden sm:inline-block transition-colors hover:text-text-primary">Privacy</Link>
+            <Link href="/support" className="hidden sm:inline-block transition-colors hover:text-text-primary">Support</Link>
+            <Link
+              href="/login?redirect=/app"
+              className="rounded-md px-3 py-1.5 transition-colors hover:text-text-primary hover:bg-white/5"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/register?redirect=/app"
+              className="rounded-md bg-accent px-3 py-1.5 font-medium text-white transition-colors hover:bg-accent-hover"
+            >
+              Sign up
+            </Link>
           </nav>
         </div>
       </header>
 
-      {/* Content */}
-      <main className="mx-auto max-w-3xl px-6 py-12">{children}</main>
+      {/* Content — pages set their own width constraint */}
+      <main>{children}</main>
 
       {/* Footer */}
       <footer className="mt-16 border-t border-border">
