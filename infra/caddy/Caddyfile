@@ -1,0 +1,44 @@
+# ============================================================================
+# Caddyfile — Ripcord production reverse proxy
+#
+# Caddy automatically obtains and renews Let's Encrypt TLS certificates.
+# All four hostnames must have DNS A records pointing to this VPS first.
+#
+# Deploy:
+#   sudo cp infra/caddy/Caddyfile /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+# ============================================================================
+
+# Web client (Next.js) — public-facing root domain
+ripcord.gg {
+	encode gzip zstd
+	reverse_proxy localhost:3000
+}
+
+# Apex www → root redirect
+www.ripcord.gg {
+	redir https://ripcord.gg{uri} permanent
+}
+
+# REST API
+api.ripcord.gg {
+	encode gzip zstd
+	reverse_proxy localhost:4000
+}
+
+# Authentication service
+auth.ripcord.gg {
+	encode gzip zstd
+	reverse_proxy localhost:4002
+}
+
+# Gateway (WebSocket) — Caddy auto-detects upgrade headers
+gw.ripcord.gg {
+	reverse_proxy localhost:4001
+}
+
+# Optional: keyservice (E2EE key exchange) — only enable if exposing publicly
+# keys.ripcord.gg {
+#     encode gzip zstd
+#     reverse_proxy localhost:4003
+# }

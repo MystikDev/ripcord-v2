@@ -1,0 +1,68 @@
+# ============================================================================
+# Dockerfile.web-client — Next.js standalone build for the Ripcord web client
+#
+# Usage:
+#   docker build -f infra/docker/Dockerfile.web-client -t ripcord-web-client .
+#
+# Produces a small runtime image (~150MB) using Next.js's standalone output,
+# which bundles only the Node deps actually used at runtime.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Install + build
+# ---------------------------------------------------------------------------
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+# 1. Workspace metadata + lockfile (cache layer)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+
+# 2. Workspace package manifests for the dependency graph
+COPY packages/shared-types/package.json packages/shared-types/
+COPY packages/ui/package.json packages/ui/
+COPY apps/web-client/package.json apps/web-client/
+
+# 3. Install dependencies — full graph, no frozen-lockfile because the desktop
+#    app and server packages are excluded by .dockerignore (see file beside this).
+RUN npm install -g pnpm && pnpm install --no-frozen-lockfile
+
+# 4. Source for everything the web client transitively needs
+COPY packages/shared-types/ packages/shared-types/
+COPY packages/ui/ packages/ui/
+COPY apps/web-client/ apps/web-client/
+
+# 5. NEXT_PUBLIC_* env vars are inlined into the client bundle at build time.
+#    They MUST be present in process.env during `next build`, so accept them
+#    as ARGs and re-export as ENVs.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_AUTH_URL
+ARG NEXT_PUBLIC_GATEWAY_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_AUTH_URL=${NEXT_PUBLIC_AUTH_URL}
+ENV NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL}
+
+# 6. Build the shared-types package first so @ripcord/types resolves; the UI
+#    package is consumed as source via Next.js's transpilePackages.
+RUN pnpm --filter @ripcord/types build && \
+    pnpm --filter web-client build
+
+# ---------------------------------------------------------------------------
+# Stage 2: Minimal runtime
+# ---------------------------------------------------------------------------
+FROM node:22-slim AS runtime
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+WORKDIR /app
+
+# Next.js standalone output bundles its own minimal node_modules + server.js
+COPY --from=builder /app/apps/web-client/.next/standalone/ ./
+COPY --from=builder /app/apps/web-client/.next/static ./apps/web-client/.next/static
+COPY --from=builder /app/apps/web-client/public ./apps/web-client/public
+
+EXPOSE 3000
+
+CMD ["node", "apps/web-client/server.js"]

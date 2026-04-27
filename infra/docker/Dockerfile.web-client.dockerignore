@@ -1,0 +1,25 @@
+# Per-Dockerfile dockerignore for the web-client build.
+# Overrides the repo-root .dockerignore so packages/ui and apps/web-client
+# are included in the build context (they're excluded for server builds).
+#
+# BuildKit auto-uses this file when building Dockerfile.web-client.
+
+node_modules
+dist
+.next
+.git
+.env
+.env.*
+*.md
+!README.md
+apps/desktop
+apps/engine
+apps/server-api
+apps/server-auth
+apps/server-gateway
+apps/server-keyservice
+apps/billing*
+apps/migrations
+*.tsbuildinfo
+.turbo
+.cache

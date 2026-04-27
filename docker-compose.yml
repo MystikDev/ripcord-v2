@@ -191,6 +191,27 @@ services:
       timeout: 5s
       retries: 3
 
+  # ---------------------------------------------------------------------------
+  # Web client (Next.js) — served at https://ripcord.gg via Caddy reverse proxy
+  # ---------------------------------------------------------------------------
+  web-client:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web-client
+      args:
+        # NEXT_PUBLIC_* vars are inlined at build time. Set the production
+        # API endpoints here so the resulting bundle talks to ripcord.gg.
+        NEXT_PUBLIC_API_URL: ${WEB_PUBLIC_API_URL:-https://api.ripcord.gg}
+        NEXT_PUBLIC_AUTH_URL: ${WEB_PUBLIC_AUTH_URL:-https://auth.ripcord.gg}
+        NEXT_PUBLIC_GATEWAY_URL: ${WEB_PUBLIC_GATEWAY_URL:-wss://gw.ripcord.gg}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+
 volumes:
   ripcord_pg:
   ripcord_minio:
